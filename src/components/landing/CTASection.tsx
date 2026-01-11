@@ -10,10 +10,10 @@ export function CTASection() {
       <div className="mx-auto max-w-6xl px-4">
         <div className="overflow-hidden rounded-3xl bg-primary px-8 py-16 text-center md:px-16">
           <h2 className="mb-4 text-3xl font-bold text-white md:text-4xl">
-            우리 어린이집도 담다와 함께하세요
+            지금, 담다와 함께 시작하세요.
           </h2>
           <p className="mb-8 text-lg text-white/80">
-            국공립 어린이집이라면 지금 바로 가입 신청하세요
+            보육기관 및 인증된 기관이라면 지금 바로 가입 신청하세요
           </p>
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button

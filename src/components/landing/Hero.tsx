@@ -18,7 +18,7 @@ export function Hero() {
           {/* Badge */}
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-white px-4 py-2 text-sm font-medium text-primary shadow-sm">
             <Shield className="h-4 w-4" />
-            국공립 어린이집 전용 폐쇄몰
+            보육 기관 전용 체험 플랫폼
           </div>
 
           {/* Main heading */}

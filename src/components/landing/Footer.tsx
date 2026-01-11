@@ -17,9 +17,9 @@ export function Footer() {
               <Image src="/logo.svg" alt="담다" width={80} height={32} className="h-8 w-auto" />
             </Link>
             <p className="mb-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-              담다는 국공립 어린이집을 위한 현장체험 예약 플랫폼입니다.
+              담다는 보육기관과 인증된 기관을 위한 현장체험 플랫폼입니다.
               <br />
-              검증된 업체의 프로그램을 간편하게 예약하세요.
+              안전하게 검증된 체험 프로그램만을 제공합니다.
             </p>
           </div>
 

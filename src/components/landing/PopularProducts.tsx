@@ -26,10 +26,6 @@ interface PopularProductsProps {
 }
 
 export function PopularProducts({ products }: PopularProductsProps) {
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("ko-KR").format(price);
-  };
-
   const getDiscountRate = (original: number, sale: number) => {
     if (original <= sale) return 0;
     return Math.round(((original - sale) / original) * 100);
@@ -79,11 +75,6 @@ export function PopularProducts({ products }: PopularProductsProps) {
                         fill
                         className="object-cover transition-transform group-hover:scale-105"
                       />
-                      {discountRate > 0 && (
-                        <Badge className="absolute left-3 top-3 bg-red-500">
-                          {discountRate}%
-                        </Badge>
-                      )}
                     </div>
 
                     {/* Content */}
@@ -110,16 +101,13 @@ export function PopularProducts({ products }: PopularProductsProps) {
                         </span>
                       </div>
 
-                      <div className="flex items-baseline gap-2">
-                        {discountRate > 0 && (
-                          <span className="text-sm text-muted-foreground line-through">
-                            {formatPrice(product.original_price)}원
+                      {discountRate > 0 && (
+                        <div className="flex items-center">
+                          <span className="text-lg font-bold text-red-500">
+                            {discountRate}% 할인
                           </span>
-                        )}
-                        <span className="text-lg font-bold text-primary">
-                          {formatPrice(product.sale_price)}원
-                        </span>
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Link>
