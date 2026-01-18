@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Providers } from "@/providers";
+import { FloatingChatButton } from "@/components/common/FloatingChatButton";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,7 +25,10 @@ export default function RootLayout({
         />
       </head>
       <body className="font-pretendard antialiased">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <FloatingChatButton />
+        </Providers>
       </body>
     </html>
   );

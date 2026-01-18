@@ -25,11 +25,11 @@ export default function AuthLayout({
           <div className="max-w-md text-center">
             <Link href="/" className="mb-8 inline-block">
               <Image
-                src="/logo.svg"
+                src="/logo-white.svg"
                 alt="담다"
-                width={120}
-                height={48}
-                className="mx-auto brightness-0 invert"
+                width={140}
+                height={52}
+                className="mx-auto"
               />
             </Link>
             <h1 className="mb-4 text-3xl font-bold leading-tight">

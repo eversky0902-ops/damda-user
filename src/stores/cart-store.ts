@@ -1,12 +1,28 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Product } from "@/types";
 import { STORAGE_KEYS } from "@/constants";
 
+export interface CartItemProduct {
+  id: string;
+  name: string;
+  thumbnail: string;
+  sale_price: number;
+  business_owner_name: string;
+}
+
+export interface CartItemOption {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
 export interface CartItem {
-  product: Product;
+  product: CartItemProduct;
   participants: number;
   reservationDate: string;
+  reservationTime?: string;
+  options?: CartItemOption[];
 }
 
 interface CartState {
@@ -48,10 +64,15 @@ export const useCartStore = create<CartState>()(
       clearCart: () => set({ items: [] }),
       getTotalAmount: () => {
         const { items } = get();
-        return items.reduce(
-          (total, item) => total + item.product.salePrice * item.participants,
-          0
-        );
+        return items.reduce((total, item) => {
+          let itemTotal = item.product.sale_price * item.participants;
+          if (item.options) {
+            item.options.forEach((opt) => {
+              itemTotal += opt.price * opt.quantity;
+            });
+          }
+          return total + itemTotal;
+        }, 0);
       },
       getItemCount: () => get().items.length,
     }),

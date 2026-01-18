@@ -1,0 +1,9 @@
+export { MainHeader } from "./MainHeader";
+export { MainFooter } from "./MainFooter";
+export { HeroBanner } from "./HeroBanner";
+export { CategoryGrid } from "./CategoryGrid";
+export { PromotionCards } from "./PromotionCards";
+export { EventTabs } from "./EventTabs";
+export { PopularExperiences } from "./PopularExperiences";
+export { BestReviews } from "./BestReviews";
+export { PromotionBanners } from "./PromotionBanners";

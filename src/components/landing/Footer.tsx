@@ -14,7 +14,7 @@ export function Footer() {
           {/* Brand */}
           <div className="md:col-span-2">
             <Link href="/" className="mb-4 inline-block">
-              <Image src="/logo.svg" alt="담다" width={80} height={32} className="h-8 w-auto" />
+              <Image src="/logo.svg" alt="담다" width={100} height={38} className="h-8 w-auto" />
             </Link>
             <p className="mb-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
               담다는 보육기관과 인증된 기관을 위한 현장체험 플랫폼입니다.

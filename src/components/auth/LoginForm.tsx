@@ -57,7 +57,7 @@ export function LoginForm() {
       }
 
       toast.success("로그인되었습니다");
-      router.push("/");
+      router.push("/home");
       router.refresh();
     } catch {
       toast.error("오류가 발생했습니다");

@@ -44,6 +44,14 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  /* 담다 브랜드 컬러 */
+  --color-damda-yellow: var(--damda-yellow);
+  --color-damda-yellow-light: var(--damda-yellow-light);
+  --color-damda-yellow-dark: var(--damda-yellow-dark);
+  --color-damda-teal: var(--damda-teal);
+  --color-damda-teal-light: var(--damda-teal-light);
+  --color-damda-teal-dark: var(--damda-teal-dark);
+  --color-damda-footer: var(--damda-footer);
 }
 
 :root {
@@ -54,10 +62,12 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.8 0.16 85);
-  --primary-foreground: oklch(0.145 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
+  /* Primary: #F8B737 (담다 노란색) */
+  --primary: #F8B737;
+  --primary-foreground: #1a1a1a;
+  /* Secondary: #34B7B1 (담다 청록색) */
+  --secondary: #34B7B1;
+  --secondary-foreground: #ffffff;
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
@@ -65,7 +75,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: #F8B737;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -73,13 +83,21 @@
   --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.8 0.16 85);
-  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-primary: #F8B737;
+  --sidebar-primary-foreground: #1a1a1a;
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-  /* Extended palette for decorations */
+  --sidebar-ring: #F8B737;
+  /* 담다 브랜드 컬러 팔레트 */
+  --damda-yellow: #F8B737;
+  --damda-yellow-light: #FFF4D6;
+  --damda-yellow-dark: #E5A020;
+  --damda-teal: #34B7B1;
+  --damda-teal-light: #E6F7F6;
+  --damda-teal-dark: #2A9690;
+  --damda-footer: #3d3d3d;
+  /* Legacy palette */
   --coral: #E07A5F;
   --sage: #7BAE7F;
   --sky: #8FBBCC;

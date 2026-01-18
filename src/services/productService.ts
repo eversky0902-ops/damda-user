@@ -9,11 +9,42 @@ export interface Product {
   sale_price: number;
   region: string | null;
   max_participants: number;
+  min_participants: number;
   view_count: number;
   is_visible: boolean;
+  is_sold_out: boolean;
+  category_id: string | null;
+  business_owner_id: string;
+  address: string | null;
+  duration_minutes: number | null;
+  created_at: string;
   business_owner?: {
+    id: string;
     name: string;
+    logo_url: string | null;
   };
+  category?: {
+    id: string;
+    name: string;
+    parent_id: string | null;
+  };
+}
+
+export interface ProductFilter {
+  categoryId?: string;
+  region?: string;
+  search?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sortBy?: "popular" | "newest" | "price_low" | "price_high";
+}
+
+export interface PaginatedProducts {
+  data: Product[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export async function getPopularProducts(limit = 8): Promise<Product[]> {
@@ -23,18 +54,16 @@ export async function getPopularProducts(limit = 8): Promise<Product[]> {
     .from("products")
     .select(
       `
-      id,
-      name,
-      summary,
-      thumbnail,
-      original_price,
-      sale_price,
-      region,
-      max_participants,
-      view_count,
-      is_visible,
+      *,
       business_owners:business_owner_id (
-        name
+        id,
+        name,
+        logo_url
+      ),
+      categories:category_id (
+        id,
+        name,
+        parent_id
       )
     `
     )
@@ -49,7 +78,8 @@ export async function getPopularProducts(limit = 8): Promise<Product[]> {
 
   return (data || []).map((item) => ({
     ...item,
-    business_owner: item.business_owners as unknown as { name: string },
+    business_owner: item.business_owners as unknown as Product["business_owner"],
+    category: item.categories as unknown as Product["category"],
   }));
 }
 
@@ -62,7 +92,14 @@ export async function getProductById(id: string): Promise<Product | null> {
       `
       *,
       business_owners:business_owner_id (
-        name
+        id,
+        name,
+        logo_url
+      ),
+      categories:category_id (
+        id,
+        name,
+        parent_id
       )
     `
     )
@@ -76,6 +113,405 @@ export async function getProductById(id: string): Promise<Product | null> {
 
   return {
     ...data,
-    business_owner: data.business_owners as unknown as { name: string },
+    business_owner: data.business_owners as unknown as Product["business_owner"],
+    category: data.categories as unknown as Product["category"],
+  };
+}
+
+export async function getProducts(
+  filter: ProductFilter = {},
+  page = 1,
+  pageSize = 12
+): Promise<PaginatedProducts> {
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("products")
+    .select(
+      `
+      *,
+      business_owners:business_owner_id (
+        id,
+        name,
+        logo_url
+      ),
+      categories:category_id (
+        id,
+        name,
+        parent_id
+      )
+    `,
+      { count: "exact" }
+    )
+    .eq("is_visible", true);
+
+  // 카테고리 필터
+  if (filter.categoryId) {
+    query = query.eq("category_id", filter.categoryId);
+  }
+
+  // 지역 필터
+  if (filter.region) {
+    query = query.eq("region", filter.region);
+  }
+
+  // 검색어 필터
+  if (filter.search) {
+    query = query.or(
+      `name.ilike.%${filter.search}%,summary.ilike.%${filter.search}%`
+    );
+  }
+
+  // 가격 필터
+  if (filter.minPrice !== undefined) {
+    query = query.gte("sale_price", filter.minPrice);
+  }
+  if (filter.maxPrice !== undefined) {
+    query = query.lte("sale_price", filter.maxPrice);
+  }
+
+  // 정렬
+  switch (filter.sortBy) {
+    case "newest":
+      query = query.order("created_at", { ascending: false });
+      break;
+    case "price_low":
+      query = query.order("sale_price", { ascending: true });
+      break;
+    case "price_high":
+      query = query.order("sale_price", { ascending: false });
+      break;
+    case "popular":
+    default:
+      query = query.order("view_count", { ascending: false });
+      break;
+  }
+
+  // 페이지네이션
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  query = query.range(from, to);
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error("Error fetching products:", JSON.stringify(error, null, 2));
+    console.error("Error message:", error.message);
+    console.error("Error code:", error.code);
+    console.error("Error details:", error.details);
+    console.error("Error hint:", error.hint);
+    return {
+      data: [],
+      total: 0,
+      page,
+      pageSize,
+      totalPages: 0,
+    };
+  }
+
+  const products = (data || []).map((item) => ({
+    ...item,
+    business_owner: item.business_owners as unknown as Product["business_owner"],
+    category: item.categories as unknown as Product["category"],
+  }));
+
+  const total = count || 0;
+
+  return {
+    data: products,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  };
+}
+
+export async function getProductsByCategory(
+  categoryId: string,
+  limit = 8
+): Promise<Product[]> {
+  const supabase = await createClient();
+
+  // 해당 카테고리와 하위 카테고리 ID들 가져오기
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("id")
+    .or(`id.eq.${categoryId},parent_id.eq.${categoryId}`);
+
+  const categoryIds = categories?.map((c) => c.id) || [categoryId];
+
+  const { data, error } = await supabase
+    .from("products")
+    .select(
+      `
+      *,
+      business_owners:business_owner_id (
+        id,
+        name,
+        logo_url
+      )
+    `
+    )
+    .eq("is_visible", true)
+    .in("category_id", categoryIds)
+    .order("view_count", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("Error fetching products by category:", error);
+    return [];
+  }
+
+  return (data || []).map((item) => ({
+    ...item,
+    business_owner: item.business_owners as unknown as Product["business_owner"],
+  }));
+}
+
+// 지역 목록 조회
+export async function getRegions(): Promise<string[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("region")
+    .eq("is_visible", true)
+    .not("region", "is", null);
+
+  if (error) {
+    console.error("Error fetching regions:", error);
+    return [];
+  }
+
+  const regions = [...new Set(data?.map((p) => p.region).filter(Boolean))] as string[];
+  return regions.sort();
+}
+
+// 예약 가능 시간 슬롯
+export interface ProductTimeSlot {
+  time: string;
+  label: string;
+  max_capacity?: number;
+}
+
+// 상품 상세 정보 (이미지, 옵션, 예약불가일 포함)
+export interface ProductDetail extends Product {
+  description: string | null;
+  images: ProductImage[];
+  options: ProductOption[];
+  unavailable_dates: ProductUnavailableDate[];
+  available_time_slots: ProductTimeSlot[] | null;
+}
+
+export interface ProductImage {
+  id: string;
+  product_id: string;
+  image_url: string;
+  sort_order: number;
+}
+
+export interface ProductOption {
+  id: string;
+  product_id: string;
+  name: string;
+  price: number;
+  is_required: boolean;
+  sort_order: number;
+}
+
+export interface ProductUnavailableDate {
+  id: string;
+  product_id: string;
+  unavailable_date: string;
+  reason: string | null;
+  is_recurring: boolean;
+  day_of_week: number | null;
+}
+
+export async function getProductDetail(id: string): Promise<ProductDetail | null> {
+  const supabase = await createClient();
+
+  // 상품 기본 정보
+  const { data: product, error: productError } = await supabase
+    .from("products")
+    .select(
+      `
+      *,
+      business_owners:business_owner_id (
+        id,
+        name,
+        logo_url,
+        address,
+        contact_phone
+      ),
+      categories:category_id (
+        id,
+        name,
+        parent_id
+      )
+    `
+    )
+    .eq("id", id)
+    .single();
+
+  if (productError || !product) {
+    console.error("Error fetching product detail:", productError);
+    return null;
+  }
+
+  // 상품 이미지
+  const { data: images } = await supabase
+    .from("product_images")
+    .select("*")
+    .eq("product_id", id)
+    .order("sort_order", { ascending: true });
+
+  // 상품 옵션
+  const { data: options } = await supabase
+    .from("product_options")
+    .select("*")
+    .eq("product_id", id)
+    .order("sort_order", { ascending: true });
+
+  // 예약 불가일
+  const { data: unavailableDates } = await supabase
+    .from("product_unavailable_dates")
+    .select("*")
+    .eq("product_id", id);
+
+  // 조회수 증가
+  await supabase
+    .from("products")
+    .update({ view_count: (product.view_count || 0) + 1 })
+    .eq("id", id);
+
+  return {
+    ...product,
+    business_owner: product.business_owners as unknown as ProductDetail["business_owner"],
+    category: product.categories as unknown as ProductDetail["category"],
+    images: images || [],
+    options: options || [],
+    unavailable_dates: unavailableDates || [],
+    available_time_slots: product.available_time_slots as ProductTimeSlot[] | null,
+  };
+}
+
+// 상품 리뷰 조회
+export interface ProductReview {
+  id: string;
+  product_id: string;
+  daycare_id: string;
+  rating: number;
+  content: string;
+  is_visible: boolean;
+  is_featured: boolean;
+  created_at: string;
+  daycare?: {
+    name: string;
+  };
+  images?: ReviewImage[];
+}
+
+export interface ReviewImage {
+  id: string;
+  review_id: string;
+  image_url: string;
+  sort_order: number;
+}
+
+export async function getProductReviews(
+  productId: string,
+  page = 1,
+  pageSize = 5
+): Promise<{ data: ProductReview[]; total: number; totalPages: number }> {
+  const supabase = await createClient();
+
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, error, count } = await supabase
+    .from("reviews")
+    .select(
+      `
+      *,
+      daycares:daycare_id (
+        name
+      ),
+      review_images (
+        id,
+        image_url,
+        sort_order
+      )
+    `,
+      { count: "exact" }
+    )
+    .eq("product_id", productId)
+    .eq("is_visible", true)
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (error) {
+    console.error("Error fetching product reviews:", error);
+    return { data: [], total: 0, totalPages: 0 };
+  }
+
+  const reviews = (data || []).map((item) => ({
+    ...item,
+    daycare: item.daycares as unknown as { name: string },
+    images: item.review_images as ReviewImage[],
+  }));
+
+  const total = count || 0;
+
+  return {
+    data: reviews,
+    total,
+    totalPages: Math.ceil(total / pageSize),
+  };
+}
+
+// 상품 리뷰 통계
+export interface ReviewStats {
+  averageRating: number;
+  totalCount: number;
+  ratingDistribution: { rating: number; count: number }[];
+}
+
+export async function getProductReviewStats(productId: string): Promise<ReviewStats> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("rating")
+    .eq("product_id", productId)
+    .eq("is_visible", true);
+
+  if (error || !data || data.length === 0) {
+    return {
+      averageRating: 0,
+      totalCount: 0,
+      ratingDistribution: [
+        { rating: 5, count: 0 },
+        { rating: 4, count: 0 },
+        { rating: 3, count: 0 },
+        { rating: 2, count: 0 },
+        { rating: 1, count: 0 },
+      ],
+    };
+  }
+
+  const totalCount = data.length;
+  const sum = data.reduce((acc, r) => acc + r.rating, 0);
+  const averageRating = Math.round((sum / totalCount) * 10) / 10;
+
+  const distribution = [5, 4, 3, 2, 1].map((rating) => ({
+    rating,
+    count: data.filter((r) => r.rating === rating).length,
+  }));
+
+  return {
+    averageRating,
+    totalCount,
+    ratingDistribution: distribution,
   };
 }
