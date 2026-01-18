@@ -1,72 +1,92 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useCartStore, type CartItem } from "@/stores/cart-store";
 import {
   getCart,
   addToCart as addToCartDB,
   removeFromCartByProductId,
   clearCart as clearCartDB,
-  type CartItemDB,
 } from "@/services/cartService";
 import { useAuth } from "./use-auth";
 
 export function useCart() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const store = useCartStore();
+
+  // 개별 selector로 store 함수들 가져오기 (참조 안정성 유지)
+  const items = useCartStore((state) => state.items);
+  const storeAddItem = useCartStore((state) => state.addItem);
+  const storeRemoveItem = useCartStore((state) => state.removeItem);
+  const storeUpdateItem = useCartStore((state) => state.updateItem);
+  const storeClearCart = useCartStore((state) => state.clearCart);
+  const getTotalAmount = useCartStore((state) => state.getTotalAmount);
+  const getItemCount = useCartStore((state) => state.getItemCount);
+
   const [isSyncing, setIsSyncing] = useState(false);
+  const hasSynced = useRef(false);
 
   // Supabase에서 장바구니 동기화
   const syncFromDB = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || hasSynced.current) return;
 
     setIsSyncing(true);
+    hasSynced.current = true;
+
     try {
       const dbCart = await getCart();
 
       // DB 데이터를 store 형식으로 변환
-      const items: CartItem[] = dbCart
+      const dbItems: CartItem[] = dbCart
         .filter((item) => item.product)
         .map((item) => ({
           product: {
             id: item.product!.id,
             name: item.product!.name,
             thumbnail: item.product!.thumbnail || "",
+            original_price: item.product!.original_price,
             sale_price: item.product!.sale_price,
             business_owner_name: item.product!.business_owner?.name || "",
           },
           participants: item.options?.participant_count || 1,
           reservationDate: item.reserved_date || new Date().toISOString(),
+          reservationTime: item.reserved_time || undefined,
           options: item.options?.options,
         }));
 
       // Store 초기화 후 DB 데이터로 채우기
-      store.clearCart();
-      items.forEach((item) => store.addItem(item));
+      storeClearCart();
+      dbItems.forEach((item) => storeAddItem(item));
     } catch (error) {
       console.error("Failed to sync cart from DB:", error);
+      hasSynced.current = false; // 실패 시 다시 시도 가능하도록
     } finally {
       setIsSyncing(false);
     }
-  }, [isAuthenticated, store]);
+  }, [isAuthenticated, storeClearCart, storeAddItem]);
 
   // 인증 상태 변경 시 동기화
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
+    if (!authLoading && isAuthenticated && !hasSynced.current) {
       syncFromDB();
+    }
+
+    // 로그아웃 시 동기화 상태 리셋
+    if (!isAuthenticated) {
+      hasSynced.current = false;
     }
   }, [authLoading, isAuthenticated, syncFromDB]);
 
   // 장바구니에 추가
   const addItem = useCallback(
     async (item: CartItem) => {
-      store.addItem(item);
+      storeAddItem(item);
 
       if (isAuthenticated) {
         try {
           await addToCartDB({
             productId: item.product.id,
             reservedDate: item.reservationDate,
+            reservedTime: item.reservationTime,
             participantCount: item.participants,
             options: item.options,
           });
@@ -75,13 +95,13 @@ export function useCart() {
         }
       }
     },
-    [isAuthenticated, store]
+    [isAuthenticated, storeAddItem]
   );
 
   // 장바구니에서 삭제
   const removeItem = useCallback(
     async (productId: string) => {
-      store.removeItem(productId);
+      storeRemoveItem(productId);
 
       if (isAuthenticated) {
         try {
@@ -91,21 +111,24 @@ export function useCart() {
         }
       }
     },
-    [isAuthenticated, store]
+    [isAuthenticated, storeRemoveItem]
   );
 
   // 장바구니 아이템 업데이트
   const updateItem = useCallback(
     async (productId: string, updates: Partial<Omit<CartItem, "product">>) => {
-      store.updateItem(productId, updates);
+      storeUpdateItem(productId, updates);
 
       if (isAuthenticated) {
-        const item = store.items.find((i) => i.product.id === productId);
+        // 현재 아이템 찾기
+        const currentItems = useCartStore.getState().items;
+        const item = currentItems.find((i) => i.product.id === productId);
         if (item) {
           try {
             await addToCartDB({
               productId,
               reservedDate: updates.reservationDate || item.reservationDate,
+              reservedTime: updates.reservationTime || item.reservationTime,
               participantCount: updates.participants || item.participants,
               options: updates.options || item.options,
             });
@@ -115,12 +138,12 @@ export function useCart() {
         }
       }
     },
-    [isAuthenticated, store]
+    [isAuthenticated, storeUpdateItem]
   );
 
   // 장바구니 비우기
   const clearCart = useCallback(async () => {
-    store.clearCart();
+    storeClearCart();
 
     if (isAuthenticated) {
       try {
@@ -129,17 +152,17 @@ export function useCart() {
         console.error("Failed to clear cart in DB:", error);
       }
     }
-  }, [isAuthenticated, store]);
+  }, [isAuthenticated, storeClearCart]);
 
   return {
-    items: store.items,
+    items,
     isSyncing,
     addItem,
     removeItem,
     updateItem,
     clearCart,
-    getTotalAmount: store.getTotalAmount,
-    getItemCount: store.getItemCount,
+    getTotalAmount,
+    getItemCount,
     syncFromDB,
   };
 }

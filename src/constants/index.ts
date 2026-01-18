@@ -29,7 +29,7 @@ export const ROUTES = {
   MY_RESERVATIONS: "/mypage/reservations",
   MY_WISHLIST: "/mypage/wishlist",
   MY_REVIEWS: "/mypage/reviews",
-  NOTICES: "/notices",
+  NOTICE: "/notice",
   FAQ: "/faq",
   INQUIRY: "/inquiry",
 } as const;

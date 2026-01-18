@@ -21,7 +21,7 @@ import "react-day-picker/style.css";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { useCartStore } from "@/stores/cart-store";
+import { useCart } from "@/hooks/use-cart";
 import { toast } from "sonner";
 import { format, addDays, isBefore, isAfter, startOfDay, getDay } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -33,7 +33,7 @@ interface ProductDetailInfoProps {
 
 export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
   const router = useRouter();
-  const { addItem } = useCartStore();
+  const { addItem } = useCart();
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState<string | undefined>();
@@ -166,6 +166,7 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
         id: product.id,
         name: product.name,
         thumbnail: product.thumbnail,
+        original_price: product.original_price,
         sale_price: product.sale_price,
         business_owner_name: product.business_owner?.name || "",
       },

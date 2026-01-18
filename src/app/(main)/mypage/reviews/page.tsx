@@ -3,9 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Star, PenLine, Calendar } from "lucide-react";
+import { Star, PenLine, Calendar, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -155,9 +154,9 @@ export default function MyReviewsPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-xl font-bold text-gray-900">내 리뷰</h1>
-        <div className="text-center py-16 bg-white rounded-xl">
+      <div className="px-4 py-6">
+        <h1 className="text-xl font-bold text-gray-900 mb-6">내 리뷰</h1>
+        <div className="text-center py-16 bg-gray-50 rounded-xl">
           <Star className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             로그인이 필요합니다
@@ -171,8 +170,8 @@ export default function MyReviewsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="px-4 py-6">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-gray-900">내 리뷰</h1>
       </div>
 
@@ -182,25 +181,33 @@ export default function MyReviewsPage() {
           <TabsTrigger value="writable">작성 가능 ({reviewable.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="written" className="mt-6">
+        <TabsContent value="written" className="mt-4">
           {reviews.length === 0 ? (
             <EmptyWrittenState />
           ) : (
-            <div className="space-y-4">
-              {reviews.map((review) => (
-                <ReviewCard key={review.id} review={review} />
+            <div className="border-t border-gray-200">
+              {reviews.map((review, index) => (
+                <ReviewItem
+                  key={review.id}
+                  review={review}
+                  isLast={index === reviews.length - 1}
+                />
               ))}
             </div>
           )}
         </TabsContent>
 
-        <TabsContent value="writable" className="mt-6">
+        <TabsContent value="writable" className="mt-4">
           {reviewable.length === 0 ? (
             <EmptyWritableState />
           ) : (
-            <div className="space-y-4">
-              {reviewable.map((reservation) => (
-                <ReviewableCard key={reservation.id} reservation={reservation} />
+            <div className="border-t border-gray-200">
+              {reviewable.map((reservation, index) => (
+                <ReviewableItem
+                  key={reservation.id}
+                  reservation={reservation}
+                  isLast={index === reviewable.length - 1}
+                />
               ))}
             </div>
           )}
@@ -210,141 +217,135 @@ export default function MyReviewsPage() {
   );
 }
 
-function ReviewCard({ review }: { review: Review }) {
+function ReviewItem({ review, isLast }: { review: Review; isLast: boolean }) {
   return (
-    <Card>
-      <CardContent className="p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row gap-4">
-          {/* 이미지 */}
-          <Link
-            href={`/products/${review.product?.id}`}
-            className="relative w-full sm:w-24 h-24 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0"
-          >
-            <Image
-              src={review.product?.thumbnail || "https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=400&q=80"}
-              alt={review.product?.name || ""}
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 100vw, 96px"
-            />
-          </Link>
-
-          <div className="flex-1 min-w-0">
-            {/* 상품명 */}
-            <Link
-              href={`/products/${review.product?.id}`}
-              className="font-medium text-gray-900 hover:text-damda-yellow-dark line-clamp-1 mb-2"
-            >
-              {review.product?.name}
-            </Link>
-
-            {/* 평점 & 날짜 */}
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    className={`w-4 h-4 ${
-                      star <= review.rating
-                        ? "fill-yellow-400 text-yellow-400"
-                        : "text-gray-300"
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="text-xs text-gray-500">
-                {format(parseISO(review.created_at), "yyyy.MM.dd", { locale: ko })}
-              </span>
-              {review.is_featured && (
-                <Badge variant="secondary" className="text-xs bg-damda-yellow-light text-damda-yellow-dark">
-                  추천 리뷰
-                </Badge>
-              )}
-            </div>
-
-            {/* 리뷰 내용 */}
-            <p className="text-sm text-gray-700 line-clamp-3">{review.content}</p>
-
-            {/* 리뷰 이미지 */}
-            {review.images && review.images.length > 0 && (
-              <div className="flex gap-2 mt-3">
-                {review.images.map((image) => (
-                  <div
-                    key={image.id}
-                    className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100"
-                  >
-                    <Image
-                      src={image.image_url}
-                      alt="리뷰 이미지"
-                      fill
-                      className="object-cover"
-                      sizes="64px"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+    <Link
+      href={`/products/${review.product?.id}`}
+      className={`flex items-center gap-3 py-3 hover:bg-gray-50 transition-colors ${
+        !isLast ? "border-b border-gray-100" : ""
+      }`}
+    >
+      {/* 상품 썸네일 */}
+      <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+        {review.product?.thumbnail ? (
+          <Image
+            src={review.product.thumbnail}
+            alt={review.product?.name || "상품"}
+            fill
+            className="object-cover"
+            sizes="56px"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Star className="w-5 h-5 text-gray-300" />
           </div>
+        )}
+      </div>
+
+      {/* 리뷰 정보 */}
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-gray-900 truncate text-sm">
+          {review.product?.name || "상품 정보 없음"}
+        </p>
+        <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                className={`w-3 h-3 ${
+                  star <= review.rating
+                    ? "fill-yellow-400 text-yellow-400"
+                    : "text-gray-300"
+                }`}
+              />
+            ))}
+          </div>
+          <span className="text-xs text-gray-500">
+            {format(parseISO(review.created_at), "yyyy.MM.dd", { locale: ko })}
+          </span>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* 추천 배지 & 화살표 */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {review.is_featured && (
+          <Badge className="text-xs bg-damda-yellow-light text-damda-yellow-dark">
+            추천
+          </Badge>
+        )}
+        <ChevronRight className="w-4 h-4 text-gray-300" />
+      </div>
+    </Link>
   );
 }
 
-function ReviewableCard({ reservation }: { reservation: ReviewableReservation }) {
+function ReviewableItem({
+  reservation,
+  isLast,
+}: {
+  reservation: ReviewableReservation;
+  isLast: boolean;
+}) {
   return (
-    <Card>
-      <CardContent className="p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row gap-4">
-          {/* 이미지 */}
-          <Link
-            href={`/products/${reservation.product?.id}`}
-            className="relative w-full sm:w-24 h-24 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0"
-          >
-            <Image
-              src={reservation.product?.thumbnail || "https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=400&q=80"}
-              alt={reservation.product?.name || ""}
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 100vw, 96px"
-            />
-          </Link>
-
-          <div className="flex-1 min-w-0">
-            {/* 상품명 */}
-            <Link
-              href={`/products/${reservation.product?.id}`}
-              className="font-medium text-gray-900 hover:text-damda-yellow-dark line-clamp-1 mb-2"
-            >
-              {reservation.product?.name}
-            </Link>
-
-            {/* 예약 정보 */}
-            <p className="text-sm text-gray-500 flex items-center gap-1 mb-4">
-              <Calendar className="w-4 h-4" />
-              {format(parseISO(reservation.reserved_date), "yyyy.MM.dd (EEE)", {
-                locale: ko,
-              })}
-              · {reservation.participant_count}명 체험
-            </p>
-
-            {/* 리뷰 작성 버튼 */}
-            <Button asChild className="bg-damda-yellow hover:bg-damda-yellow-dark">
-              <Link href={`/mypage/reviews/new?reservationId=${reservation.id}`}>
-                <PenLine className="w-4 h-4 mr-2" />
-                리뷰 작성하기
-              </Link>
-            </Button>
+    <div
+      className={`flex items-center gap-3 py-3 ${
+        !isLast ? "border-b border-gray-100" : ""
+      }`}
+    >
+      {/* 상품 썸네일 */}
+      <Link
+        href={`/products/${reservation.product?.id}`}
+        className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100"
+      >
+        {reservation.product?.thumbnail ? (
+          <Image
+            src={reservation.product.thumbnail}
+            alt={reservation.product?.name || "상품"}
+            fill
+            className="object-cover"
+            sizes="56px"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <PenLine className="w-5 h-5 text-gray-300" />
           </div>
+        )}
+      </Link>
+
+      {/* 예약 정보 */}
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-gray-900 truncate text-sm">
+          {reservation.product?.name || "상품 정보 없음"}
+        </p>
+        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+          <span>
+            {format(parseISO(reservation.reserved_date), "M월 d일 (E)", {
+              locale: ko,
+            })}
+          </span>
+          <span>·</span>
+          <span>{reservation.participant_count}명</span>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* 리뷰 작성 버튼 */}
+      <Button
+        asChild
+        size="sm"
+        className="bg-damda-yellow hover:bg-damda-yellow-dark text-gray-900 flex-shrink-0"
+      >
+        <Link href={`/mypage/reviews/new?reservationId=${reservation.id}`}>
+          <PenLine className="w-3.5 h-3.5 mr-1" />
+          리뷰 작성
+        </Link>
+      </Button>
+    </div>
   );
 }
 
 function EmptyWrittenState() {
   return (
-    <div className="text-center py-16 bg-white rounded-xl">
+    <div className="text-center py-16 bg-gray-50 rounded-xl mt-4">
       <Star className="w-16 h-16 text-gray-300 mx-auto mb-4" />
       <h3 className="text-lg font-medium text-gray-900 mb-2">작성한 리뷰가 없습니다</h3>
       <p className="text-gray-500">체험 후 리뷰를 남겨주세요!</p>
@@ -354,7 +355,7 @@ function EmptyWrittenState() {
 
 function EmptyWritableState() {
   return (
-    <div className="text-center py-16 bg-white rounded-xl">
+    <div className="text-center py-16 bg-gray-50 rounded-xl mt-4">
       <PenLine className="w-16 h-16 text-gray-300 mx-auto mb-4" />
       <h3 className="text-lg font-medium text-gray-900 mb-2">작성 가능한 리뷰가 없습니다</h3>
       <p className="text-gray-500 mb-6">체험을 완료하면 리뷰를 작성할 수 있습니다.</p>
@@ -367,20 +368,18 @@ function EmptyWritableState() {
 
 function ReviewsSkeleton() {
   return (
-    <div className="space-y-6">
-      <Skeleton className="h-7 w-24" />
-      <Skeleton className="h-10 w-full" />
-      <div className="space-y-4">
-        {[1, 2].map((i) => (
-          <div key={i} className="bg-white rounded-xl p-6">
-            <div className="flex gap-4">
-              <Skeleton className="w-24 h-24 rounded-lg" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-5 w-3/4" />
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-16 w-full" />
-              </div>
+    <div className="px-4 py-6">
+      <Skeleton className="h-7 w-24 mb-4" />
+      <Skeleton className="h-10 w-full mb-4" />
+      <div className="border-t border-gray-200">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center gap-3 py-3 border-b border-gray-100">
+            <Skeleton className="w-14 h-14 rounded-lg flex-shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
             </div>
+            <Skeleton className="w-4 h-4" />
           </div>
         ))}
       </div>

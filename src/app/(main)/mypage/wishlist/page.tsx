@@ -3,9 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Trash2, ShoppingCart, MapPin, Loader2 } from "lucide-react";
+import { Heart, Trash2, MapPin, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -52,8 +51,8 @@ export default function WishlistPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-xl font-bold text-gray-900">찜 목록</h1>
+      <div className="px-4 py-6">
+        <h1 className="text-xl font-bold text-gray-900 mb-6">찜 목록</h1>
         <div className="text-center py-16 bg-white rounded-xl">
           <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -148,14 +147,14 @@ export default function WishlistPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="px-4 py-6">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-gray-900">찜 목록</h1>
         <span className="text-sm text-gray-500">{wishlist.length}개</span>
       </div>
 
       {/* 전체 선택 */}
-      <div className="flex items-center justify-between bg-white rounded-lg p-4">
+      <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4 mb-4">
         <label className="flex items-center gap-3 cursor-pointer">
           <Checkbox
             checked={selectedIds.size === wishlist.length && wishlist.length > 0}
@@ -182,13 +181,14 @@ export default function WishlistPage() {
       </div>
 
       {/* 찜 목록 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {wishlist.map((item) => (
-          <WishlistCard
+      <div className="border-t border-gray-200">
+        {wishlist.map((item, index) => (
+          <WishlistItem
             key={item.id}
             item={item}
             isSelected={selectedIds.has(item.id)}
             isDeleting={deletingIds.has(item.id)}
+            isLast={index === wishlist.length - 1}
             onSelect={() => toggleSelect(item.id)}
             onDelete={() => handleDelete(item.id, item.product_id)}
           />
@@ -198,21 +198,24 @@ export default function WishlistPage() {
   );
 }
 
-interface WishlistCardProps {
+interface WishlistItemProps {
   item: WishlistItem;
   isSelected: boolean;
   isDeleting: boolean;
+  isLast: boolean;
   onSelect: () => void;
   onDelete: () => void;
 }
 
-function WishlistCard({
+function WishlistItem({
   item,
   isSelected,
   isDeleting,
+  isLast,
   onSelect,
   onDelete,
-}: WishlistCardProps) {
+}: WishlistItemProps) {
+  const [imageError, setImageError] = useState(false);
   const discountRate =
     item.product &&
     item.product.original_price > item.product.sale_price
@@ -224,105 +227,109 @@ function WishlistCard({
       : 0;
 
   return (
-    <Card className={`overflow-hidden ${isDeleting ? "opacity-50" : ""}`}>
-      <CardContent className="p-0">
-        <div className="flex">
-          {/* 체크박스 */}
-          <div className="p-4 flex items-start">
-            <Checkbox
-              checked={isSelected}
-              onCheckedChange={onSelect}
-              disabled={isDeleting}
+    <div
+      className={`flex items-center gap-3 py-3 ${
+        !isLast ? "border-b border-gray-100" : ""
+      } ${isDeleting ? "opacity-50" : ""}`}
+    >
+      {/* 체크박스 */}
+      <Checkbox
+        checked={isSelected}
+        onCheckedChange={onSelect}
+        disabled={isDeleting}
+        className="flex-shrink-0"
+      />
+
+      {/* 상품 썸네일 */}
+      <Link
+        href={`/products/${item.product?.id}`}
+        className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-50"
+      >
+        {imageError || !item.product?.thumbnail ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Image
+              src="/logo.svg"
+              alt="담다"
+              width={32}
+              height={20}
+              className="opacity-30"
             />
           </div>
+        ) : (
+          <Image
+            src={item.product.thumbnail}
+            alt={item.product?.name || ""}
+            fill
+            className="object-cover"
+            sizes="56px"
+            onError={() => setImageError(true)}
+          />
+        )}
+        {item.product?.is_sold_out && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <span className="text-white text-[10px] font-bold">품절</span>
+          </div>
+        )}
+      </Link>
 
-          {/* 이미지 */}
-          <Link
-            href={`/products/${item.product?.id}`}
-            className="relative w-24 h-24 flex-shrink-0 bg-gray-100"
-          >
-            <Image
-              src={item.product?.thumbnail || "https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=400&q=80"}
-              alt={item.product?.name || ""}
-              fill
-              className="object-cover"
-              sizes="96px"
-            />
-            {item.product?.is_sold_out && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                <span className="text-white text-xs font-bold">품절</span>
-              </div>
-            )}
-          </Link>
-
-          {/* 정보 */}
-          <div className="flex-1 p-4 min-w-0">
-            <Link
-              href={`/products/${item.product?.id}`}
-              className="font-medium text-gray-900 hover:text-damda-yellow-dark line-clamp-1 text-sm"
-            >
-              {item.product?.name}
-            </Link>
-            {item.product?.region && (
-              <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+      {/* 상품 정보 */}
+      <Link
+        href={`/products/${item.product?.id}`}
+        className="flex-1 min-w-0"
+      >
+        <p className="font-medium text-gray-900 truncate text-sm">
+          {item.product?.name}
+        </p>
+        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+          {item.product?.region && (
+            <>
+              <span className="flex items-center gap-0.5">
                 <MapPin className="w-3 h-3" />
                 {item.product.region}
-              </p>
-            )}
-            <div className="mt-2 flex items-baseline gap-2">
-              {discountRate > 0 && (
-                <>
-                  <span className="text-sm font-bold text-red-500">
-                    {discountRate}%
-                  </span>
-                  <span className="text-xs text-gray-400 line-through">
-                    {item.product?.original_price.toLocaleString()}원
-                  </span>
-                </>
-              )}
-              <span className="font-bold text-gray-900">
-                {item.product?.sale_price.toLocaleString()}원
               </span>
-            </div>
-          </div>
-
-          {/* 액션 */}
-          <div className="p-4 flex flex-col justify-between items-end">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-gray-400 hover:text-red-500 h-8 w-8"
-              onClick={onDelete}
-              disabled={isDeleting}
-            >
-              {isDeleting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Trash2 className="w-4 h-4" />
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={item.product?.is_sold_out || isDeleting}
-              asChild
-            >
-              <Link href={`/products/${item.product?.id}`}>
-                <ShoppingCart className="w-4 h-4" />
-              </Link>
-            </Button>
-          </div>
+            </>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </Link>
+
+      {/* 가격 */}
+      <div className="text-right flex-shrink-0">
+        {discountRate > 0 && (
+          <span className="text-xs font-bold text-red-500 mr-1">
+            {discountRate}%
+          </span>
+        )}
+        <p className="text-sm font-medium text-gray-900">
+          {item.product?.sale_price.toLocaleString()}원
+        </p>
+      </div>
+
+      {/* 삭제 버튼 */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="text-gray-400 hover:text-red-500 h-8 w-8 flex-shrink-0"
+        onClick={(e) => {
+          e.preventDefault();
+          onDelete();
+        }}
+        disabled={isDeleting}
+      >
+        {isDeleting ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <Trash2 className="w-4 h-4" />
+        )}
+      </Button>
+    </div>
   );
 }
 
 function EmptyState() {
   return (
-    <div className="space-y-6">
-      <h1 className="text-xl font-bold text-gray-900">찜 목록</h1>
-      <div className="text-center py-16 bg-white rounded-xl">
+    <div className="px-4 py-6">
+      <h1 className="text-xl font-bold text-gray-900 mb-6">찜 목록</h1>
+      <div className="text-center py-16 bg-gray-50 rounded-xl">
         <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">
           찜한 상품이 없습니다
@@ -338,13 +345,13 @@ function EmptyState() {
 
 function WishlistSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between">
+    <div className="px-4 py-6">
+      <div className="flex justify-between mb-4">
         <Skeleton className="h-7 w-24" />
         <Skeleton className="h-5 w-12" />
       </div>
-      <Skeleton className="h-14 w-full rounded-lg" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <Skeleton className="h-14 w-full rounded-lg mb-4" />
+      <div className="grid grid-cols-1 gap-4">
         {[1, 2, 3, 4].map((i) => (
           <Skeleton key={i} className="h-24 rounded-xl" />
         ))}

@@ -331,3 +331,196 @@ export async function isInCart(productId: string): Promise<boolean> {
 
   return !!data;
 }
+
+// 예약 가능 여부 확인
+export interface UnavailableItem {
+  productId: string;
+  productName: string;
+  reservedDate: string;
+  reservedTime: string | null;
+  reason: "sold_out" | "time_passed" | "fully_booked";
+}
+
+// 예약 생성
+export interface CreateReservationItem {
+  productId: string;
+  reservedDate: string;
+  reservedTime?: string | null;
+  participants: number;
+  options?: Array<{
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
+  totalAmount: number;
+}
+
+export interface CreateReservationParams {
+  items: CreateReservationItem[];
+  reserverInfo: {
+    name: string;
+    phone: string;
+    email?: string;
+    daycareName?: string;
+  };
+  paymentMethod: string;
+}
+
+export async function createReservations(
+  params: CreateReservationParams
+): Promise<{ success: boolean; orderId?: string; error?: string }> {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  try {
+    // 각 아이템에 대해 상품 정보 조회 및 예약 생성
+    const reservations = [];
+
+    for (const item of params.items) {
+      // 상품에서 business_owner_id 조회
+      const { data: product } = await supabase
+        .from("products")
+        .select("business_owner_id")
+        .eq("id", item.productId)
+        .single();
+
+      if (!product) {
+        return { success: false, error: "상품 정보를 찾을 수 없습니다." };
+      }
+
+      // 예약 번호 생성 (RES + timestamp + random)
+      const reservationNumber = `RES${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+      reservations.push({
+        reservation_number: reservationNumber,
+        daycare_id: user.id,
+        product_id: item.productId,
+        business_owner_id: product.business_owner_id,
+        reserved_date: item.reservedDate,
+        reserved_time: item.reservedTime || null,
+        participant_count: item.participants,
+        total_amount: item.totalAmount,
+        status: "confirmed",
+      });
+    }
+
+    const { error } = await supabase.from("reservations").insert(reservations);
+
+    if (error) {
+      console.error("Error creating reservations:", error);
+      return { success: false, error: "예약 생성에 실패했습니다: " + error.message };
+    }
+
+    return { success: true, orderId: reservations[0]?.reservation_number };
+  } catch (error) {
+    console.error("Error creating reservations:", error);
+    return { success: false, error: "예약 생성 중 오류가 발생했습니다." };
+  }
+}
+
+export async function checkCartAvailability(
+  items: Array<{
+    productId: string;
+    productName: string;
+    reservedDate: string;
+    reservedTime?: string | null;
+    participants: number;
+  }>
+): Promise<UnavailableItem[]> {
+  const supabase = createClient();
+  const unavailableItems: UnavailableItem[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (const item of items) {
+    // 1. 예약 날짜가 지났는지 확인
+    const reservedDate = new Date(item.reservedDate);
+    reservedDate.setHours(0, 0, 0, 0);
+
+    if (reservedDate < today) {
+      unavailableItems.push({
+        productId: item.productId,
+        productName: item.productName,
+        reservedDate: item.reservedDate,
+        reservedTime: item.reservedTime || null,
+        reason: "time_passed",
+      });
+      continue;
+    }
+
+    // 2. 오늘인데 예약 시간이 지났는지 확인
+    if (reservedDate.getTime() === today.getTime() && item.reservedTime) {
+      const [hours, minutes] = item.reservedTime.split(":").map(Number);
+      const now = new Date();
+      if (now.getHours() > hours || (now.getHours() === hours && now.getMinutes() >= minutes)) {
+        unavailableItems.push({
+          productId: item.productId,
+          productName: item.productName,
+          reservedDate: item.reservedDate,
+          reservedTime: item.reservedTime,
+          reason: "time_passed",
+        });
+        continue;
+      }
+    }
+
+    // 3. 상품이 품절인지 확인
+    const { data: product } = await supabase
+      .from("products")
+      .select("is_sold_out, max_participants")
+      .eq("id", item.productId)
+      .single();
+
+    if (product?.is_sold_out) {
+      unavailableItems.push({
+        productId: item.productId,
+        productName: item.productName,
+        reservedDate: item.reservedDate,
+        reservedTime: item.reservedTime || null,
+        reason: "sold_out",
+      });
+      continue;
+    }
+
+    // 4. 해당 날짜/시간에 예약이 꽉 찼는지 확인
+    if (product?.max_participants) {
+      let query = supabase
+        .from("reservations")
+        .select("participant_count")
+        .eq("product_id", item.productId)
+        .eq("reserved_date", item.reservedDate)
+        .in("status", ["pending", "paid", "confirmed"]);
+
+      if (item.reservedTime) {
+        query = query.eq("reserved_time", item.reservedTime);
+      }
+
+      const { data: existingReservations } = await query;
+
+      const totalBooked = existingReservations?.reduce(
+        (sum, r) => sum + (r.participant_count || 0),
+        0
+      ) || 0;
+
+      if (totalBooked + item.participants > product.max_participants) {
+        unavailableItems.push({
+          productId: item.productId,
+          productName: item.productName,
+          reservedDate: item.reservedDate,
+          reservedTime: item.reservedTime || null,
+          reason: "fully_booked",
+        });
+      }
+    }
+  }
+
+  return unavailableItems;
+}

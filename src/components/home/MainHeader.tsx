@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { User, ShoppingCart, Bell } from "lucide-react";
+import { User, ShoppingCart } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useCartStore } from "@/stores/cart-store";
 
@@ -40,7 +40,7 @@ export function MainHeader() {
             </>
           )}
           <span className="text-gray-300">|</span>
-          <Link href="/notices" className="hover:text-gray-900">공지사항</Link>
+          <Link href="/notice" className="hover:text-gray-900">공지사항</Link>
           <span className="text-gray-300">|</span>
           <Link href="/faq" className="hover:text-gray-900">FAQ</Link>
         </div>
@@ -73,9 +73,6 @@ export function MainHeader() {
                   {cartItemCount > 9 ? "9+" : cartItemCount}
                 </span>
               )}
-            </Link>
-            <Link href="/notices" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-              <Bell className="w-6 h-6 text-gray-700" />
             </Link>
           </div>
         </div>
