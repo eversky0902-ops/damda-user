@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import Script from "next/script";
 import { useRouter } from "next/navigation";
 import {
   Calendar,
@@ -12,7 +13,6 @@ import {
   Building2,
   ChevronLeft,
   Lock,
-  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCartStore } from "@/stores/cart-store";
 import { useAuth } from "@/hooks/use-auth";
-import { checkCartAvailability, createReservations, clearCart as clearCartDB, type UnavailableItem } from "@/services/cartService";
+import { checkCartAvailability, type UnavailableItem } from "@/services/cartService";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -34,14 +34,13 @@ const PAYMENT_METHODS = [
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, getTotalAmount, clearCart } = useCartStore();
+  const { items, getTotalAmount } = useCartStore();
   const { user, profile } = useAuth();
 
   const [mounted, setMounted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [isProcessing, setIsProcessing] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [isPaymentComplete, setIsPaymentComplete] = useState(false);
 
   // 예약자 정보
   const [reserverInfo, setReserverInfo] = useState({
@@ -87,11 +86,11 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     setMounted(true);
-    // 장바구니가 비어있으면 장바구니로 리다이렉트 (결제 완료 시에는 제외)
-    if (items.length === 0 && !isPaymentComplete) {
+    // 장바구니가 비어있으면 장바구니로 리다이렉트
+    if (items.length === 0) {
       router.replace("/cart");
     }
-  }, [items.length, router, isPaymentComplete]);
+  }, [items.length, router]);
 
   if (!mounted) {
     return <CheckoutSkeleton />;
@@ -133,7 +132,7 @@ export default function CheckoutPage() {
     }
   };
 
-  // 결제 처리 (모의)
+  // 나이스페이 결제 처리
   const handlePayment = async () => {
     if (!agreedToTerms) {
       toast.error("결제 약관에 동의해주세요.");
@@ -169,67 +168,66 @@ export default function CheckoutPage() {
         return;
       }
 
-      // TODO: 실제 PG 연동 시 이 부분을 구현
-      // 예시: 토스페이먼츠, 아임포트 등
-
-      // 모의 결제 처리 (1.5초 대기)
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // 예약 생성
-      const reservationItems = items.map((item) => {
-        let itemTotal = item.product.sale_price * item.participants;
-        if (item.options) {
-          item.options.forEach((opt) => {
-            itemTotal += opt.price * opt.quantity;
-          });
-        }
-        return {
-          productId: item.product.id,
-          reservedDate: item.reservationDate,
-          reservedTime: item.reservationTime,
-          participants: item.participants,
-          options: item.options,
-          totalAmount: itemTotal,
-        };
-      });
-
-      const result = await createReservations({
-        items: reservationItems,
-        reserverInfo: {
-          name: reserverInfo.name,
-          phone: reserverInfo.phone,
-          email: reserverInfo.email || undefined,
-          daycareName: reserverInfo.daycareName || undefined,
-        },
-        paymentMethod,
-      });
-
-      if (!result.success) {
-        toast.error(result.error || "예약 생성에 실패했습니다.");
+      // NICE Pay SDK 체크
+      if (typeof window === "undefined" || !window.AUTHNICE) {
+        toast.error("결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
         setIsProcessing(false);
         return;
       }
 
-      // 결제 완료 표시 (장바구니 리다이렉트 방지)
-      setIsPaymentComplete(true);
+      // 예약자 정보와 장바구니 정보를 localStorage에 저장 (콜백에서 사용)
+      localStorage.setItem("damda_reserver_info", JSON.stringify(reserverInfo));
+      localStorage.setItem("damda_payment_method", paymentMethod);
+      localStorage.setItem("damda_checkout_items", JSON.stringify(items));
 
-      // 결제 성공 시 장바구니 비우기 (로컬 스토어 + DB)
-      clearCart();
-      await clearCartDB();
+      // 주문 ID 생성
+      const orderId = `ORD${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-      // 결제 완료 페이지로 이동
-      router.push("/checkout/complete?orderId=" + result.orderId);
+      // 상품명 생성
+      const goodsName =
+        items.length > 1
+          ? `${items[0].product.name} 외 ${items.length - 1}건`
+          : items[0].product.name;
+
+      // 결제창 호출
+      const clientKey = process.env.NEXT_PUBLIC_NICEPAY_CLIENT_KEY;
+      if (!clientKey) {
+        toast.error("결제 설정 오류입니다.");
+        setIsProcessing(false);
+        return;
+      }
+
+      const returnUrl = `${window.location.origin}/checkout/callback`;
+
+      window.AUTHNICE.requestPay({
+        clientId: clientKey,
+        method: paymentMethod === "card" ? "card" : "bank",
+        orderId: orderId,
+        amount: totalAmount,
+        goodsName: goodsName,
+        returnUrl: returnUrl,
+        fnError: (result) => {
+          console.error("Payment error:", result);
+          toast.error(result.errorMsg || "결제 중 오류가 발생했습니다.");
+          setIsProcessing(false);
+        },
+      });
     } catch {
       toast.error("결제 처리 중 오류가 발생했습니다.");
-    } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-4xl mx-auto">
-        {/* 헤더 */}
+    <>
+      {/* NICE Pay SDK */}
+      <Script
+        src="https://pay.nicepay.co.kr/v1/js/"
+        strategy="beforeInteractive"
+      />
+      <div className="min-h-screen bg-white">
+        <div className="max-w-4xl mx-auto">
+          {/* 헤더 */}
         <div className="px-4 py-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <Link href="/cart" className="text-gray-500 hover:text-gray-700">
@@ -466,8 +464,9 @@ export default function CheckoutPage() {
             안전한 결제를 위해 SSL 암호화를 사용합니다
           </p>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

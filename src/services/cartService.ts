@@ -365,6 +365,7 @@ export interface CreateReservationParams {
     daycareName?: string;
   };
   paymentMethod: string;
+  paymentTid?: string;
 }
 
 export async function createReservations(
