@@ -3,7 +3,6 @@ import {
   CategoryGrid,
   PopularExperiences,
   BestReviews,
-  PromotionBanners,
 } from "@/components/home";
 
 export default function HomePage() {
@@ -13,7 +12,6 @@ export default function HomePage() {
       <CategoryGrid />
       <PopularExperiences />
       <BestReviews />
-      <PromotionBanners />
     </>
   );
 }
