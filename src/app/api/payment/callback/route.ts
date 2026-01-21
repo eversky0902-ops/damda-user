@@ -35,11 +35,13 @@ export async function POST(request: NextRequest) {
 
     const redirectUrl = `/checkout/callback?${params.toString()}`;
 
-    return NextResponse.redirect(new URL(redirectUrl, request.url));
+    // 303 See Other: POST에서 GET으로 변환하여 리다이렉트
+    return NextResponse.redirect(new URL(redirectUrl, request.url), 303);
   } catch (error) {
     console.error("Payment callback error:", error);
     return NextResponse.redirect(
-      new URL("/checkout/callback?authResultCode=ERROR&authResultMsg=콜백 처리 오류", request.url)
+      new URL("/checkout/callback?authResultCode=ERROR&authResultMsg=콜백 처리 오류", request.url),
+      303
     );
   }
 }
@@ -48,5 +50,5 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const redirectUrl = `/checkout/callback?${searchParams.toString()}`;
-  return NextResponse.redirect(new URL(redirectUrl, request.url));
+  return NextResponse.redirect(new URL(redirectUrl, request.url), 303);
 }
