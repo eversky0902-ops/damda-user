@@ -28,22 +28,22 @@ export function useAuth() {
           createdAt: authUser.created_at,
         });
 
-        // 프로필 조회
-        const { data: profileData } = await supabase
-          .from("user_profiles")
+        // 어린이집 프로필 조회 (daycares 테이블의 id가 auth user id)
+        const { data: daycareData } = await supabase
+          .from("daycares")
           .select("*")
-          .eq("user_id", authUser.id)
+          .eq("id", authUser.id)
           .single();
 
-        if (profileData) {
+        if (daycareData) {
           setProfile({
-            id: profileData.id,
-            userId: profileData.user_id,
-            daycareId: profileData.daycare_id,
-            role: profileData.role,
-            isApproved: profileData.is_approved,
-            createdAt: profileData.created_at,
-            updatedAt: profileData.updated_at,
+            id: daycareData.id,
+            userId: daycareData.id,
+            daycareId: daycareData.id,
+            role: "daycare",
+            isApproved: daycareData.status === "approved",
+            createdAt: daycareData.created_at,
+            updatedAt: daycareData.updated_at,
           });
         }
       }

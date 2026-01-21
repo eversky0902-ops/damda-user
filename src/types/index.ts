@@ -11,7 +11,7 @@ export interface UserProfile {
   id: string;
   userId: string;
   daycareId?: string;
-  role: "user" | "admin";
+  role: "user" | "admin" | "daycare";
   isApproved: boolean;
   createdAt: string;
   updatedAt: string;

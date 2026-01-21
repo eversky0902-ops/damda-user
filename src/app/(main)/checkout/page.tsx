@@ -41,6 +41,7 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [isProcessing, setIsProcessing] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [sdkLoaded, setSdkLoaded] = useState(false);
 
   // 예약자 정보
   const [reserverInfo, setReserverInfo] = useState({
@@ -89,6 +90,10 @@ export default function CheckoutPage() {
     // 장바구니가 비어있으면 장바구니로 리다이렉트
     if (items.length === 0) {
       router.replace("/cart");
+    }
+    // SDK가 이미 로드되어 있는지 확인
+    if (typeof window !== "undefined" && window.AUTHNICE) {
+      setSdkLoaded(true);
     }
   }, [items.length, router]);
 
@@ -169,7 +174,7 @@ export default function CheckoutPage() {
       }
 
       // NICE Pay SDK 체크
-      if (typeof window === "undefined" || !window.AUTHNICE) {
+      if (!sdkLoaded || typeof window === "undefined" || !window.AUTHNICE) {
         toast.error("결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
         setIsProcessing(false);
         return;
@@ -197,21 +202,24 @@ export default function CheckoutPage() {
         return;
       }
 
-      const returnUrl = `${window.location.origin}/checkout/callback`;
+      const returnUrl = `${window.location.origin}/api/payment/callback`;
 
-      window.AUTHNICE.requestPay({
+      const paymentParams = {
         clientId: clientKey,
-        method: paymentMethod === "card" ? "card" : "bank",
+        method: (paymentMethod === "card" ? "card" : "bank") as "card" | "bank",
         orderId: orderId,
         amount: totalAmount,
         goodsName: goodsName,
         returnUrl: returnUrl,
-        fnError: (result) => {
+        fnError: (result: { errorCode?: string; errorMsg?: string }) => {
           console.error("Payment error:", result);
-          toast.error(result.errorMsg || "결제 중 오류가 발생했습니다.");
+          toast.error(`[${result.errorCode}] ${result.errorMsg || "결제 중 오류가 발생했습니다."}`);
           setIsProcessing(false);
         },
-      });
+      };
+
+      console.log("Payment request params:", paymentParams);
+      window.AUTHNICE.requestPay(paymentParams);
     } catch {
       toast.error("결제 처리 중 오류가 발생했습니다.");
       setIsProcessing(false);
@@ -223,7 +231,13 @@ export default function CheckoutPage() {
       {/* NICE Pay SDK */}
       <Script
         src="https://pay.nicepay.co.kr/v1/js/"
-        strategy="beforeInteractive"
+        strategy="afterInteractive"
+        onLoad={() => {
+          setSdkLoaded(true);
+        }}
+        onError={() => {
+          toast.error("결제 모듈 로딩에 실패했습니다. 페이지를 새로고침해주세요.");
+        }}
       />
       <div className="min-h-screen bg-white">
         <div className="max-w-4xl mx-auto">

@@ -13,17 +13,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const clientKey = process.env.NEXT_PUBLIC_NICEPAY_CLIENT_KEY;
     const secretKey = process.env.NICEPAY_SECRET_KEY;
-    if (!secretKey) {
-      console.error("NICEPAY_SECRET_KEY is not configured");
+
+    if (!clientKey || !secretKey) {
+      console.error("NICEPAY keys are not configured");
       return NextResponse.json(
         { success: false, error: "결제 설정 오류입니다." },
         { status: 500 }
       );
     }
 
-    // Basic 인증: secretKey를 Base64 인코딩
-    const authKey = Buffer.from(`${secretKey}:`).toString("base64");
+    // Basic 인증: clientKey:secretKey를 Base64 인코딩
+    const authKey = Buffer.from(`${clientKey}:${secretKey}`).toString("base64");
 
     // 나이스페이 승인 API 호출
     const response = await fetch(`${NICEPAY_API_URL}/${tid}`, {

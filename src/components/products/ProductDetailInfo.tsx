@@ -132,23 +132,23 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
     return total;
   };
 
-  // 장바구니 담기
-  const handleAddToCart = () => {
+  // 장바구니 담기 (성공 시 true 반환)
+  const handleAddToCart = (): boolean => {
     if (!selectedDate) {
       toast.error("예약 날짜를 선택해주세요.");
-      return;
+      return false;
     }
 
     if (!selectedTime) {
       toast.error("예약 시간을 선택해주세요.");
-      return;
+      return false;
     }
 
     const requiredOptions = product.options.filter((o) => o.is_required);
     const missingRequired = requiredOptions.find((o) => !selectedOptions.has(o.id));
     if (missingRequired) {
       toast.error(`필수 옵션 "${missingRequired.name}"을(를) 선택해주세요.`);
-      return;
+      return false;
     }
 
     const options = Array.from(selectedOptions.entries()).map(([optionId, quantity]) => {
@@ -177,12 +177,15 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
     });
 
     toast.success("장바구니에 담았습니다.");
+    return true;
   };
 
   // 바로 예약
   const handleDirectReservation = () => {
-    handleAddToCart();
-    router.push("/cart");
+    const success = handleAddToCart();
+    if (success) {
+      router.push("/cart");
+    }
   };
 
   // 찜하기 토글

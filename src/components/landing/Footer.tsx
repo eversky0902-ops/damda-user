@@ -2,70 +2,62 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Phone, Mail, MessageCircle } from "lucide-react";
 
 export function Footer() {
-  const currentYear = new Date().getFullYear();
-
   return (
-    <footer className="border-t bg-secondary/30">
-      <div className="mx-auto max-w-6xl px-4 py-12">
-        <div className="grid gap-8 md:grid-cols-4">
-          {/* Brand */}
-          <div className="md:col-span-2">
-            <Link href="/" className="mb-4 inline-block">
-              <Image src="/logo.svg" alt="담다" width={100} height={38} className="h-8 w-auto" />
-            </Link>
-            <p className="mb-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-              담다는 보육기관과 인증된 기관을 위한 현장체험 플랫폼입니다.
-              <br />
-              안전하게 검증된 체험 프로그램만을 제공합니다.
-            </p>
+    <footer className="bg-[#3d3d3d] text-gray-300">
+      {/* Top links */}
+      <div className="border-b border-gray-600">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between text-sm">
+          <div className="flex gap-4">
+            <Link href="/terms" className="hover:text-white">정책·약관</Link>
+            <Link href="/privacy" className="hover:text-white font-semibold">개인정보처리방침</Link>
           </div>
-
-          {/* 고객센터 */}
-          <div className="md:col-start-4">
-            <h3 className="mb-4 font-semibold">고객센터</h3>
-            <ul className="space-y-3 text-sm text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                <div>
-                  <span className="font-medium text-foreground">1588-0000</span>
-                  <span className="ml-2 text-xs">(평일 09:00-18:00)</span>
-                </div>
-              </li>
-              <li className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                <a href="mailto:support@damda.co.kr" className="hover:text-foreground">
-                  support@damda.co.kr
-                </a>
-              </li>
-              <li className="flex items-center gap-2">
-                <MessageCircle className="h-4 w-4" />
-                <a
-                  href="https://pf.kakao.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-foreground"
-                >
-                  카카오톡 상담
-                </a>
-              </li>
-            </ul>
+          <div className="flex gap-4">
+            <Link href="/support" className="hover:text-white">제휴문의</Link>
+            <Link href="/notice" className="hover:text-white">공지사항</Link>
           </div>
         </div>
+      </div>
 
-        {/* Bottom */}
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t pt-8 text-sm text-muted-foreground md:flex-row">
-          <p>&copy; {currentYear} 담다. All rights reserved.</p>
-          <div className="flex gap-4">
-            <Link href="/terms" className="hover:text-foreground">
-              이용약관
-            </Link>
-            <Link href="/privacy" className="hover:text-foreground">
-              개인정보처리방침
-            </Link>
+      {/* Main footer content */}
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="flex flex-col lg:flex-row gap-8 justify-between">
+          {/* Company info */}
+          <div className="flex-1">
+            <div className="mb-4">
+              <Image
+                src="/logo-white.svg"
+                alt="담다"
+                width={100}
+                height={38}
+                className="h-8 w-auto"
+              />
+            </div>
+            <div className="text-xs text-gray-400 space-y-1">
+              <p>상호명 : 담다 | 대표자명 : 이승규 | Tel : 010-5717-0711 | 주소 : 경기도 고양시 덕양구 창릉 2로 21 골드프라이스빌딩 302-305호</p>
+              <p>사업자등록번호 : 660-08-02811, 통신판매업신고 : 2025-고양덕양구-0961, 개인정보보호책임자 : 이승규</p>
+            </div>
           </div>
+
+          {/* Customer center */}
+          <div className="lg:text-right">
+            <p className="text-sm text-gray-400 mb-1">고객센터</p>
+            <p className="text-2xl font-bold text-white mb-2">1111-2222</p>
+            <div className="text-xs text-gray-400 space-y-1">
+              <p>평일 : 9:00~19:00, 점심 : 12:00~13:00 (토/일/공휴일 휴무)</p>
+              <p>FAX : 02-1234-5678 | 이메일 : damda@gmail.com</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Copyright */}
+      <div className="border-t border-gray-600">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <p className="text-xs text-gray-500 text-center">
+            ©2025 담다. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>

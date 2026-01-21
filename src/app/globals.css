@@ -65,9 +65,9 @@
   /* Primary: #F8B737 (담다 노란색) */
   --primary: #F8B737;
   --primary-foreground: #1a1a1a;
-  /* Secondary: #34B7B1 (담다 청록색) */
-  --secondary: #34B7B1;
-  --secondary-foreground: #ffffff;
+  /* Secondary: 중립 회색 */
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
