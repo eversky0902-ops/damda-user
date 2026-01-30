@@ -137,3 +137,94 @@ export async function getActivePopups(): Promise<Popup[]> {
 
   return data || [];
 }
+
+// 법적 문서 카테고리 타입
+export type LegalDocumentCategory =
+  | "terms"
+  | "privacy"
+  | "refund-policy"
+  | "reservation-guide";
+
+// 법적 문서 타입
+export interface LegalDocument {
+  id: string;
+  category: LegalDocumentCategory;
+  title: string;
+  content: string;
+  version: number;
+  is_visible: boolean;
+  created_at: string;
+}
+
+// 법적 문서 카테고리 라벨
+export const LEGAL_DOCUMENT_CATEGORY_LABEL: Record<LegalDocumentCategory, string> = {
+  terms: "이용약관",
+  privacy: "개인정보처리방침",
+  "refund-policy": "환불정책",
+  "reservation-guide": "예약안내",
+};
+
+// 카테고리별 공개된 법적 문서 목록 조회 (버전 선택용)
+export async function getLegalDocumentsByCategory(
+  category: LegalDocumentCategory
+): Promise<LegalDocument[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("legal_documents")
+    .select("id, category, title, version, is_visible, created_at, content")
+    .eq("category", category)
+    .eq("is_visible", true)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching legal documents:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+// 카테고리별 최신 공개 법적 문서 조회
+export async function getLatestLegalDocument(
+  category: LegalDocumentCategory
+): Promise<LegalDocument | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("legal_documents")
+    .select("*")
+    .eq("category", category)
+    .eq("is_visible", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching latest legal document:", error);
+    return null;
+  }
+
+  return data;
+}
+
+// 특정 ID의 법적 문서 조회
+export async function getLegalDocumentById(
+  id: string
+): Promise<LegalDocument | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("legal_documents")
+    .select("*")
+    .eq("id", id)
+    .eq("is_visible", true)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching legal document:", error);
+    return null;
+  }
+
+  return data;
+}

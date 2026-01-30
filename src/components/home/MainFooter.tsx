@@ -10,6 +10,8 @@ export function MainFooter() {
           <div className="flex gap-4">
             <Link href="/terms" className="hover:text-white">이용약관</Link>
             <Link href="/privacy" className="hover:text-white font-semibold">개인정보처리방침</Link>
+            <Link href="/refund-policy" className="hover:text-white">환불정책</Link>
+            <Link href="/reservation-guide" className="hover:text-white">예약안내</Link>
           </div>
           <div className="flex gap-4">
             <Link href="/partner" className="hover:text-white">입점문의</Link>
