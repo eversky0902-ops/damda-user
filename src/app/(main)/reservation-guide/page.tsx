@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   description: "담다 예약안내를 확인하세요.",
 };
 
+// 항상 최신 데이터를 가져오도록 캐싱 비활성화
+export const revalidate = 0;
+
 interface PageProps {
   searchParams: Promise<{ version?: string }>;
 }

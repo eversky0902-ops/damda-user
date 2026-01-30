@@ -8,6 +8,7 @@ import {
   getProductReviewStats,
   getProductsByCategory,
 } from "@/services/productService";
+import { getLatestLegalDocument } from "@/services/contentService";
 
 // React cache로 중복 호출 방지
 const getCachedProductDetail = cache(getProductDetail);
@@ -46,10 +47,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   const { id } = await params;
 
   // 모든 데이터를 병렬로 fetch
-  const [product, reviewsResult, reviewStats] = await Promise.all([
+  const [product, reviewsResult, reviewStats, reservationGuide] = await Promise.all([
     getCachedProductDetail(id),
     getProductReviews(id, 1, 5),
     getProductReviewStats(id),
+    getLatestLegalDocument("reservation-guide"),
   ]);
 
   if (!product) {
@@ -159,7 +161,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             </TabsContent>
 
             <TabsContent value="notice" className="mt-8">
-              <ReservationNotice />
+              <ReservationNotice content={reservationGuide?.content} />
             </TabsContent>
           </Tabs>
         </div>
@@ -202,51 +204,19 @@ function ProductInfoSkeleton() {
   );
 }
 
-function ReservationNotice() {
+function ReservationNotice({ content }: { content?: string | null }) {
+  if (!content) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        예약안내가 등록되지 않았습니다.
+      </div>
+    );
+  }
+
   return (
-    <div className="prose prose-gray max-w-none">
-      <h3>예약 안내</h3>
-      <ul>
-        <li>예약은 체험일 기준 최소 3일 전까지 가능합니다.</li>
-        <li>인원 변경은 체험일 기준 2일 전까지 가능합니다.</li>
-        <li>체험 당일 취소 및 노쇼(No-Show) 시 환불이 불가합니다.</li>
-      </ul>
-
-      <h3>취소 및 환불 정책</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>취소 시점</th>
-            <th>환불 금액</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>체험일 7일 전까지</td>
-            <td>전액 환불</td>
-          </tr>
-          <tr>
-            <td>체험일 3~6일 전</td>
-            <td>결제 금액의 70% 환불</td>
-          </tr>
-          <tr>
-            <td>체험일 1~2일 전</td>
-            <td>결제 금액의 50% 환불</td>
-          </tr>
-          <tr>
-            <td>체험 당일</td>
-            <td>환불 불가</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h3>유의사항</h3>
-      <ul>
-        <li>기상 악화 등 불가피한 사유로 체험이 취소될 경우 전액 환불됩니다.</li>
-        <li>체험 장소 및 시간은 사전 안내 없이 변경될 수 있습니다.</li>
-        <li>체험 중 발생한 안전사고에 대해 당사는 책임지지 않습니다.</li>
-        <li>어린이집 인솔 교사가 반드시 동행해야 합니다.</li>
-      </ul>
-    </div>
+    <div
+      className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700"
+      dangerouslySetInnerHTML={{ __html: content }}
+    />
   );
 }
