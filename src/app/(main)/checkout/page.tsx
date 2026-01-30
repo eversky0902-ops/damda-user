@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import {
@@ -13,12 +12,20 @@ import {
   Building2,
   ChevronLeft,
   Lock,
+  FileText,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useCartStore } from "@/stores/cart-store";
 import { useAuth } from "@/hooks/use-auth";
 import { checkCartAvailability, type UnavailableItem } from "@/services/cartService";
@@ -55,32 +62,37 @@ export default function CheckoutPage() {
     daycareName: "",
   });
 
+  // 환불정책 모달
+  const [isRefundPolicyOpen, setIsRefundPolicyOpen] = useState(false);
+  const [refundPolicyContent, setRefundPolicyContent] = useState<string | null>(null);
+  const [isLoadingPolicy, setIsLoadingPolicy] = useState(false);
+
   // 회원 정보로 자동 채우기
   useEffect(() => {
     const fillUserInfo = async () => {
       if (!user) return;
 
-      // 기본 회원 정보 채우기
+      // 이메일은 user에서 가져오기
       setReserverInfo((prev) => ({
         ...prev,
-        name: user.name || prev.name,
-        phone: user.phone || prev.phone,
         email: user.email || prev.email,
       }));
 
-      // 어린이집 정보 조회 및 채우기
+      // 어린이집 정보 조회 및 채우기 (담당자명, 담당자 연락처, 어린이집명)
       if (profile?.daycareId) {
         const supabase = createClient();
         const { data: daycare } = await supabase
           .from("daycares")
-          .select("name")
+          .select("name, contact_name, contact_phone")
           .eq("id", profile.daycareId)
           .single();
 
-        if (daycare?.name) {
+        if (daycare) {
           setReserverInfo((prev) => ({
             ...prev,
-            daycareName: daycare.name,
+            name: daycare.contact_name || prev.name,
+            phone: daycare.contact_phone || prev.phone,
+            daycareName: daycare.name || prev.daycareName,
           }));
         }
       }
@@ -138,6 +150,39 @@ export default function CheckoutPage() {
         return "해당 시간대가 마감되었습니다.";
       default:
         return "예약이 불가능합니다.";
+    }
+  };
+
+  // 환불정책 모달 열기
+  const handleOpenRefundPolicy = async () => {
+    setIsRefundPolicyOpen(true);
+
+    // 이미 로드된 경우 다시 로드하지 않음
+    if (refundPolicyContent) return;
+
+    setIsLoadingPolicy(true);
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("legal_documents")
+        .select("content")
+        .eq("category", "refund-policy")
+        .eq("is_visible", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error fetching refund policy:", error);
+        toast.error("환불정책을 불러오는데 실패했습니다.");
+        return;
+      }
+
+      setRefundPolicyContent(data?.content || null);
+    } catch {
+      toast.error("환불정책을 불러오는데 실패했습니다.");
+    } finally {
+      setIsLoadingPolicy(false);
     }
   };
 
@@ -468,9 +513,17 @@ export default function CheckoutPage() {
             />
             <span className="text-sm font-medium text-gray-800">
               결제 및 환불 정책에 동의합니다.{" "}
-              <Link href="#" className="text-damda-yellow-dark underline font-bold hover:text-damda-yellow">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleOpenRefundPolicy();
+                }}
+                className="text-damda-yellow-dark underline font-bold hover:text-damda-yellow"
+              >
                 약관 보기
-              </Link>
+              </button>
             </span>
           </label>
 
@@ -497,6 +550,35 @@ export default function CheckoutPage() {
           </p>
         </div>
         </div>
+
+        {/* 환불정책 모달 */}
+        <Dialog open={isRefundPolicyOpen} onOpenChange={setIsRefundPolicyOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                환불정책
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto pr-2">
+              {isLoadingPolicy ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                </div>
+              ) : refundPolicyContent ? (
+                <div
+                  className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700"
+                  dangerouslySetInnerHTML={{ __html: refundPolicyContent }}
+                />
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p>등록된 환불정책이 없습니다.</p>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   );
