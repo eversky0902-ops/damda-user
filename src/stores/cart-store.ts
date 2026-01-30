@@ -9,6 +9,8 @@ export interface CartItemProduct {
   original_price: number;
   sale_price: number;
   business_owner_name: string;
+  min_participants: number;
+  max_participants: number;
 }
 
 export interface CartItemOption {
@@ -28,10 +30,13 @@ export interface CartItem {
 
 interface CartState {
   items: CartItem[];
+  directItem: CartItem | null; // 바로예약 전용 (장바구니에 담지 않음)
   addItem: (item: CartItem) => void;
   removeItem: (productId: string) => void;
   updateItem: (productId: string, updates: Partial<Omit<CartItem, "product">>) => void;
   clearCart: () => void;
+  setDirectItem: (item: CartItem) => void; // 바로예약용
+  clearDirectItem: () => void;
   getTotalAmount: () => number;
   getItemCount: () => number;
 }
@@ -40,6 +45,7 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+      directItem: null,
       addItem: (item) =>
         set((state) => {
           const existingIndex = state.items.findIndex(
@@ -63,9 +69,13 @@ export const useCartStore = create<CartState>()(
           ),
         })),
       clearCart: () => set({ items: [] }),
+      setDirectItem: (item) => set({ directItem: item }),
+      clearDirectItem: () => set({ directItem: null }),
       getTotalAmount: () => {
-        const { items } = get();
-        return items.reduce((total, item) => {
+        const { items, directItem } = get();
+        // 바로예약 아이템이 있으면 해당 금액만 계산
+        const targetItems = directItem ? [directItem] : items;
+        return targetItems.reduce((total, item) => {
           let itemTotal = item.product.sale_price * item.participants;
           if (item.options) {
             item.options.forEach((opt) => {

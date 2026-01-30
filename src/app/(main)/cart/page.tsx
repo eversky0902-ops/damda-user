@@ -27,7 +27,7 @@ import { ko } from "date-fns/locale";
 
 export default function CartPage() {
   const router = useRouter();
-  const { items, removeItem, updateItem, clearCart, getTotalAmount, isSyncing } = useCart();
+  const { items, removeItem, updateItem, clearCart, clearDirectItem, getTotalAmount, isSyncing } = useCart();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [mounted, setMounted] = useState(false);
 
@@ -122,7 +122,9 @@ export default function CartPage() {
   const handleParticipantsChange = async (productId: string, delta: number) => {
     const item = items.find((i) => i.product.id === productId);
     if (item) {
-      const newParticipants = Math.max(1, item.participants + delta);
+      const minParticipants = item.product.min_participants || 1;
+      const maxParticipants = item.product.max_participants || 999;
+      const newParticipants = Math.max(minParticipants, Math.min(maxParticipants, item.participants + delta));
       await updateItem(productId, { participants: newParticipants });
     }
   };
@@ -164,6 +166,8 @@ export default function CartPage() {
       toast.error("결제할 상품을 선택해주세요.");
       return;
     }
+    // 바로예약 아이템이 있으면 클리어 (장바구니에서 결제하는 것이므로)
+    clearDirectItem();
     router.push("/checkout");
   };
 
@@ -403,23 +407,31 @@ function CartItemCard({
 
           {/* 인원 변경 & 가격 */}
           <div className="mt-3 flex items-center justify-between">
-            <div className="flex items-center border border-gray-200 rounded-lg">
-              <button
-                type="button"
-                onClick={() => onParticipantsChange(-1)}
-                disabled={item.participants <= 1}
-                className="h-7 w-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30"
-              >
-                <Minus className="w-3 h-3" />
-              </button>
-              <span className="w-8 text-center text-xs font-medium text-gray-700">{item.participants}명</span>
-              <button
-                type="button"
-                onClick={() => onParticipantsChange(1)}
-                className="h-7 w-7 flex items-center justify-center text-gray-500 hover:bg-gray-50"
-              >
-                <Plus className="w-3 h-3" />
-              </button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center border border-gray-200 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => onParticipantsChange(-1)}
+                  disabled={item.participants <= (item.product.min_participants || 1)}
+                  className="h-7 w-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30"
+                >
+                  <Minus className="w-3 h-3" />
+                </button>
+                <span className="w-8 text-center text-xs font-medium text-gray-700">{item.participants}명</span>
+                <button
+                  type="button"
+                  onClick={() => onParticipantsChange(1)}
+                  disabled={item.participants >= (item.product.max_participants || 999)}
+                  className="h-7 w-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
+              {(item.product.min_participants || item.product.max_participants) && (
+                <span className="text-xs text-gray-400">
+                  ({item.product.min_participants || 1}~{item.product.max_participants || '∞'}명)
+                </span>
+              )}
             </div>
 
             <div className="text-right">

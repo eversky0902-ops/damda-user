@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Search, MapPin, Calendar, ChevronRight, Loader2, X, ChevronLeft } from "lucide-react";
 import { DayPicker } from "react-day-picker";
-import { format } from "date-fns";
+import { format, addMonths, startOfMonth } from "date-fns";
 import { ko } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import "react-day-picker/style.css";
@@ -20,13 +20,28 @@ export function SearchBar() {
   const [selectedProvinceId, setSelectedProvinceId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [mobileTab, setMobileTab] = useState<"region" | "date">("region");
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const desktopDropdownRef = useRef<HTMLDivElement>(null);
 
   // Portal을 위한 mounted 상태
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // 드롭다운 위치 계산
+  useEffect(() => {
+    if (isOpen && dropdownRef.current) {
+      const rect = dropdownRef.current.getBoundingClientRect();
+      const dropdownWidth = 680; // 드롭다운 너비 (340px * 2)
+      setDropdownPosition({
+        top: rect.bottom + 8,
+        left: rect.left + (rect.width - dropdownWidth) / 2,
+        width: rect.width,
+      });
+    }
+  }, [isOpen]);
 
   // 지역 데이터 조회
   const { data: regions = [], isLoading: isLoadingRegions } = useQuery({
@@ -52,7 +67,11 @@ export function SearchBar() {
   // 외부 클릭시 닫기 (데스크탑만)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const isInsideTrigger = dropdownRef.current?.contains(target);
+      const isInsideDropdown = desktopDropdownRef.current?.contains(target);
+
+      if (!isInsideTrigger && !isInsideDropdown) {
         if (window.innerWidth >= 768) {
           setIsOpen(false);
         }
@@ -413,6 +432,8 @@ export function SearchBar() {
                                   locale={ko}
                                   numberOfMonths={1}
                                   disabled={{ before: new Date() }}
+                                  startMonth={startOfMonth(new Date())}
+                                  endMonth={addMonths(new Date(), 3)}
                                 />
                               </div>
                             </motion.div>
@@ -453,17 +474,23 @@ export function SearchBar() {
                 document.body
               )}
 
-              {/* 데스크탑 드롭다운 */}
-              <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.98 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="
-                  hidden md:block
-                  absolute top-full left-1/2 -translate-x-1/2 mt-2
-                  bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50
-                "
+              {/* 데스크탑 드롭다운 - Portal로 body에 렌더링 */}
+              {mounted && createPortal(
+                <motion.div
+                  ref={desktopDropdownRef}
+                  initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  style={{
+                    position: 'fixed',
+                    top: dropdownPosition.top,
+                    left: dropdownPosition.left,
+                  }}
+                  className="
+                    hidden md:block
+                    bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-[100]
+                  "
               >
                 <div className="flex">
                   {/* 좌측: 지역 선택 */}
@@ -612,6 +639,8 @@ export function SearchBar() {
                           locale={ko}
                           numberOfMonths={1}
                           disabled={{ before: new Date() }}
+                          startMonth={startOfMonth(new Date())}
+                          endMonth={addMonths(new Date(), 3)}
                         />
                       </div>
                     </div>
@@ -639,7 +668,9 @@ export function SearchBar() {
                     검색하기
                   </button>
                 </div>
-              </motion.div>
+              </motion.div>,
+              document.body
+              )}
             </>
           )}
         </AnimatePresence>

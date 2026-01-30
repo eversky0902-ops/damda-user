@@ -18,6 +18,9 @@ export interface Product {
   address: string | null;
   duration_minutes: number | null;
   created_at: string;
+  // 리뷰 통계 (목록 조회 시 포함)
+  review_count?: number;
+  average_rating?: number;
   business_owner?: {
     id: string;
     name: string;
@@ -36,7 +39,8 @@ export interface ProductFilter {
   search?: string;
   minPrice?: number;
   maxPrice?: number;
-  sortBy?: "popular" | "newest" | "price_low" | "price_high";
+  availableOnly?: boolean; // 예약 가능한 상품만
+  sortBy?: "recommended" | "newest" | "sales" | "reviews" | "price_low" | "price_high";
 }
 
 export interface PaginatedProducts {
@@ -152,7 +156,14 @@ export async function getProducts(
 
   // 지역 필터
   if (filter.region) {
-    query = query.eq("region", filter.region);
+    // 구/군이 포함되어 있는지 확인 (공백으로 구분)
+    if (filter.region.includes(" ")) {
+      // 구/군까지 선택된 경우 정확히 일치하는 것 검색
+      query = query.eq("region", filter.region);
+    } else {
+      // 시/도만 선택된 경우 해당 지역으로 시작하는 모든 지역 검색
+      query = query.ilike("region", `${filter.region}%`);
+    }
   }
 
   // 검색어 필터
@@ -170,7 +181,12 @@ export async function getProducts(
     query = query.lte("sale_price", filter.maxPrice);
   }
 
-  // 정렬
+  // 예약 가능 필터 (품절 제외)
+  if (filter.availableOnly) {
+    query = query.eq("is_sold_out", false);
+  }
+
+  // 정렬 (reviews, sales는 클라이언트 사이드에서 처리)
   switch (filter.sortBy) {
     case "newest":
       query = query.order("created_at", { ascending: false });
@@ -181,7 +197,11 @@ export async function getProducts(
     case "price_high":
       query = query.order("sale_price", { ascending: false });
       break;
-    case "popular":
+    case "sales":
+      // TODO: sales_count 필드 추가 후 정렬
+      query = query.order("view_count", { ascending: false });
+      break;
+    case "recommended":
     default:
       query = query.order("view_count", { ascending: false });
       break;
@@ -209,11 +229,30 @@ export async function getProducts(
     };
   }
 
-  const products = (data || []).map((item) => ({
+  // 상품 ID 목록 추출
+  const productIds = (data || []).map((item) => item.id);
+
+  // 리뷰 통계 일괄 조회
+  const reviewStatsMap = await getProductsReviewStats(productIds);
+
+  // 상품 데이터와 리뷰 통계 병합
+  let products = (data || []).map((item) => ({
     ...item,
     business_owner: item.business_owners as unknown as Product["business_owner"],
     category: item.categories as unknown as Product["category"],
+    review_count: reviewStatsMap[item.id]?.count || 0,
+    average_rating: reviewStatsMap[item.id]?.average || 0,
   }));
+
+  // 리뷰순 정렬 (클라이언트 사이드)
+  if (filter.sortBy === "reviews") {
+    products = products.sort((a, b) => {
+      if (b.average_rating !== a.average_rating) {
+        return b.average_rating - a.average_rating;
+      }
+      return b.review_count - a.review_count;
+    });
+  }
 
   const total = count || 0;
 
@@ -224,6 +263,40 @@ export async function getProducts(
     pageSize,
     totalPages: Math.ceil(total / pageSize),
   };
+}
+
+// 여러 상품의 리뷰 통계를 일괄 조회
+async function getProductsReviewStats(
+  productIds: string[]
+): Promise<Record<string, { count: number; average: number }>> {
+  if (productIds.length === 0) return {};
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("product_id, rating")
+    .in("product_id", productIds)
+    .eq("is_visible", true);
+
+  if (error || !data) {
+    return {};
+  }
+
+  // 상품별로 그룹화하여 통계 계산
+  const statsMap: Record<string, { count: number; average: number }> = {};
+
+  productIds.forEach((id) => {
+    const reviews = data.filter((r) => r.product_id === id);
+    const count = reviews.length;
+    const average =
+      count > 0
+        ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / count) * 10) / 10
+        : 0;
+    statsMap[id] = { count, average };
+  });
+
+  return statsMap;
 }
 
 export async function getProductsByCategory(
@@ -287,11 +360,20 @@ export async function getRegions(): Promise<string[]> {
   return regions.sort();
 }
 
-// 예약 가능 시간 슬롯
+// 시간 슬롯 모드 타입
+export type TimeSlotMode = "auto" | "custom";
+
+// 시간 슬롯 간격 타입
+export type TimeSlotInterval = 30 | 60 | 90 | 120;
+
+// 예약 가능 시간 슬롯 (Admin에서 저장하는 형식)
 export interface ProductTimeSlot {
-  time: string;
-  label: string;
-  max_capacity?: number;
+  day: number; // 0=일, 1=월, ..., 6=토
+  start: string; // "09:00"
+  end: string; // "18:00"
+  mode?: TimeSlotMode; // 'auto' | 'custom'
+  interval?: TimeSlotInterval; // 30 | 60 | 90 | 120 (auto 모드)
+  customSlots?: string[]; // ["10:00", "14:00"] (custom 모드)
 }
 
 // 상품 상세 정보 (이미지, 옵션, 예약불가일 포함)
@@ -331,67 +413,75 @@ export interface ProductUnavailableDate {
 export async function getProductDetail(id: string): Promise<ProductDetail | null> {
   const supabase = await createClient();
 
-  // 상품 기본 정보
-  const { data: product, error: productError } = await supabase
-    .from("products")
-    .select(
+  // 모든 쿼리를 병렬로 실행
+  const [productResult, imagesResult, optionsResult, unavailableDatesResult] = await Promise.all([
+    // 상품 기본 정보
+    supabase
+      .from("products")
+      .select(
+        `
+        *,
+        business_owners:business_owner_id (
+          id,
+          name,
+          logo_url,
+          address,
+          contact_phone
+        ),
+        categories:category_id (
+          id,
+          name,
+          parent_id
+        )
       `
-      *,
-      business_owners:business_owner_id (
-        id,
-        name,
-        logo_url,
-        address,
-        contact_phone
-      ),
-      categories:category_id (
-        id,
-        name,
-        parent_id
       )
-    `
-    )
-    .eq("id", id)
-    .single();
+      .eq("id", id)
+      .single(),
+    // 상품 이미지
+    supabase
+      .from("product_images")
+      .select("*")
+      .eq("product_id", id)
+      .order("sort_order", { ascending: true }),
+    // 상품 옵션
+    supabase
+      .from("product_options")
+      .select("*")
+      .eq("product_id", id)
+      .order("sort_order", { ascending: true }),
+    // 예약 불가일
+    supabase
+      .from("product_unavailable_dates")
+      .select("*")
+      .eq("product_id", id),
+  ]);
+
+  const { data: product, error: productError } = productResult;
 
   if (productError || !product) {
     console.error("Error fetching product detail:", productError);
     return null;
   }
 
-  // 상품 이미지
-  const { data: images } = await supabase
-    .from("product_images")
-    .select("*")
-    .eq("product_id", id)
-    .order("sort_order", { ascending: true });
-
-  // 상품 옵션
-  const { data: options } = await supabase
-    .from("product_options")
-    .select("*")
-    .eq("product_id", id)
-    .order("sort_order", { ascending: true });
-
-  // 예약 불가일
-  const { data: unavailableDates } = await supabase
-    .from("product_unavailable_dates")
-    .select("*")
-    .eq("product_id", id);
-
-  // 조회수 증가
-  await supabase
-    .from("products")
-    .update({ view_count: (product.view_count || 0) + 1 })
-    .eq("id", id);
+  // 조회수 증가 (fire-and-forget, await 하지 않음)
+  (async () => {
+    try {
+      await supabase
+        .from("products")
+        .update({ view_count: (product.view_count || 0) + 1 })
+        .eq("id", id);
+    } catch (err) {
+      console.error("Error updating view count:", err);
+    }
+  })();
 
   return {
     ...product,
     business_owner: product.business_owners as unknown as ProductDetail["business_owner"],
     category: product.categories as unknown as ProductDetail["category"],
-    images: images || [],
-    options: options || [],
-    unavailable_dates: unavailableDates || [],
+    images: imagesResult.data || [],
+    options: optionsResult.data || [],
+    unavailable_dates: unavailableDatesResult.data || [],
     available_time_slots: product.available_time_slots as ProductTimeSlot[] | null,
   };
 }

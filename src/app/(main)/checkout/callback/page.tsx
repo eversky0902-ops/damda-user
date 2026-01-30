@@ -13,10 +13,11 @@ type PaymentStatus = "processing" | "success" | "error";
 function PaymentCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { items, clearCart } = useCartStore();
+  const { items, clearCart, clearDirectItem } = useCartStore();
   const [status, setStatus] = useState<PaymentStatus>("processing");
   const [message, setMessage] = useState("결제를 처리하고 있습니다...");
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [reservationId, setReservationId] = useState<string | null>(null);
   const processedRef = useRef(false);
 
   useEffect(() => {
@@ -132,8 +133,9 @@ function PaymentCallbackContent() {
           return;
         }
 
-        // 장바구니 비우기
+        // 장바구니 및 바로예약 아이템 비우기
         clearCart();
+        clearDirectItem();
         await clearCartDB();
 
         // localStorage 정리
@@ -142,6 +144,7 @@ function PaymentCallbackContent() {
         localStorage.removeItem("damda_checkout_items");
 
         setOrderId(result.orderId || null);
+        setReservationId(result.reservationId || null);
         setStatus("success");
         setMessage("결제 및 예약이 완료되었습니다!");
       } catch (error) {
@@ -152,7 +155,7 @@ function PaymentCallbackContent() {
     };
 
     processPayment();
-  }, [searchParams, items, clearCart]);
+  }, [searchParams, items, clearCart, clearDirectItem]);
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center">
@@ -174,9 +177,15 @@ function PaymentCallbackContent() {
             <div className="space-y-3">
               <Button
                 className="w-full h-12 bg-damda-yellow hover:bg-damda-yellow-dark text-gray-900"
-                onClick={() => router.push("/mypage/reservations")}
+                onClick={() =>
+                  router.push(
+                    reservationId
+                      ? `/mypage/reservations/${reservationId}`
+                      : "/mypage/reservations"
+                  )
+                }
               >
-                예약 내역 확인하기
+                예약 상세 보기
               </Button>
               <Button
                 variant="outline"

@@ -1,8 +1,15 @@
 export { ProductCard } from "./ProductCard";
 export { ProductGrid } from "./ProductGrid";
 export { ProductFilter } from "./ProductFilter";
+export { ProductFilterBar } from "./ProductFilterBar";
+export { ProductSortTabs } from "./ProductSortTabs";
+export { ProductsHeroBanner } from "./ProductsHeroBanner";
+export { ProductsSearchBar } from "./ProductsSearchBar";
 export { Pagination } from "./Pagination";
 export { ImageGallery } from "./ImageGallery";
 export { ProductDetailInfo } from "./ProductDetailInfo";
 export { ProductDescription } from "./ProductDescription";
 export { ProductReviews } from "./ProductReviews";
+export { NearbyProductsSection } from "./NearbyProductsSection";
+export { PopularTop4Section } from "./PopularTop4Section";
+export { CategoryExploreSection } from "./CategoryExploreSection";

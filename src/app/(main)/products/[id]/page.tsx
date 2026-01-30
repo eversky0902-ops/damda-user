@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
@@ -8,6 +8,9 @@ import {
   getProductReviewStats,
   getProductsByCategory,
 } from "@/services/productService";
+
+// React cache로 중복 호출 방지
+const getCachedProductDetail = cache(getProductDetail);
 import { ImageGallery } from "@/components/products/ImageGallery";
 import { ProductDetailInfo } from "@/components/products/ProductDetailInfo";
 import { ProductDescription } from "@/components/products/ProductDescription";
@@ -22,7 +25,7 @@ interface ProductDetailPageProps {
 
 export async function generateMetadata({ params }: ProductDetailPageProps) {
   const { id } = await params;
-  const product = await getProductDetail(id);
+  const product = await getCachedProductDetail(id);
 
   if (!product) {
     return { title: "상품을 찾을 수 없습니다 | 담다" };
@@ -42,8 +45,9 @@ export async function generateMetadata({ params }: ProductDetailPageProps) {
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { id } = await params;
 
+  // 모든 데이터를 병렬로 fetch
   const [product, reviewsResult, reviewStats] = await Promise.all([
-    getProductDetail(id),
+    getCachedProductDetail(id),
     getProductReviews(id, 1, 5),
     getProductReviewStats(id),
   ]);
@@ -52,10 +56,12 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     notFound();
   }
 
-  // 연관 상품 (같은 카테고리)
-  const relatedProducts = product.category_id
-    ? await getProductsByCategory(product.category_id, 4)
-    : [];
+  // 연관 상품도 병렬로 fetch (위의 Promise.all과 별개로 빠르게 시작)
+  const relatedProductsPromise = product.category_id
+    ? getProductsByCategory(product.category_id, 5)
+    : Promise.resolve([]);
+
+  const relatedProducts = await relatedProductsPromise;
 
   // 현재 상품 제외
   const filteredRelated = relatedProducts.filter((p) => p.id !== product.id).slice(0, 4);

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, MapPin, Users } from "lucide-react";
+import { Heart, MapPin, Star, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/services/productService";
 
@@ -20,15 +20,13 @@ export function ProductCard({
 }: ProductCardProps) {
   const [imageError, setImageError] = useState(false);
 
-  const discountRate = Math.round(
-    ((product.original_price - product.sale_price) / product.original_price) * 100
-  );
-
   const handleWishlistClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     onWishlistToggle?.(product.id);
   };
+
+  const isAvailable = !product.is_sold_out;
 
   return (
     <Link
@@ -54,19 +52,26 @@ export function ProductCard({
             alt={product.name}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-300"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             onError={() => setImageError(true)}
           />
+        )}
+
+        {/* 예약가능 뱃지 */}
+        {isAvailable && (
+          <div className="absolute top-3 left-3 bg-damda-yellow text-gray-900 text-xs font-semibold px-2.5 py-1 rounded">
+            예약가능
+          </div>
         )}
 
         {/* 찜하기 버튼 */}
         <button
           onClick={handleWishlistClick}
           className={cn(
-            "absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-colors",
+            "absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-colors",
             isWishlisted
               ? "bg-damda-yellow text-gray-900"
-              : "bg-white/80 text-gray-600 hover:bg-damda-yellow-light hover:text-damda-yellow-dark"
+              : "bg-white/90 text-gray-400 hover:text-damda-yellow-dark"
           )}
         >
           <Heart className={cn("w-5 h-5", isWishlisted && "fill-current")} />
@@ -78,59 +83,39 @@ export function ProductCard({
             <span className="text-white font-bold text-lg">품절</span>
           </div>
         )}
-
-        {/* 할인율 뱃지 */}
-        {discountRate > 0 && !product.is_sold_out && (
-          <div className="absolute top-3 left-3 bg-damda-teal text-white text-sm font-bold px-2.5 py-1 rounded-full">
-            {discountRate}%
-          </div>
-        )}
       </div>
 
       {/* 내용 */}
       <div className="p-4">
-        {/* 사업주 */}
-        {product.business_owner && (
-          <p className="text-xs text-gray-500 mb-1">
-            {product.business_owner.name}
-          </p>
-        )}
-
         {/* 상품명 */}
-        <h3 className="font-medium text-gray-900 line-clamp-2 mb-2 min-h-[2.5rem]">
+        <h3 className="font-semibold text-gray-900 line-clamp-1 mb-1.5">
           {product.name}
         </h3>
 
-        {/* 메타 정보 */}
-        <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
-          {product.region && (
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {product.region}
-            </span>
-          )}
-          <span className="flex items-center gap-1">
-            <Users className="w-3 h-3" />
-            {product.min_participants}-{product.max_participants}명
+        {/* 지역 */}
+        {product.region && (
+          <p className="flex items-center gap-1 text-sm text-gray-500 mb-2">
+            <MapPin className="w-3.5 h-3.5" />
+            {product.region}
+          </p>
+        )}
+
+        {/* 별점 + 리뷰수 */}
+        <div className="flex items-center gap-1 text-sm mb-3">
+          <Star className="w-4 h-4 fill-damda-yellow text-damda-yellow" />
+          <span className="font-medium text-gray-900">
+            {product.average_rating?.toFixed(1) || "0.0"}
           </span>
+          <span className="text-gray-400">
+            ({product.review_count?.toLocaleString() || 0})
+          </span>
+          <ChevronRight className="w-4 h-4 text-gray-400" />
         </div>
 
         {/* 가격 */}
-        <div className="flex items-baseline gap-2">
-          {discountRate > 0 && (
-            <>
-              <span className="text-sm font-bold text-damda-teal">
-                {discountRate}%
-              </span>
-              <span className="text-sm text-gray-400 line-through">
-                {product.original_price.toLocaleString()}원
-              </span>
-            </>
-          )}
-          <span className="text-lg font-bold text-damda-yellow-dark">
-            {product.sale_price.toLocaleString()}원
-          </span>
-        </div>
+        <p className="text-lg font-bold text-gray-900">
+          {product.sale_price.toLocaleString()}원~
+        </p>
       </div>
     </Link>
   );

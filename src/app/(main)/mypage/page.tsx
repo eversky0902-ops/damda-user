@@ -174,6 +174,16 @@ export default async function MypagePage() {
             <h2 className="font-semibold text-gray-900">나의 활동</h2>
           </div>
           <Link
+            href="/mypage/recent"
+            className="flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-100"
+          >
+            <div className="flex items-center gap-3">
+              <Clock className="w-5 h-5 text-gray-400" />
+              <span className="text-gray-700">최근 본 상품</span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-gray-400" />
+          </Link>
+          <Link
             href="/mypage/wishlist"
             className="flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-100"
           >

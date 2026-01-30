@@ -1,9 +1,13 @@
 import { Suspense } from "react";
-import { getProducts, type ProductFilter } from "@/services/productService";
+import { getProducts, getPopularProducts, type ProductFilter } from "@/services/productService";
 import { getCategoriesWithChildren } from "@/services/categoryService";
-import { ProductFilter as ProductFilterComponent } from "@/components/products/ProductFilter";
+import { ProductsHeroBanner } from "@/components/products/ProductsHeroBanner";
+import { ProductFilterBar } from "@/components/products/ProductFilterBar";
 import { ProductGridWithWishlist } from "@/components/products/ProductGridWithWishlist";
 import { Pagination } from "@/components/products/Pagination";
+import { NearbyProductsSection } from "@/components/products/NearbyProductsSection";
+import { PopularTop4Section } from "@/components/products/PopularTop4Section";
+import { CategoryExploreSection } from "@/components/products/CategoryExploreSection";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface ProductsPageProps {
@@ -12,8 +16,9 @@ interface ProductsPageProps {
     region?: string;
     sort?: string;
     page?: string;
-    from?: string;
-    to?: string;
+    date?: string;
+    participants?: string;
+    availableOnly?: string;
   }>;
 }
 
@@ -28,23 +33,35 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const filter: ProductFilter = {
     categoryId: params.category,
     region: params.region,
-    sortBy: (params.sort as ProductFilter["sortBy"]) || "newest",
+    sortBy: (params.sort as ProductFilter["sortBy"]) || "recommended",
+    availableOnly: params.availableOnly === "true",
   };
 
   const page = parseInt(params.page || "1", 10);
-  const pageSize = 12;
+  const pageSize = 9; // 3열 그리드에 맞게 9개
 
   // 병렬로 데이터 fetching
-  const [productsResult, categories] = await Promise.all([
+  const [productsResult, categories, popularProducts] = await Promise.all([
     getProducts(filter, page, pageSize),
     getCategoriesWithChildren(),
+    getPopularProducts(4),
   ]);
+
+  // 현재 선택된 카테고리 이름
+  const selectedCategory = categories.find((c) => c.id === params.category);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 필터 */}
+      {/* 히어로 배너 */}
+      <Suspense fallback={<HeroBannerSkeleton />}>
+        <ProductsHeroBanner
+          categoryName={selectedCategory?.name}
+        />
+      </Suspense>
+
+      {/* 필터/정렬 바 */}
       <Suspense fallback={<FilterSkeleton />}>
-        <ProductFilterComponent
+        <ProductFilterBar
           categories={categories}
           totalCount={productsResult.total}
         />
@@ -66,7 +83,22 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           </div>
         )}
       </div>
+
+      {/* 근처 체험장 추천 */}
+      <NearbyProductsSection products={popularProducts} />
+
+      {/* 인기 체험장 TOP 4 */}
+      <PopularTop4Section products={popularProducts} />
+
+      {/* 카테고리 탐색 */}
+      <CategoryExploreSection categories={categories} />
     </div>
+  );
+}
+
+function HeroBannerSkeleton() {
+  return (
+    <div className="h-[280px] md:h-[320px] bg-gray-200 animate-pulse" />
   );
 }
 

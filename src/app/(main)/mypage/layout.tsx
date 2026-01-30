@@ -9,12 +9,14 @@ import {
   Star,
   MessageSquare,
   ChevronRight,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const MYPAGE_MENU = [
   { href: "/mypage", label: "마이페이지", icon: User, exact: true },
   { href: "/mypage/reservations", label: "예약 내역", icon: Calendar },
+  { href: "/mypage/recent", label: "최근 본 상품", icon: Clock },
   { href: "/mypage/wishlist", label: "찜 목록", icon: Heart },
   { href: "/mypage/reviews", label: "내 리뷰", icon: Star },
 ];

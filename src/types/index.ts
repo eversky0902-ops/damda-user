@@ -109,16 +109,12 @@ export interface Review {
   user?: Pick<User, "id" | "name">;
 }
 
-// 배너 타입
+// 메인 이미지(배너) 타입
 export interface Banner {
   id: string;
-  type: "main" | "sub";
-  title: string;
+  title: string | null;
   imageUrl: string;
-  linkUrl?: string;
   sortOrder: number;
-  startDate: string;
-  endDate: string;
   isVisible: boolean;
 }
 
@@ -138,6 +134,21 @@ export interface FAQ {
   answer: string;
   sortOrder: number;
   isVisible: boolean;
+}
+
+// 광고 배너 타입
+export interface AdBanner {
+  id: string;
+  title: string;
+  advertiser_name: string;
+  image_url: string;
+  link_url: string;
+  sort_order: number;
+  start_date: string | null;
+  end_date: string | null;
+  is_visible: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // 찜 타입
