@@ -90,6 +90,9 @@ export function SignupForm() {
     try {
       const supabase = createClient();
 
+      // 0. 기존 세션 로그아웃 (다른 계정 로그인 상태에서 가입 시도하는 경우 대비)
+      await supabase.auth.signOut();
+
       // 1. Supabase Auth 회원가입
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.email,
@@ -116,6 +119,12 @@ export function SignupForm() {
 
       if (!authData.user) {
         toast.error("회원가입에 실패했습니다");
+        return;
+      }
+
+      // 이미 가입된 이메일인 경우 identities가 비어있음
+      if (!authData.user.identities || authData.user.identities.length === 0) {
+        toast.error("이미 가입된 이메일입니다");
         return;
       }
 
@@ -160,7 +169,13 @@ export function SignupForm() {
 
       if (daycareError) {
         console.error("Daycare insert error:", daycareError);
-        toast.error("어린이집 정보 저장에 실패했습니다");
+        if (daycareError.code === "23505" ||
+            daycareError.message?.includes("duplicate") ||
+            daycareError.message?.includes("unique")) {
+          toast.error("이미 가입된 이메일입니다");
+        } else {
+          toast.error("어린이집 정보 저장에 실패했습니다");
+        }
         return;
       }
 
