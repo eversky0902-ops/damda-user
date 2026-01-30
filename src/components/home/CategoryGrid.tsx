@@ -45,16 +45,16 @@ export async function CategoryGrid() {
 
 // 기본 카테고리 (DB에 데이터가 없을 경우)
 const defaultCategories: Category[] = [
-  { id: "best", name: "BEST 체험", sort_order: 1, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/best.svg" },
-  { id: "seasonal", name: "계절 특화체험", sort_order: 2, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/seasonal.svg" },
-  { id: "farm", name: "농장/자연", sort_order: 3, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/farm.svg" },
-  { id: "science", name: "과학/박물관", sort_order: 4, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/science.svg" },
-  { id: "art", name: "미술/전시회", sort_order: 5, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/art.svg" },
-  { id: "cooking", name: "요리/클래스", sort_order: 6, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/cooking.svg" },
-  { id: "water", name: "물놀이/수영장", sort_order: 7, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/water.svg" },
-  { id: "animal", name: "동물/야외활동", sort_order: 8, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/animal.svg" },
-  { id: "musical", name: "뮤지컬/연극", sort_order: 9, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/musical.svg" },
-  { id: "music", name: "음악/예술", sort_order: 10, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/music.svg" },
-  { id: "amusement", name: "놀이동산/수족관", sort_order: 11, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/amusement.svg" },
-  { id: "career", name: "직업/전통/안전", sort_order: 12, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/career.svg" },
+  { id: "best", name: "BEST 체험", sort_order: 1, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/best.svg", banner_url: null },
+  { id: "seasonal", name: "계절 특화체험", sort_order: 2, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/seasonal.svg", banner_url: null },
+  { id: "farm", name: "농장/자연", sort_order: 3, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/farm.svg", banner_url: null },
+  { id: "science", name: "과학/박물관", sort_order: 4, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/science.svg", banner_url: null },
+  { id: "art", name: "미술/전시회", sort_order: 5, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/art.svg", banner_url: null },
+  { id: "cooking", name: "요리/클래스", sort_order: 6, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/cooking.svg", banner_url: null },
+  { id: "water", name: "물놀이/수영장", sort_order: 7, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/water.svg", banner_url: null },
+  { id: "animal", name: "동물/야외활동", sort_order: 8, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/animal.svg", banner_url: null },
+  { id: "musical", name: "뮤지컬/연극", sort_order: 9, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/musical.svg", banner_url: null },
+  { id: "music", name: "음악/예술", sort_order: 10, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/music.svg", banner_url: null },
+  { id: "amusement", name: "놀이동산/수족관", sort_order: 11, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/amusement.svg", banner_url: null },
+  { id: "career", name: "직업/전통/안전", sort_order: 12, parent_id: null, depth: 1, is_active: true, icon_url: "/icons/categories/career.svg", banner_url: null },
 ];

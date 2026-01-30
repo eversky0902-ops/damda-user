@@ -8,6 +8,7 @@ export interface Category {
   depth: number;
   is_active: boolean;
   icon_url: string | null;
+  banner_url: string | null;
 }
 
 export async function getMainCategories(): Promise<Category[]> {
@@ -15,7 +16,7 @@ export async function getMainCategories(): Promise<Category[]> {
 
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name, sort_order, parent_id, depth, is_active, icon_url")
+    .select("id, name, sort_order, parent_id, depth, is_active, icon_url, banner_url")
     .is("parent_id", null)
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
@@ -33,7 +34,7 @@ export async function getCategoriesWithChildren(): Promise<Category[]> {
 
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name, sort_order, parent_id, depth, is_active, icon_url")
+    .select("id, name, sort_order, parent_id, depth, is_active, icon_url, banner_url")
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
 
