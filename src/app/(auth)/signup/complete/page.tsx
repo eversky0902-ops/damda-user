@@ -32,19 +32,12 @@ export default function SignupCompletePage() {
         </div>
       </div>
 
-      <div className="space-y-3 w-full">
-        <Button asChild className="w-full">
-          <Link href="/">
-            홈으로 돌아가기
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="w-full">
-          <Link href="/login">
-            로그인 페이지로
-          </Link>
-        </Button>
-      </div>
+      <Button asChild className="w-full">
+        <Link href="/">
+          홈으로 돌아가기
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Link>
+      </Button>
 
       <p className="mt-6 text-sm text-muted-foreground">
         문의사항이 있으시면{" "}

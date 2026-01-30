@@ -52,7 +52,14 @@ export function LoginForm() {
       });
 
       if (error) {
-        toast.error(error.message || "로그인에 실패했습니다");
+        if (error.code === "invalid_credentials" ||
+            error.message?.includes("Invalid login credentials")) {
+          toast.error("이메일 또는 비밀번호가 올바르지 않습니다");
+        } else if (error.code === "email_not_confirmed") {
+          toast.error("이메일 인증이 완료되지 않았습니다");
+        } else {
+          toast.error(error.message || "로그인에 실패했습니다");
+        }
         return;
       }
 
