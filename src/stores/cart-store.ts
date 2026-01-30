@@ -9,6 +9,8 @@ export interface CartItemProduct {
   original_price: number;
   sale_price: number;
   business_owner_name: string;
+  min_participants: number;
+  max_participants: number;
 }
 
 export interface CartItemOption {

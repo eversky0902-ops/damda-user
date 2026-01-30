@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import NextTopLoader from "nextjs-toploader";
 import { Providers } from "@/providers";
 import { FloatingChatButton } from "@/components/common/FloatingChatButton";
 import "./globals.css";
@@ -25,6 +26,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-pretendard antialiased bg-white">
+        <NextTopLoader color="#F8B737" showSpinner={false} />
         <Providers>
           {children}
           <FloatingChatButton />

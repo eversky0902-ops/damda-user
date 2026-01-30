@@ -49,6 +49,8 @@ export function useCart() {
             original_price: item.product!.original_price,
             sale_price: item.product!.sale_price,
             business_owner_name: item.product!.business_owner?.name || "",
+            min_participants: item.product!.min_participants || 1,
+            max_participants: item.product!.max_participants || 999,
           },
           participants: item.options?.participant_count || 1,
           reservationDate: item.reserved_date || new Date().toISOString(),

@@ -25,6 +25,8 @@ export interface CartItemDB {
     sale_price: number;
     region: string | null;
     is_sold_out: boolean;
+    min_participants: number;
+    max_participants: number;
     business_owner?: {
       name: string;
     };
@@ -56,6 +58,8 @@ export async function getCart(): Promise<CartItemDB[]> {
         sale_price,
         region,
         is_sold_out,
+        min_participants,
+        max_participants,
         business_owner:business_owners (
           name
         )

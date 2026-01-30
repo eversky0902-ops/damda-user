@@ -136,6 +136,21 @@ export interface FAQ {
   isVisible: boolean;
 }
 
+// 광고 배너 타입
+export interface AdBanner {
+  id: string;
+  title: string;
+  advertiser_name: string;
+  image_url: string;
+  link_url: string;
+  sort_order: number;
+  start_date: string | null;
+  end_date: string | null;
+  is_visible: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // 찜 타입
 export interface Wishlist {
   id: string;

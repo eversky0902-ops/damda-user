@@ -8,3 +8,4 @@ export { EventTabs } from "./EventTabs";
 export { PopularExperiences } from "./PopularExperiences";
 export { BestReviews } from "./BestReviews";
 export { PromotionBanners } from "./PromotionBanners";
+export { AdBannerSection } from "./AdBannerSection";
