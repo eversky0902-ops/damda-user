@@ -47,15 +47,27 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     getPopularProducts(4),
   ]);
 
-  // 현재 선택된 카테고리 이름
+  // 현재 선택된 카테고리 찾기
   const selectedCategory = categories.find((c) => c.id === params.category);
+
+  // 배너용 상위 카테고리 찾기 (depth=1 카테고리의 banner_url 사용)
+  const findRootCategory = (categoryId: string | undefined): typeof selectedCategory => {
+    if (!categoryId) return undefined;
+    const category = categories.find((c) => c.id === categoryId);
+    if (!category) return undefined;
+    if (category.depth === 1) return category;
+    if (category.parent_id) return findRootCategory(category.parent_id);
+    return category;
+  };
+  const rootCategory = findRootCategory(params.category);
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 히어로 배너 */}
       <Suspense fallback={<HeroBannerSkeleton />}>
         <ProductsHeroBanner
-          categoryName={selectedCategory?.name}
+          categoryName={rootCategory?.name || selectedCategory?.name}
+          categoryBannerUrl={rootCategory?.banner_url ?? undefined}
         />
       </Suspense>
 

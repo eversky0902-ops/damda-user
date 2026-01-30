@@ -10,19 +10,22 @@ interface ProductsHeroBannerProps {
   categoryBannerUrl?: string;
 }
 
-// 카테고리별 기본 배너 이미지
+// 카테고리명별 기본 배너 이미지
 const DEFAULT_BANNERS: Record<string, string> = {
-  farm: "https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=1600&q=80",
-  science: "https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=1600&q=80",
-  art: "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=1600&q=80",
-  cooking: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=1600&q=80",
-  water: "https://images.unsplash.com/photo-1519046904884-53103b34b206?w=1600&q=80",
-  animal: "https://images.unsplash.com/photo-1474511320723-9a56873571b7?w=1600&q=80",
-  musical: "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=1600&q=80",
-  music: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1600&q=80",
-  career: "https://images.unsplash.com/photo-1577896851231-70ef18881754?w=1600&q=80",
-  default: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80",
+  'BEST 체험': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80',
+  '계절 특화체험': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80',
+  '농장/자연': 'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=1600&q=80',
+  '과학/박물관': 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=1600&q=80',
+  '미술/전시회': 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=1600&q=80',
+  '요리/클래스': 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=1600&q=80',
+  '물놀이/수영장': 'https://images.unsplash.com/photo-1519046904884-53103b34b206?w=1600&q=80',
+  '동물/야외활동': 'https://images.unsplash.com/photo-1474511320723-9a56873571b7?w=1600&q=80',
+  '뮤지컬/연극': 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=1600&q=80',
+  '음악/예술': 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1600&q=80',
+  '놀이동산/수족관': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80',
+  '직업/전통/안전': 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=1600&q=80',
 };
+const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80';
 
 export function ProductsHeroBanner({
   categoryName,
@@ -32,12 +35,11 @@ export function ProductsHeroBanner({
   const searchParams = useSearchParams();
   const availableOnly = searchParams.get("availableOnly") === "true";
 
-  // 카테고리 ID에서 배너 이미지 결정
-  const categoryId = searchParams.get("category") || "";
+  // 배너 이미지 결정: 커스텀 배너 > 카테고리명 기반 기본 배너 > 전체 기본 배너
   const bannerUrl =
     categoryBannerUrl ||
-    DEFAULT_BANNERS[categoryId] ||
-    DEFAULT_BANNERS.default;
+    (categoryName && DEFAULT_BANNERS[categoryName]) ||
+    DEFAULT_BANNER;
 
   const handleAvailableOnlyChange = (checked: boolean) => {
     const params = new URLSearchParams(searchParams.toString());
