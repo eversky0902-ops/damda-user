@@ -21,7 +21,7 @@ export async function HeroBanner() {
           </p>
 
           {/* Search bar */}
-          <div className="pointer-events-auto">
+          <div className="pointer-events-auto w-full">
             <SearchBar />
           </div>
         </div>
