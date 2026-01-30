@@ -71,10 +71,31 @@ export function LoginForm() {
           .eq("id", authData.user.id)
           .single();
 
-        if (!daycare || daycare.status !== "approved") {
-          router.push("/signup/complete");
-          router.refresh();
+        if (!daycare) {
+          toast.error("어린이집 정보를 찾을 수 없습니다");
           return;
+        }
+
+        // 상태에 따른 리다이렉트
+        switch (daycare.status) {
+          case "approved":
+            toast.success("로그인되었습니다");
+            router.push("/home");
+            router.refresh();
+            return;
+          case "rejected":
+            router.push("/signup/rejected");
+            router.refresh();
+            return;
+          case "revision_required":
+            router.push("/signup/revision");
+            router.refresh();
+            return;
+          default:
+            // pending, requested 상태
+            router.push("/signup/complete");
+            router.refresh();
+            return;
         }
       }
 
