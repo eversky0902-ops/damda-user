@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   MapPin,
@@ -49,9 +49,6 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
   const [participantsInput, setParticipantsInput] = useState(String(product.min_participants));
   const [isWishlisted, setIsWishlisted] = useState(false);
 
-  // 스크롤 위치 보존을 위한 ref
-  const calendarSectionRef = useRef<HTMLDivElement>(null);
-
   // 실제 예약 가능 시간 (DB에서 가져옴)
   const availableTimeSlots = product.available_time_slots || [
     { time: "09:00", label: "오전 9시" },
@@ -83,24 +80,10 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
     }
   };
 
-  const handleTimeSelect = useCallback((time: string) => {
+  const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
-    // 날짜와 시간 모두 선택되면 접기 (스크롤 위치 보존)
-    if (selectedDate) {
-      // 현재 스크롤 위치와 요소 위치 저장
-      const scrollY = window.scrollY;
-      const elementTop = calendarSectionRef.current?.getBoundingClientRect().top ?? 0;
-
-      setIsCalendarOpen(false);
-
-      // 다음 프레임에서 스크롤 위치 복원
-      requestAnimationFrame(() => {
-        const newElementTop = calendarSectionRef.current?.getBoundingClientRect().top ?? 0;
-        const diff = newElementTop - elementTop;
-        window.scrollTo(0, scrollY + diff);
-      });
-    }
-  }, [selectedDate]);
+    // 달력은 접지 않고 그대로 유지 (스크롤 이동 방지)
+  };
 
   const discountRate = Math.round(
     ((product.original_price - product.sale_price) / product.original_price) * 100
@@ -317,7 +300,7 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
       </div>
 
       {/* 날짜 & 시간 선택 */}
-      <div ref={calendarSectionRef} className="space-y-3">
+      <div className="space-y-3">
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
             <Calendar className="w-4 h-4 text-damda-teal" />
