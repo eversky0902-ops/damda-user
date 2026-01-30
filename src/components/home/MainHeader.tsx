@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { User, ShoppingCart } from "lucide-react";
+import { User, ShoppingCart, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useCartStore } from "@/stores/cart-store";
 
@@ -65,6 +65,9 @@ export function MainHeader() {
           <div className="flex items-center gap-4">
             <Link href="/mypage" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
               <User className="w-6 h-6 text-gray-700" />
+            </Link>
+            <Link href="/mypage/recent" className="p-2 hover:bg-gray-100 rounded-full transition-colors" title="최근 본 상품">
+              <Clock className="w-6 h-6 text-gray-700" />
             </Link>
             <Link href="/cart" className="p-2 hover:bg-gray-100 rounded-full transition-colors relative">
               <ShoppingCart className="w-6 h-6 text-gray-700" />

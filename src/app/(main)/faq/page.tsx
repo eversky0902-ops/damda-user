@@ -63,9 +63,9 @@ export default async function FAQPage() {
               const categoryFAQs = groupedFAQs.get(category) || [];
               return (
                 <div key={category} className={categoryIndex !== sortedCategories.length - 1 ? "border-b border-gray-200" : ""}>
-                  <div className="px-4 py-3 bg-gray-50">
-                    <span className="text-sm font-medium text-gray-700">{CATEGORY_LABELS[category] || category}</span>
-                    <span className="text-sm text-gray-400 ml-2">{categoryFAQs.length}</span>
+                  <div className="px-4 py-4 bg-gray-100 border-b border-gray-200">
+                    <span className="text-base font-bold text-gray-900">{CATEGORY_LABELS[category] || category}</span>
+                    <span className="text-sm font-medium text-gray-500 ml-2">({categoryFAQs.length})</span>
                   </div>
 
                   <Accordion type="single" collapsible className="w-full">
@@ -76,10 +76,10 @@ export default async function FAQPage() {
                         className={index !== categoryFAQs.length - 1 ? "border-b border-gray-100" : ""}
                       >
                         <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-gray-50 text-left">
-                          <span className="text-sm text-gray-900">{faq.question}</span>
+                          <span className="text-sm font-medium text-gray-800">{faq.question}</span>
                         </AccordionTrigger>
                         <AccordionContent className="px-4 pb-4">
-                          <div className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 rounded-lg p-4">
+                          <div className="text-sm text-gray-700 whitespace-pre-wrap bg-amber-50 rounded-lg p-4 border border-amber-100">
                             {faq.answer}
                           </div>
                         </AccordionContent>

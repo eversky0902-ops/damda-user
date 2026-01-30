@@ -146,9 +146,10 @@ function ReviewCard({ review, index }: { review: Review; index: number }) {
   ];
   const tagColor = tagColors[index % tagColors.length];
   const productImage = review.product?.thumbnail || DEFAULT_IMAGE;
+  const productId = review.product?.id;
 
-  return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow h-[340px] flex flex-col">
+  const cardContent = (
+    <div className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow h-[340px] flex flex-col cursor-pointer">
       {/* Image */}
       <div className="relative aspect-[4/3] rounded-xl overflow-hidden mb-4 flex-shrink-0">
         <Image
@@ -179,4 +180,14 @@ function ReviewCard({ review, index }: { review: Review; index: number }) {
       </div>
     </div>
   );
+
+  if (productId) {
+    return (
+      <Link href={`/products/${productId}`}>
+        {cardContent}
+      </Link>
+    );
+  }
+
+  return cardContent;
 }

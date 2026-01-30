@@ -12,7 +12,7 @@ export function MainFooter() {
             <Link href="/privacy" className="hover:text-white font-semibold">개인정보처리방침</Link>
           </div>
           <div className="flex gap-4">
-            <Link href="/support" className="hover:text-white">제휴문의</Link>
+            <Link href="/partner" className="hover:text-white">입점문의</Link>
             <Link href="/notice" className="hover:text-white">공지사항</Link>
             <Link href="/careers" className="hover:text-white">인재채용</Link>
             <Link href="/sns" className="hover:text-white">SNS</Link>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   MapPin,
@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { format, addDays, isBefore, isAfter, startOfDay, getDay } from "date-fns";
 import { ko } from "date-fns/locale";
 import type { ProductDetail } from "@/services/productService";
+import { addRecentView } from "@/services/recentViewService";
 
 interface ProductDetailInfoProps {
   product: ProductDetail;
@@ -34,6 +35,11 @@ interface ProductDetailInfoProps {
 export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
   const router = useRouter();
   const { addItem } = useCart();
+
+  // 최근 본 상품에 추가 (DB 저장)
+  useEffect(() => {
+    addRecentView(product.id);
+  }, [product.id]);
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState<string | undefined>();

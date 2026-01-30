@@ -1,264 +1,150 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Search, MapPin, Calendar } from "lucide-react";
-import { DayPicker, DateRange } from "react-day-picker";
+import { useQuery } from "@tanstack/react-query";
+import { Search, MapPin, Calendar, ChevronRight, Loader2, X, ChevronLeft } from "lucide-react";
+import { DayPicker } from "react-day-picker";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
+import { motion, AnimatePresence } from "framer-motion";
 import "react-day-picker/style.css";
-
-// 지역 목록
-const REGIONS = [
-  "서울특별시",
-  "서울 강남구",
-  "서울 강동구",
-  "서울 강북구",
-  "서울 강서구",
-  "서울 관악구",
-  "서울 광진구",
-  "서울 구로구",
-  "서울 금천구",
-  "서울 노원구",
-  "서울 도봉구",
-  "서울 동대문구",
-  "서울 동작구",
-  "서울 마포구",
-  "서울 서대문구",
-  "서울 서초구",
-  "서울 성동구",
-  "서울 성북구",
-  "서울 송파구",
-  "서울 양천구",
-  "서울 영등포구",
-  "서울 용산구",
-  "서울 은평구",
-  "서울 종로구",
-  "서울 중구",
-  "서울 중랑구",
-  "부산광역시",
-  "대구광역시",
-  "인천광역시",
-  "광주광역시",
-  "대전광역시",
-  "울산광역시",
-  "세종특별자치시",
-  "경기도",
-  "경기 수원시",
-  "경기 성남시",
-  "경기 고양시",
-  "경기 용인시",
-  "경기 부천시",
-  "경기 안산시",
-  "경기 안양시",
-  "경기 남양주시",
-  "경기 화성시",
-  "경기 평택시",
-  "경기 의정부시",
-  "경기 시흥시",
-  "경기 파주시",
-  "경기 김포시",
-  "경기 광명시",
-  "경기 광주시",
-  "경기 군포시",
-  "경기 하남시",
-  "경기 오산시",
-  "경기 이천시",
-  "경기 안성시",
-  "경기 의왕시",
-  "경기 양평군",
-  "강원도",
-  "강원 춘천시",
-  "강원 원주시",
-  "강원 강릉시",
-  "강원 속초시",
-  "충청북도",
-  "충청남도",
-  "전라북도",
-  "전라남도",
-  "경상북도",
-  "경상남도",
-  "제주특별자치도",
-];
+import { getRegions, getPopularRegions, type RegionWithChildren } from "@/services/regionService";
 
 export function SearchBar() {
   const router = useRouter();
   const [region, setRegion] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [isRegionOpen, setIsRegionOpen] = useState(false);
-  const [filteredRegions, setFilteredRegions] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedProvinceId, setSelectedProvinceId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"region" | "date">("region");
 
-  const calendarRef = useRef<HTMLDivElement>(null);
-  const regionRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // 외부 클릭시 닫기
+  // Portal을 위한 mounted 상태
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // 지역 데이터 조회
+  const { data: regions = [], isLoading: isLoadingRegions } = useQuery({
+    queryKey: ["regions"],
+    queryFn: getRegions,
+    staleTime: 1000 * 60 * 60,
+  });
+
+  // 인기 지역 조회
+  const { data: popularRegions = [] } = useQuery({
+    queryKey: ["popularRegions"],
+    queryFn: getPopularRegions,
+    staleTime: 1000 * 60 * 60,
+  });
+
+  // 첫 번째 시/도 선택 (로딩 완료 후)
+  useEffect(() => {
+    if (regions.length > 0 && !selectedProvinceId) {
+      setSelectedProvinceId(regions[0].id);
+    }
+  }, [regions, selectedProvinceId]);
+
+  // 외부 클릭시 닫기 (데스크탑만)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
-        setIsCalendarOpen(false);
-      }
-      if (regionRef.current && !regionRef.current.contains(event.target as Node)) {
-        setIsRegionOpen(false);
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        if (window.innerWidth >= 768) {
+          setIsOpen(false);
+        }
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 지역 검색 필터링
+  // 모바일에서 열릴 때 body 스크롤 방지
   useEffect(() => {
-    if (region.trim()) {
-      const filtered = REGIONS.filter((r) =>
-        r.toLowerCase().includes(region.toLowerCase())
-      );
-      setFilteredRegions(filtered);
-      setIsRegionOpen(filtered.length > 0);
+    if (isOpen && window.innerWidth < 768) {
+      document.body.style.overflow = "hidden";
     } else {
-      setFilteredRegions([]);
-      setIsRegionOpen(false);
+      document.body.style.overflow = "";
     }
-  }, [region]);
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
 
-  const handleRegionSelect = (selectedRegion: string) => {
-    setRegion(selectedRegion);
-    setIsRegionOpen(false);
+  const selectedProvince = regions.find((r) => r.id === selectedProvinceId);
+
+  const handleRegionSelect = (province: RegionWithChildren, districtName?: string) => {
+    if (!districtName) {
+      setRegion(province.name);
+    } else {
+      setRegion(`${province.name} ${districtName}`);
+    }
+    // 모바일에서 지역 선택 후 날짜 탭으로 자동 이동
+    if (window.innerWidth < 768) {
+      setMobileTab("date");
+    }
+  };
+
+  const handlePopularClick = (provinceId: string) => {
+    setSelectedProvinceId(provinceId);
+  };
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (region) params.set("region", region);
+    if (selectedDate) params.set("date", format(selectedDate, "yyyy-MM-dd"));
+
+    setIsOpen(false);
+    router.push(`/products${params.toString() ? `?${params.toString()}` : ""}`);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const params = new URLSearchParams();
-    if (region) params.set("region", region);
-    if (dateRange?.from) params.set("from", format(dateRange.from, "yyyy-MM-dd"));
-    if (dateRange?.to) params.set("to", format(dateRange.to, "yyyy-MM-dd"));
-
-    router.push(`/products${params.toString() ? `?${params.toString()}` : ""}`);
+    handleSearch();
   };
 
-  const getDateRangeText = () => {
-    if (!dateRange?.from) return "";
-    if (!dateRange.to) return format(dateRange.from, "M월 d일", { locale: ko });
-    return `${format(dateRange.from, "M월 d일", { locale: ko })} - ${format(dateRange.to, "M월 d일", { locale: ko })}`;
+  const getDateText = () => {
+    if (!selectedDate) return "날짜 선택";
+    return format(selectedDate, "M월 d일 (E)", { locale: ko });
+  };
+
+  const getRegionText = () => {
+    return region || "지역 선택";
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto relative">
+    <div className="w-full max-w-3xl mx-auto relative" ref={dropdownRef}>
       <form onSubmit={handleSubmit}>
         <div className="flex items-center bg-white/95 rounded-full shadow-lg">
           {/* 지역 */}
-          <div className="flex-1 relative" ref={regionRef}>
-            <div className="flex items-center gap-2 px-5 py-3 border-r border-gray-200">
-              <MapPin className="w-5 h-5 text-damda-yellow-dark shrink-0" />
-              <div className="flex flex-col items-start min-w-0 flex-1">
-                <span className="text-xs text-gray-500 font-medium">지역</span>
-                <input
-                  type="text"
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
-                  onFocus={() => region && setIsRegionOpen(filteredRegions.length > 0)}
-                  placeholder="어디로 갈까요?"
-                  className="w-full bg-transparent text-sm text-gray-700 placeholder:text-gray-400 outline-none"
-                />
-              </div>
+          <div
+            className="flex-1 flex items-center gap-2 px-5 py-3 border-r border-gray-200 cursor-pointer"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            <MapPin className="w-5 h-5 text-damda-yellow-dark shrink-0" />
+            <div className="flex flex-col items-start min-w-0 flex-1">
+              <span className="text-xs text-gray-500 font-medium">지역</span>
+              <span className={`text-sm ${region ? "text-gray-700" : "text-gray-400"}`}>
+                {getRegionText()}
+              </span>
             </div>
-
-            {/* 지역 자동완성 드롭다운 */}
-            {isRegionOpen && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 max-h-[240px] overflow-y-auto">
-                {filteredRegions.map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => handleRegionSelect(r)}
-                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-damda-yellow-light/50 flex items-center gap-2"
-                  >
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                    {r}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* 일정 */}
-          <div className="flex-1 relative" ref={calendarRef}>
-            <div
-              className="flex items-center gap-2 px-5 py-3 cursor-pointer"
-              onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-            >
-              <Calendar className="w-5 h-5 text-damda-yellow-dark shrink-0" />
-              <div className="flex flex-col items-start min-w-0">
-                <span className="text-xs text-gray-500 font-medium">일정</span>
-                <span className={`text-sm ${dateRange?.from ? "text-gray-700" : "text-gray-400"}`}>
-                  {getDateRangeText() || "언제 갈까요?"}
-                </span>
-              </div>
+          <div
+            className="flex-1 flex items-center gap-2 px-5 py-3 cursor-pointer"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            <Calendar className="w-5 h-5 text-damda-yellow-dark shrink-0" />
+            <div className="flex flex-col items-start min-w-0">
+              <span className="text-xs text-gray-500 font-medium">일정</span>
+              <span className={`text-sm ${selectedDate ? "text-gray-700" : "text-gray-400"}`}>
+                {getDateText()}
+              </span>
             </div>
-
-            {/* 캘린더 팝오버 */}
-            {isCalendarOpen && (
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 p-3 z-50">
-                <style>{`
-                  .calendar-wrapper .rdp-root {
-                    --rdp-accent-color: #F8B737;
-                    --rdp-accent-background-color: #FEF3C7;
-                    --rdp-day-height: 36px;
-                    --rdp-day-width: 36px;
-                    --rdp-months-gap: 24px;
-                    font-size: 14px;
-                  }
-                  .calendar-wrapper .rdp-months {
-                    display: flex !important;
-                    flex-wrap: nowrap !important;
-                  }
-                  .calendar-wrapper .rdp-day_button {
-                    font-size: 14px;
-                  }
-                  .calendar-wrapper .rdp-caption_label {
-                    font-size: 15px;
-                    font-weight: 600;
-                  }
-                  .calendar-wrapper .rdp-weekday {
-                    font-size: 12px;
-                    color: #6b7280;
-                  }
-                  .calendar-wrapper .rdp-selected .rdp-day_button {
-                    background-color: #F8B737;
-                    color: #1f2937;
-                  }
-                  .calendar-wrapper .rdp-range_middle .rdp-day_button {
-                    background-color: #FEF3C7;
-                    color: #1f2937;
-                  }
-                `}</style>
-                <div className="calendar-wrapper">
-                  <DayPicker
-                    mode="range"
-                    selected={dateRange}
-                    onSelect={setDateRange}
-                    locale={ko}
-                    numberOfMonths={2}
-                    disabled={{ before: new Date() }}
-                  />
-                </div>
-                <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
-                  <button
-                    type="button"
-                    onClick={() => setDateRange(undefined)}
-                    className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
-                  >
-                    초기화
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsCalendarOpen(false)}
-                    className="px-3 py-1.5 text-sm bg-damda-yellow rounded-lg hover:bg-damda-yellow-dark"
-                  >
-                    확인
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* 검색 버튼 */}
@@ -269,6 +155,494 @@ export function SearchBar() {
             <Search className="w-5 h-5 text-gray-800" />
           </button>
         </div>
+
+        {/* 모바일: 전체화면 모달 (Portal) / 데스크탑: 드롭다운 */}
+        <AnimatePresence>
+          {isOpen && (
+            <>
+              {/* 모바일 전체화면 모달 - Portal로 body에 직접 렌더링 */}
+              {mounted && createPortal(
+                <AnimatePresence>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="fixed inset-0 z-[100] bg-white flex flex-col md:hidden"
+                    >
+                      {/* 헤더 */}
+                      <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.1 }}
+                        className="flex items-center px-4 py-3 border-b border-gray-100"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setIsOpen(false)}
+                          className="p-2 -ml-2 hover:bg-gray-100 rounded-full"
+                        >
+                          <ChevronLeft className="w-6 h-6" />
+                        </button>
+                        <h2 className="flex-1 text-center text-lg font-semibold pr-8">검색</h2>
+                      </motion.div>
+
+                      {/* 탭 */}
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3, delay: 0.15 }}
+                        className="flex border-b border-gray-200"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setMobileTab("region")}
+                          className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors relative ${
+                            mobileTab === "region"
+                              ? "text-damda-yellow-dark"
+                              : "text-gray-500"
+                          }`}
+                        >
+                          <MapPin className="w-4 h-4" />
+                          지역
+                          {region && (
+                            <span className="ml-1 px-2 py-0.5 bg-damda-yellow/20 rounded-full text-xs">
+                              {region.length > 8 ? region.substring(0, 8) + "..." : region}
+                            </span>
+                          )}
+                          {mobileTab === "region" && (
+                            <motion.div
+                              layoutId="mobileTabIndicator"
+                              className="absolute bottom-0 left-0 right-0 h-0.5 bg-damda-yellow-dark"
+                            />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMobileTab("date")}
+                          className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors relative ${
+                            mobileTab === "date"
+                              ? "text-damda-yellow-dark"
+                              : "text-gray-500"
+                          }`}
+                        >
+                          <Calendar className="w-4 h-4" />
+                          날짜
+                          {selectedDate && (
+                            <span className="ml-1 px-2 py-0.5 bg-damda-yellow/20 rounded-full text-xs">
+                              {format(selectedDate, "M/d")}
+                            </span>
+                          )}
+                          {mobileTab === "date" && (
+                            <motion.div
+                              layoutId="mobileTabIndicator"
+                              className="absolute bottom-0 left-0 right-0 h-0.5 bg-damda-yellow-dark"
+                            />
+                          )}
+                        </button>
+                      </motion.div>
+
+                      {/* 컨텐츠 - 스크롤 영역 */}
+                      <div className="flex-1 overflow-auto">
+                        <AnimatePresence mode="wait">
+                          {mobileTab === "region" ? (
+                            <motion.div
+                              key="region"
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: -20 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              {/* 인기 지역 */}
+                              <div className="px-4 py-3 border-b border-gray-100">
+                                <p className="text-xs text-gray-500 mb-2">인기 지역</p>
+                                <div className="flex gap-2 flex-wrap">
+                                  {popularRegions.map((p) => (
+                                    <button
+                                      key={p.id}
+                                      type="button"
+                                      onClick={() => handlePopularClick(p.id)}
+                                      className={`px-4 py-2 text-sm rounded-full border transition-all ${
+                                        selectedProvinceId === p.id
+                                          ? "bg-damda-yellow border-damda-yellow text-gray-800 font-medium shadow-sm"
+                                          : "border-gray-200 text-gray-600 hover:border-damda-yellow hover:bg-damda-yellow-light/30"
+                                      }`}
+                                    >
+                                      {p.name}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* 시/도 + 구/군 */}
+                              <div className="flex" style={{ height: "calc(100vh - 280px)" }}>
+                                <div className="w-[100px] border-r border-gray-100 overflow-y-auto bg-gray-50">
+                                  {isLoadingRegions ? (
+                                    <div className="flex items-center justify-center py-8">
+                                      <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                                    </div>
+                                  ) : (
+                                    regions.map((province) => (
+                                      <button
+                                        key={province.id}
+                                        type="button"
+                                        onClick={() => setSelectedProvinceId(province.id)}
+                                        className={`w-full px-3 py-3 text-left text-sm flex items-center justify-between transition-colors ${
+                                          selectedProvinceId === province.id
+                                            ? "bg-white text-damda-yellow-dark font-semibold"
+                                            : "text-gray-600"
+                                        }`}
+                                      >
+                                        {province.name}
+                                        {selectedProvinceId === province.id && (
+                                          <ChevronRight className="w-4 h-4" />
+                                        )}
+                                      </button>
+                                    ))
+                                  )}
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto p-3">
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {selectedProvince && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRegionSelect(selectedProvince)}
+                                          className={`px-2 py-2.5 text-center text-sm rounded-xl transition-all ${
+                                            region === selectedProvince.name
+                                              ? "bg-damda-yellow text-gray-800 font-semibold shadow-sm"
+                                              : "text-gray-700 hover:bg-gray-100"
+                                          }`}
+                                        >
+                                          전체
+                                        </button>
+                                        {selectedProvince.children.map((district) => (
+                                          <button
+                                            key={district.id}
+                                            type="button"
+                                            onClick={() => handleRegionSelect(selectedProvince, district.name)}
+                                            className={`px-2 py-2.5 text-center text-sm rounded-xl transition-all truncate ${
+                                              region === `${selectedProvince.name} ${district.name}`
+                                                ? "bg-damda-yellow text-gray-800 font-semibold shadow-sm"
+                                                : "text-gray-700 hover:bg-gray-100"
+                                            }`}
+                                          >
+                                            {district.name}
+                                          </button>
+                                        ))}
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key="date"
+                              initial={{ opacity: 0, x: 20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: 20 }}
+                              transition={{ duration: 0.2 }}
+                              className="p-4"
+                            >
+                              <style>{`
+                                .calendar-mobile-full {
+                                  width: 100%;
+                                }
+                                .calendar-mobile-full .rdp-root {
+                                  --rdp-accent-color: #F8B737;
+                                  --rdp-accent-background-color: #FEF3C7;
+                                  font-size: 15px;
+                                  width: 100%;
+                                }
+                                .calendar-mobile-full .rdp-month {
+                                  width: 100%;
+                                }
+                                .calendar-mobile-full .rdp-month_grid {
+                                  width: 100%;
+                                }
+                                .calendar-mobile-full .rdp-weekdays,
+                                .calendar-mobile-full .rdp-week {
+                                  display: flex;
+                                  justify-content: space-between;
+                                }
+                                .calendar-mobile-full .rdp-weekday,
+                                .calendar-mobile-full .rdp-day {
+                                  flex: 1;
+                                  display: flex;
+                                  align-items: center;
+                                  justify-content: center;
+                                  aspect-ratio: 1;
+                                }
+                                .calendar-mobile-full .rdp-day_button {
+                                  width: 100%;
+                                  height: 100%;
+                                  max-width: 48px;
+                                  max-height: 48px;
+                                  font-size: 16px;
+                                  border-radius: 12px;
+                                }
+                                .calendar-mobile-full .rdp-caption_label {
+                                  font-size: 18px;
+                                  font-weight: 600;
+                                }
+                                .calendar-mobile-full .rdp-weekday {
+                                  font-size: 14px;
+                                  color: #6b7280;
+                                  font-weight: 500;
+                                }
+                                .calendar-mobile-full .rdp-selected .rdp-day_button {
+                                  background-color: #F8B737;
+                                  color: #1f2937;
+                                  font-weight: 600;
+                                }
+                                .calendar-mobile-full .rdp-today:not(.rdp-selected) .rdp-day_button {
+                                  border: 2px solid #F8B737;
+                                }
+                                .calendar-mobile-full .rdp-nav {
+                                  gap: 8px;
+                                }
+                              `}</style>
+                              <div className="calendar-mobile-full">
+                                <DayPicker
+                                  mode="single"
+                                  selected={selectedDate}
+                                  onSelect={setSelectedDate}
+                                  locale={ko}
+                                  numberOfMonths={1}
+                                  disabled={{ before: new Date() }}
+                                />
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* 하단 버튼 - 고정 */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.2 }}
+                        className="flex gap-3 px-4 py-4 border-t border-gray-100 bg-white"
+                        style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRegion("");
+                            setSelectedDate(undefined);
+                          }}
+                          className="px-6 py-3 text-sm text-gray-600 border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
+                        >
+                          초기화
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSearch}
+                          className="flex-1 py-3 text-sm bg-damda-yellow rounded-full hover:bg-damda-yellow-dark transition-colors font-semibold flex items-center justify-center gap-2"
+                        >
+                          <Search className="w-4 h-4" />
+                          검색하기
+                        </button>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>,
+                document.body
+              )}
+
+              {/* 데스크탑 드롭다운 */}
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="
+                  hidden md:block
+                  absolute top-full left-1/2 -translate-x-1/2 mt-2
+                  bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50
+                "
+              >
+                <div className="flex">
+                  {/* 좌측: 지역 선택 */}
+                  <div className="w-[340px] border-r border-gray-100">
+                    <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <MapPin className="w-4 h-4 text-damda-yellow-dark" />
+                        지역 선택
+                        {region && (
+                          <span className="ml-auto px-2 py-0.5 bg-damda-yellow/20 rounded-full text-xs text-damda-yellow-dark">
+                            {region}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <div className="flex gap-2 flex-wrap">
+                        {popularRegions.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => handlePopularClick(p.id)}
+                            className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                              selectedProvinceId === p.id
+                                ? "bg-damda-yellow border-damda-yellow text-gray-800"
+                                : "border-gray-200 text-gray-600 hover:border-damda-yellow"
+                            }`}
+                          >
+                            {p.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex h-[280px]">
+                      <div className="w-[100px] border-r border-gray-100 overflow-y-auto bg-gray-50">
+                        {isLoadingRegions ? (
+                          <div className="flex items-center justify-center py-8">
+                            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                          </div>
+                        ) : (
+                          regions.map((province) => (
+                            <button
+                              key={province.id}
+                              type="button"
+                              onClick={() => setSelectedProvinceId(province.id)}
+                              className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between transition-colors ${
+                                selectedProvinceId === province.id
+                                  ? "bg-white text-damda-yellow-dark font-medium"
+                                  : "text-gray-600 hover:bg-gray-100"
+                              }`}
+                            >
+                              {province.name}
+                              {selectedProvinceId === province.id && (
+                                <ChevronRight className="w-3 h-3" />
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto p-2">
+                        <div className="grid grid-cols-2 gap-1">
+                          {selectedProvince && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleRegionSelect(selectedProvince)}
+                                className={`px-2 py-1.5 text-left text-sm rounded-lg transition-colors ${
+                                  region === selectedProvince.name
+                                    ? "bg-damda-yellow text-gray-800 font-medium"
+                                    : "text-gray-700 hover:bg-damda-yellow-light/50"
+                                }`}
+                              >
+                                전체
+                              </button>
+                              {selectedProvince.children.map((district) => (
+                                <button
+                                  key={district.id}
+                                  type="button"
+                                  onClick={() => handleRegionSelect(selectedProvince, district.name)}
+                                  className={`px-2 py-1.5 text-left text-sm rounded-lg transition-colors truncate ${
+                                    region === `${selectedProvince.name} ${district.name}`
+                                      ? "bg-damda-yellow text-gray-800 font-medium"
+                                      : "text-gray-700 hover:bg-damda-yellow-light/50"
+                                  }`}
+                                >
+                                  {district.name}
+                                </button>
+                              ))}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 우측: 날짜 선택 */}
+                  <div className="w-[340px]">
+                    <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <Calendar className="w-4 h-4 text-damda-yellow-dark" />
+                        날짜 선택
+                        {selectedDate && (
+                          <span className="ml-auto px-2 py-0.5 bg-damda-yellow/20 rounded-full text-xs text-damda-yellow-dark">
+                            {format(selectedDate, "M월 d일")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-3 flex justify-center">
+                      <style>{`
+                        .calendar-compact .rdp-root {
+                          --rdp-accent-color: #F8B737;
+                          --rdp-accent-background-color: #FEF3C7;
+                          --rdp-day-height: 36px;
+                          --rdp-day-width: 36px;
+                          font-size: 13px;
+                        }
+                        .calendar-compact .rdp-day_button {
+                          font-size: 13px;
+                        }
+                        .calendar-compact .rdp-caption_label {
+                          font-size: 14px;
+                          font-weight: 600;
+                        }
+                        .calendar-compact .rdp-weekday {
+                          font-size: 11px;
+                          color: #6b7280;
+                        }
+                        .calendar-compact .rdp-selected .rdp-day_button {
+                          background-color: #F8B737;
+                          color: #1f2937;
+                        }
+                        .calendar-compact .rdp-nav {
+                          gap: 0;
+                        }
+                      `}</style>
+                      <div className="calendar-compact">
+                        <DayPicker
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={setSelectedDate}
+                          locale={ko}
+                          numberOfMonths={1}
+                          disabled={{ before: new Date() }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 하단 버튼 */}
+                <div className="flex justify-between items-center px-4 py-3 border-t border-gray-100 bg-gray-50">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegion("");
+                      setSelectedDate(undefined);
+                    }}
+                    className="text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    초기화
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSearch}
+                    className="px-6 py-2 text-sm bg-damda-yellow rounded-full hover:bg-damda-yellow-dark transition-colors font-medium flex items-center gap-2"
+                  >
+                    <Search className="w-4 h-4" />
+                    검색하기
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </form>
     </div>
   );

@@ -13,7 +13,6 @@ import {
   Mail,
   HelpCircle,
   Megaphone,
-  Settings,
   LogOut,
   Clock,
   Users,
@@ -113,9 +112,9 @@ export default async function MypagePage() {
               </div>
               <Link
                 href="/mypage/profile"
-                className="text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1 flex-shrink-0"
+                className="text-sm text-damda-yellow-dark hover:text-damda-yellow font-medium px-3 py-1.5 border border-damda-yellow rounded-lg hover:bg-damda-yellow-light transition-colors flex-shrink-0"
               >
-                <Settings className="w-4 h-4" />
+                내 정보 수정
               </Link>
             </div>
           ) : (

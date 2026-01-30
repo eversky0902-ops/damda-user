@@ -9,6 +9,7 @@ export interface Review {
     name: string;
   };
   product?: {
+    id: string;
     name: string;
     thumbnail: string;
   };
@@ -29,6 +30,7 @@ export async function getFeaturedReviews(limit = 6): Promise<Review[]> {
         name
       ),
       products:product_id (
+        id,
         name,
         thumbnail
       )
@@ -47,7 +49,7 @@ export async function getFeaturedReviews(limit = 6): Promise<Review[]> {
   return (data || []).map((item) => ({
     ...item,
     daycare: item.daycares as unknown as { name: string },
-    product: item.products as unknown as { name: string; thumbnail: string },
+    product: item.products as unknown as { id: string; name: string; thumbnail: string },
   }));
 }
 
@@ -66,6 +68,7 @@ export async function getRecentReviews(limit = 6): Promise<Review[]> {
         name
       ),
       products:product_id (
+        id,
         name,
         thumbnail
       )
@@ -84,6 +87,6 @@ export async function getRecentReviews(limit = 6): Promise<Review[]> {
   return (data || []).map((item) => ({
     ...item,
     daycare: item.daycares as unknown as { name: string },
-    product: item.products as unknown as { name: string; thumbnail: string },
+    product: item.products as unknown as { id: string; name: string; thumbnail: string },
   }));
 }
