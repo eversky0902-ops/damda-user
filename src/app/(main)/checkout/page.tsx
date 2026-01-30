@@ -329,9 +329,9 @@ export default function CheckoutPage() {
             <h2 className="font-semibold text-gray-900">예약자 정보</h2>
           </div>
           <div className="px-4 py-4 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <Label htmlFor="name" className="text-sm font-medium text-gray-700">예약자명 *</Label>
+                <Label htmlFor="name">예약자명 <span className="text-red-500">*</span></Label>
                 <Input
                   id="name"
                   placeholder="홍길동"
@@ -339,11 +339,11 @@ export default function CheckoutPage() {
                   onChange={(e) =>
                     setReserverInfo((prev) => ({ ...prev, name: e.target.value }))
                   }
-                  className="mt-1.5 border-gray-300 focus:border-damda-yellow focus:ring-damda-yellow"
+                  className="mt-2"
                 />
               </div>
               <div>
-                <Label htmlFor="phone" className="text-sm font-medium text-gray-700">연락처 *</Label>
+                <Label htmlFor="phone">연락처 <span className="text-red-500">*</span></Label>
                 <Input
                   id="phone"
                   placeholder="010-1234-5678"
@@ -351,11 +351,11 @@ export default function CheckoutPage() {
                   onChange={(e) =>
                     setReserverInfo((prev) => ({ ...prev, phone: e.target.value }))
                   }
-                  className="mt-1.5 border-gray-300 focus:border-damda-yellow focus:ring-damda-yellow"
+                  className="mt-2"
                 />
               </div>
               <div className="sm:col-span-2">
-                <Label htmlFor="email" className="text-sm font-medium text-gray-700">이메일</Label>
+                <Label htmlFor="email">이메일</Label>
                 <Input
                   id="email"
                   type="email"
@@ -364,11 +364,11 @@ export default function CheckoutPage() {
                   onChange={(e) =>
                     setReserverInfo((prev) => ({ ...prev, email: e.target.value }))
                   }
-                  className="mt-1.5 border-gray-300 focus:border-damda-yellow focus:ring-damda-yellow"
+                  className="mt-2"
                 />
               </div>
               <div className="sm:col-span-2">
-                <Label htmlFor="daycare" className="text-sm font-medium text-gray-700">어린이집명</Label>
+                <Label htmlFor="daycare">어린이집명</Label>
                 <Input
                   id="daycare"
                   placeholder="OO어린이집"
@@ -376,7 +376,7 @@ export default function CheckoutPage() {
                   onChange={(e) =>
                     setReserverInfo((prev) => ({ ...prev, daycareName: e.target.value }))
                   }
-                  className="mt-1.5 border-gray-300 focus:border-damda-yellow focus:ring-damda-yellow"
+                  className="mt-2"
                 />
               </div>
             </div>
@@ -442,15 +442,19 @@ export default function CheckoutPage() {
 
         {/* 약관 동의 & 결제 버튼 */}
         <div className="px-4 py-6">
-          <label className="flex items-start gap-3 cursor-pointer mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-damda-yellow transition-colors">
+          <label className={`flex items-start gap-3 cursor-pointer mb-4 p-4 rounded-xl border-2 transition-all ${
+            agreedToTerms
+              ? "bg-damda-yellow-light border-damda-yellow"
+              : "bg-gray-50 border-gray-200 hover:border-gray-300"
+          }`}>
             <Checkbox
               checked={agreedToTerms}
               onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
-              className="mt-0.5 h-5 w-5 border-2 border-gray-400 data-[state=checked]:bg-damda-yellow data-[state=checked]:border-damda-yellow"
+              className="mt-0.5"
             />
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-gray-800">
               결제 및 환불 정책에 동의합니다.{" "}
-              <Link href="#" className="text-damda-yellow-dark underline font-semibold">
+              <Link href="#" className="text-damda-yellow-dark underline font-bold hover:text-damda-yellow">
                 약관 보기
               </Link>
             </span>
