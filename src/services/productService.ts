@@ -156,7 +156,14 @@ export async function getProducts(
 
   // 지역 필터
   if (filter.region) {
-    query = query.eq("region", filter.region);
+    // 구/군이 포함되어 있는지 확인 (공백으로 구분)
+    if (filter.region.includes(" ")) {
+      // 구/군까지 선택된 경우 정확히 일치하는 것 검색
+      query = query.eq("region", filter.region);
+    } else {
+      // 시/도만 선택된 경우 해당 지역으로 시작하는 모든 지역 검색
+      query = query.ilike("region", `${filter.region}%`);
+    }
   }
 
   // 검색어 필터

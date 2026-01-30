@@ -26,6 +26,51 @@ export interface Reservation {
   };
 }
 
+// 예약 단건 조회
+export async function getReservationById(
+  reservationId: string,
+  daycareId: string
+): Promise<Reservation | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("reservations")
+    .select(
+      `
+      *,
+      products:product_id (
+        id,
+        name,
+        thumbnail,
+        address,
+        address_detail,
+        business_owners:business_owner_id (
+          name,
+          contact_phone
+        )
+      )
+    `
+    )
+    .eq("id", reservationId)
+    .eq("daycare_id", daycareId)
+    .single();
+
+  if (error) {
+    console.error("Error fetching reservation:", error);
+    return null;
+  }
+
+  return {
+    ...data,
+    product: data.products
+      ? {
+          ...data.products,
+          business_owner: data.products.business_owners as { name: string; contact_phone?: string },
+        }
+      : undefined,
+  };
+}
+
 // 예약 목록 조회
 export async function getMyReservations(
   daycareId: string,

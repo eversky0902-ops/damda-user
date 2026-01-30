@@ -17,6 +17,7 @@ function PaymentCallbackContent() {
   const [status, setStatus] = useState<PaymentStatus>("processing");
   const [message, setMessage] = useState("결제를 처리하고 있습니다...");
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [reservationId, setReservationId] = useState<string | null>(null);
   const processedRef = useRef(false);
 
   useEffect(() => {
@@ -143,6 +144,7 @@ function PaymentCallbackContent() {
         localStorage.removeItem("damda_checkout_items");
 
         setOrderId(result.orderId || null);
+        setReservationId(result.reservationId || null);
         setStatus("success");
         setMessage("결제 및 예약이 완료되었습니다!");
       } catch (error) {
@@ -175,9 +177,15 @@ function PaymentCallbackContent() {
             <div className="space-y-3">
               <Button
                 className="w-full h-12 bg-damda-yellow hover:bg-damda-yellow-dark text-gray-900"
-                onClick={() => router.push("/mypage/reservations")}
+                onClick={() =>
+                  router.push(
+                    reservationId
+                      ? `/mypage/reservations/${reservationId}`
+                      : "/mypage/reservations"
+                  )
+                }
               >
-                예약 내역 확인하기
+                예약 상세 보기
               </Button>
               <Button
                 variant="outline"

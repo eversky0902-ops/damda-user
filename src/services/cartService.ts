@@ -374,7 +374,7 @@ export interface CreateReservationParams {
 
 export async function createReservations(
   params: CreateReservationParams
-): Promise<{ success: boolean; orderId?: string; error?: string }> {
+): Promise<{ success: boolean; orderId?: string; reservationId?: string; error?: string }> {
   const supabase = createClient();
 
   const {
@@ -417,14 +417,21 @@ export async function createReservations(
       });
     }
 
-    const { error } = await supabase.from("reservations").insert(reservations);
+    const { data: insertedReservations, error } = await supabase
+      .from("reservations")
+      .insert(reservations)
+      .select("id, reservation_number");
 
     if (error) {
       console.error("Error creating reservations:", error);
       return { success: false, error: "예약 생성에 실패했습니다: " + error.message };
     }
 
-    return { success: true, orderId: reservations[0]?.reservation_number };
+    return {
+      success: true,
+      orderId: insertedReservations?.[0]?.reservation_number,
+      reservationId: insertedReservations?.[0]?.id,
+    };
   } catch (error) {
     console.error("Error creating reservations:", error);
     return { success: false, error: "예약 생성 중 오류가 발생했습니다." };
