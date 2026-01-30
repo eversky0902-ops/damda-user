@@ -2,7 +2,6 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface PaginationProps {
@@ -64,15 +63,13 @@ export function Pagination({ currentPage, totalPages, className }: PaginationPro
   return (
     <nav className={cn("flex items-center justify-center gap-1", className)}>
       {/* 이전 페이지 */}
-      <Button
-        variant="outline"
-        size="icon"
+      <button
         onClick={() => goToPage(currentPage - 1)}
         disabled={currentPage === 1}
-        className="w-9 h-9"
+        className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
       >
-        <ChevronLeft className="w-4 h-4" />
-      </Button>
+        <ChevronLeft className="w-5 h-5" />
+      </button>
 
       {/* 페이지 번호 */}
       {pages.map((page, index) =>
@@ -84,31 +81,29 @@ export function Pagination({ currentPage, totalPages, className }: PaginationPro
             ...
           </span>
         ) : (
-          <Button
+          <button
             key={page}
-            variant={page === currentPage ? "default" : "outline"}
-            size="icon"
             onClick={() => goToPage(page)}
             className={cn(
-              "w-9 h-9",
-              page === currentPage && "bg-damda-yellow hover:bg-damda-yellow-dark text-gray-900 border-damda-yellow"
+              "w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
+              page === currentPage
+                ? "bg-damda-yellow text-gray-900"
+                : "text-gray-600 hover:bg-gray-100"
             )}
           >
             {page}
-          </Button>
+          </button>
         )
       )}
 
       {/* 다음 페이지 */}
-      <Button
-        variant="outline"
-        size="icon"
+      <button
         onClick={() => goToPage(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="w-9 h-9"
+        className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
       >
-        <ChevronRight className="w-4 h-4" />
-      </Button>
+        <ChevronRight className="w-5 h-5" />
+      </button>
     </nav>
   );
 }

@@ -34,7 +34,7 @@ interface ProductDetailInfoProps {
 
 export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
   const router = useRouter();
-  const { addItem } = useCart();
+  const { addItem, setDirectItem } = useCart();
 
   // 최근 본 상품에 추가 (DB 저장)
   useEffect(() => {
@@ -186,12 +186,52 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
     return true;
   };
 
-  // 바로 예약
+  // 바로 예약 (장바구니에 담지 않고 바로 결제 페이지로)
   const handleDirectReservation = () => {
-    const success = handleAddToCart();
-    if (success) {
-      router.push("/cart");
+    if (!selectedDate) {
+      toast.error("예약 날짜를 선택해주세요.");
+      return;
     }
+
+    if (!selectedTime) {
+      toast.error("예약 시간을 선택해주세요.");
+      return;
+    }
+
+    const requiredOptions = product.options.filter((o) => o.is_required);
+    const missingRequired = requiredOptions.find((o) => !selectedOptions.has(o.id));
+    if (missingRequired) {
+      toast.error(`필수 옵션 "${missingRequired.name}"을(를) 선택해주세요.`);
+      return;
+    }
+
+    const options = Array.from(selectedOptions.entries()).map(([optionId, quantity]) => {
+      const option = product.options.find((o) => o.id === optionId)!;
+      return {
+        id: optionId,
+        name: option.name,
+        price: option.price,
+        quantity,
+      };
+    });
+
+    // 바로예약 전용 아이템으로 설정 (장바구니에 담지 않음)
+    setDirectItem({
+      product: {
+        id: product.id,
+        name: product.name,
+        thumbnail: product.thumbnail,
+        original_price: product.original_price,
+        sale_price: product.sale_price,
+        business_owner_name: product.business_owner?.name || "",
+      },
+      participants,
+      reservationDate: format(selectedDate, "yyyy-MM-dd"),
+      reservationTime: selectedTime,
+      options,
+    });
+
+    router.push("/checkout");
   };
 
   // 찜하기 토글

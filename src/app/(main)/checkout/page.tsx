@@ -34,7 +34,11 @@ const PAYMENT_METHODS = [
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, getTotalAmount } = useCartStore();
+  const { items: cartItems, directItem, clearDirectItem, getTotalAmount } = useCartStore();
+
+  // 바로예약 아이템이 있으면 우선 사용, 없으면 장바구니 아이템 사용
+  const items = directItem ? [directItem] : cartItems;
+  const isDirectCheckout = !!directItem;
   const { user, profile } = useAuth();
 
   const [mounted, setMounted] = useState(false);
@@ -87,9 +91,9 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     setMounted(true);
-    // 장바구니가 비어있으면 장바구니로 리다이렉트
+    // 결제할 상품이 없으면 리다이렉트
     if (items.length === 0) {
-      router.replace("/cart");
+      router.replace("/products");
     }
     // SDK가 이미 로드되어 있는지 확인
     if (typeof window !== "undefined" && window.AUTHNICE) {
@@ -244,9 +248,19 @@ export default function CheckoutPage() {
           {/* 헤더 */}
         <div className="px-4 py-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <Link href="/cart" className="text-gray-500 hover:text-gray-700">
+            <button
+              onClick={() => {
+                if (isDirectCheckout) {
+                  clearDirectItem();
+                  router.back();
+                } else {
+                  router.push("/cart");
+                }
+              }}
+              className="text-gray-500 hover:text-gray-700"
+            >
               <ChevronLeft className="w-5 h-5" />
-            </Link>
+            </button>
             <h1 className="text-xl font-bold text-gray-900">결제하기</h1>
           </div>
         </div>

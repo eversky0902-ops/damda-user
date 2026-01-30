@@ -18,6 +18,9 @@ export interface Product {
   address: string | null;
   duration_minutes: number | null;
   created_at: string;
+  // 리뷰 통계 (목록 조회 시 포함)
+  review_count?: number;
+  average_rating?: number;
   business_owner?: {
     id: string;
     name: string;
@@ -36,7 +39,8 @@ export interface ProductFilter {
   search?: string;
   minPrice?: number;
   maxPrice?: number;
-  sortBy?: "popular" | "newest" | "price_low" | "price_high";
+  availableOnly?: boolean; // 예약 가능한 상품만
+  sortBy?: "recommended" | "newest" | "sales" | "reviews" | "price_low" | "price_high";
 }
 
 export interface PaginatedProducts {
@@ -170,7 +174,12 @@ export async function getProducts(
     query = query.lte("sale_price", filter.maxPrice);
   }
 
-  // 정렬
+  // 예약 가능 필터 (품절 제외)
+  if (filter.availableOnly) {
+    query = query.eq("is_sold_out", false);
+  }
+
+  // 정렬 (reviews, sales는 클라이언트 사이드에서 처리)
   switch (filter.sortBy) {
     case "newest":
       query = query.order("created_at", { ascending: false });
@@ -181,7 +190,11 @@ export async function getProducts(
     case "price_high":
       query = query.order("sale_price", { ascending: false });
       break;
-    case "popular":
+    case "sales":
+      // TODO: sales_count 필드 추가 후 정렬
+      query = query.order("view_count", { ascending: false });
+      break;
+    case "recommended":
     default:
       query = query.order("view_count", { ascending: false });
       break;
@@ -209,11 +222,30 @@ export async function getProducts(
     };
   }
 
-  const products = (data || []).map((item) => ({
+  // 상품 ID 목록 추출
+  const productIds = (data || []).map((item) => item.id);
+
+  // 리뷰 통계 일괄 조회
+  const reviewStatsMap = await getProductsReviewStats(productIds);
+
+  // 상품 데이터와 리뷰 통계 병합
+  let products = (data || []).map((item) => ({
     ...item,
     business_owner: item.business_owners as unknown as Product["business_owner"],
     category: item.categories as unknown as Product["category"],
+    review_count: reviewStatsMap[item.id]?.count || 0,
+    average_rating: reviewStatsMap[item.id]?.average || 0,
   }));
+
+  // 리뷰순 정렬 (클라이언트 사이드)
+  if (filter.sortBy === "reviews") {
+    products = products.sort((a, b) => {
+      if (b.average_rating !== a.average_rating) {
+        return b.average_rating - a.average_rating;
+      }
+      return b.review_count - a.review_count;
+    });
+  }
 
   const total = count || 0;
 
@@ -224,6 +256,40 @@ export async function getProducts(
     pageSize,
     totalPages: Math.ceil(total / pageSize),
   };
+}
+
+// 여러 상품의 리뷰 통계를 일괄 조회
+async function getProductsReviewStats(
+  productIds: string[]
+): Promise<Record<string, { count: number; average: number }>> {
+  if (productIds.length === 0) return {};
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("product_id, rating")
+    .in("product_id", productIds)
+    .eq("is_visible", true);
+
+  if (error || !data) {
+    return {};
+  }
+
+  // 상품별로 그룹화하여 통계 계산
+  const statsMap: Record<string, { count: number; average: number }> = {};
+
+  productIds.forEach((id) => {
+    const reviews = data.filter((r) => r.product_id === id);
+    const count = reviews.length;
+    const average =
+      count > 0
+        ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / count) * 10) / 10
+        : 0;
+    statsMap[id] = { count, average };
+  });
+
+  return statsMap;
 }
 
 export async function getProductsByCategory(

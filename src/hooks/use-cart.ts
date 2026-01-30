@@ -15,10 +15,13 @@ export function useCart() {
 
   // 개별 selector로 store 함수들 가져오기 (참조 안정성 유지)
   const items = useCartStore((state) => state.items);
+  const directItem = useCartStore((state) => state.directItem);
   const storeAddItem = useCartStore((state) => state.addItem);
   const storeRemoveItem = useCartStore((state) => state.removeItem);
   const storeUpdateItem = useCartStore((state) => state.updateItem);
   const storeClearCart = useCartStore((state) => state.clearCart);
+  const storeSetDirectItem = useCartStore((state) => state.setDirectItem);
+  const storeClearDirectItem = useCartStore((state) => state.clearDirectItem);
   const getTotalAmount = useCartStore((state) => state.getTotalAmount);
   const getItemCount = useCartStore((state) => state.getItemCount);
 
@@ -154,13 +157,29 @@ export function useCart() {
     }
   }, [isAuthenticated, storeClearCart]);
 
+  // 바로예약 아이템 설정 (장바구니에 담지 않음)
+  const setDirectItem = useCallback(
+    (item: CartItem) => {
+      storeSetDirectItem(item);
+    },
+    [storeSetDirectItem]
+  );
+
+  // 바로예약 아이템 클리어
+  const clearDirectItem = useCallback(() => {
+    storeClearDirectItem();
+  }, [storeClearDirectItem]);
+
   return {
     items,
+    directItem,
     isSyncing,
     addItem,
     removeItem,
     updateItem,
     clearCart,
+    setDirectItem,
+    clearDirectItem,
     getTotalAmount,
     getItemCount,
     syncFromDB,
