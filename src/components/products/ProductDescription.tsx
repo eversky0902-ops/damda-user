@@ -23,7 +23,7 @@ export function ProductDescription({ description, address }: ProductDescriptionP
       <div className="relative">
         <div
           className={cn(
-            "prose prose-gray max-w-none overflow-hidden transition-all prose-img:max-w-full prose-img:h-auto prose-img:rounded-lg",
+            "prose prose-gray max-w-none overflow-hidden transition-all [&_img]:w-full [&_img]:h-auto [&_img]:rounded-lg",
             !isExpanded && "max-h-[400px]"
           )}
           dangerouslySetInnerHTML={{ __html: description }}
