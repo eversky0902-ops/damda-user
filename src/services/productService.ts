@@ -397,67 +397,75 @@ export interface ProductUnavailableDate {
 export async function getProductDetail(id: string): Promise<ProductDetail | null> {
   const supabase = await createClient();
 
-  // 상품 기본 정보
-  const { data: product, error: productError } = await supabase
-    .from("products")
-    .select(
+  // 모든 쿼리를 병렬로 실행
+  const [productResult, imagesResult, optionsResult, unavailableDatesResult] = await Promise.all([
+    // 상품 기본 정보
+    supabase
+      .from("products")
+      .select(
+        `
+        *,
+        business_owners:business_owner_id (
+          id,
+          name,
+          logo_url,
+          address,
+          contact_phone
+        ),
+        categories:category_id (
+          id,
+          name,
+          parent_id
+        )
       `
-      *,
-      business_owners:business_owner_id (
-        id,
-        name,
-        logo_url,
-        address,
-        contact_phone
-      ),
-      categories:category_id (
-        id,
-        name,
-        parent_id
       )
-    `
-    )
-    .eq("id", id)
-    .single();
+      .eq("id", id)
+      .single(),
+    // 상품 이미지
+    supabase
+      .from("product_images")
+      .select("*")
+      .eq("product_id", id)
+      .order("sort_order", { ascending: true }),
+    // 상품 옵션
+    supabase
+      .from("product_options")
+      .select("*")
+      .eq("product_id", id)
+      .order("sort_order", { ascending: true }),
+    // 예약 불가일
+    supabase
+      .from("product_unavailable_dates")
+      .select("*")
+      .eq("product_id", id),
+  ]);
+
+  const { data: product, error: productError } = productResult;
 
   if (productError || !product) {
     console.error("Error fetching product detail:", productError);
     return null;
   }
 
-  // 상품 이미지
-  const { data: images } = await supabase
-    .from("product_images")
-    .select("*")
-    .eq("product_id", id)
-    .order("sort_order", { ascending: true });
-
-  // 상품 옵션
-  const { data: options } = await supabase
-    .from("product_options")
-    .select("*")
-    .eq("product_id", id)
-    .order("sort_order", { ascending: true });
-
-  // 예약 불가일
-  const { data: unavailableDates } = await supabase
-    .from("product_unavailable_dates")
-    .select("*")
-    .eq("product_id", id);
-
-  // 조회수 증가
-  await supabase
-    .from("products")
-    .update({ view_count: (product.view_count || 0) + 1 })
-    .eq("id", id);
+  // 조회수 증가 (fire-and-forget, await 하지 않음)
+  (async () => {
+    try {
+      await supabase
+        .from("products")
+        .update({ view_count: (product.view_count || 0) + 1 })
+        .eq("id", id);
+    } catch (err) {
+      console.error("Error updating view count:", err);
+    }
+  })();
 
   return {
     ...product,
     business_owner: product.business_owners as unknown as ProductDetail["business_owner"],
     category: product.categories as unknown as ProductDetail["category"],
-    images: images || [],
-    options: options || [],
-    unavailable_dates: unavailableDates || [],
+    images: imagesResult.data || [],
+    options: optionsResult.data || [],
+    unavailable_dates: unavailableDatesResult.data || [],
     available_time_slots: product.available_time_slots as ProductTimeSlot[] | null,
   };
 }

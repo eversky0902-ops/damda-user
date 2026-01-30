@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   MapPin,
@@ -49,6 +49,9 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
   const [participantsInput, setParticipantsInput] = useState(String(product.min_participants));
   const [isWishlisted, setIsWishlisted] = useState(false);
 
+  // 스크롤 위치 보존을 위한 ref
+  const calendarSectionRef = useRef<HTMLDivElement>(null);
+
   // 실제 예약 가능 시간 (DB에서 가져옴)
   const availableTimeSlots = product.available_time_slots || [
     { time: "09:00", label: "오전 9시" },
@@ -80,13 +83,24 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
     }
   };
 
-  const handleTimeSelect = (time: string) => {
+  const handleTimeSelect = useCallback((time: string) => {
     setSelectedTime(time);
-    // 날짜와 시간 모두 선택되면 접기
+    // 날짜와 시간 모두 선택되면 접기 (스크롤 위치 보존)
     if (selectedDate) {
+      // 현재 스크롤 위치와 요소 위치 저장
+      const scrollY = window.scrollY;
+      const elementTop = calendarSectionRef.current?.getBoundingClientRect().top ?? 0;
+
       setIsCalendarOpen(false);
+
+      // 다음 프레임에서 스크롤 위치 복원
+      requestAnimationFrame(() => {
+        const newElementTop = calendarSectionRef.current?.getBoundingClientRect().top ?? 0;
+        const diff = newElementTop - elementTop;
+        window.scrollTo(0, scrollY + diff);
+      });
     }
-  };
+  }, [selectedDate]);
 
   const discountRate = Math.round(
     ((product.original_price - product.sale_price) / product.original_price) * 100
@@ -303,7 +317,7 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
       </div>
 
       {/* 날짜 & 시간 선택 */}
-      <div className="space-y-3">
+      <div ref={calendarSectionRef} className="space-y-3">
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
             <Calendar className="w-4 h-4 text-damda-teal" />
@@ -445,16 +459,18 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
               </div>
             </div>
 
-            {/* 시간 선택 - 날짜 선택 후 표시 */}
-            {selectedDate && (
-              <div className="border-t border-gray-200">
-                <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                  <p className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-damda-teal" />
-                    {format(selectedDate, "M월 d일", { locale: ko })} 예약 가능 시간
-                  </p>
-                </div>
-                <div className="p-4">
+            {/* 시간 선택 - 항상 표시하여 높이 변동 최소화 */}
+            <div className="border-t border-gray-200">
+              <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                <p className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-damda-teal" />
+                  {selectedDate
+                    ? `${format(selectedDate, "M월 d일", { locale: ko })} 예약 가능 시간`
+                    : "시간 선택"}
+                </p>
+              </div>
+              <div className="p-4">
+                {selectedDate ? (
                   <div className="grid grid-cols-3 gap-2">
                     {availableTimeSlots.map((slot) => (
                       <button
@@ -488,9 +504,13 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
                       </button>
                     ))}
                   </div>
-                </div>
+                ) : (
+                  <p className="text-sm text-gray-400 text-center py-4">
+                    먼저 날짜를 선택해주세요
+                  </p>
+                )}
               </div>
-            )}
+            </div>
 
             {/* 범례 */}
             <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center gap-4 text-xs text-gray-500">
