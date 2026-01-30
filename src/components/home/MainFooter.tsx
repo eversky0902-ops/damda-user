@@ -8,14 +8,12 @@ export function MainFooter() {
       <div className="border-b border-gray-600">
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between text-sm">
           <div className="flex gap-4">
-            <Link href="/terms" className="hover:text-white">정책·약관</Link>
+            <Link href="/terms" className="hover:text-white">이용약관</Link>
             <Link href="/privacy" className="hover:text-white font-semibold">개인정보처리방침</Link>
           </div>
           <div className="flex gap-4">
             <Link href="/partner" className="hover:text-white">입점문의</Link>
             <Link href="/notice" className="hover:text-white">공지사항</Link>
-            <Link href="/careers" className="hover:text-white">인재채용</Link>
-            <Link href="/sns" className="hover:text-white">SNS</Link>
           </div>
         </div>
       </div>

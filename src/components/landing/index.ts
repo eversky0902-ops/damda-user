@@ -5,4 +5,4 @@ export { HowItWorks } from "./HowItWorks";
 export { PopularProducts } from "./PopularProducts";
 export { Reviews } from "./Reviews";
 export { CTASection } from "./CTASection";
-export { Footer } from "./Footer";
+export { MainFooter as Footer } from "../home/MainFooter";
