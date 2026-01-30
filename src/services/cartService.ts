@@ -420,11 +420,34 @@ export async function createReservations(
     const { data: insertedReservations, error } = await supabase
       .from("reservations")
       .insert(reservations)
-      .select("id, reservation_number");
+      .select("id, reservation_number, total_amount");
 
     if (error) {
       console.error("Error creating reservations:", error);
       return { success: false, error: "예약 생성에 실패했습니다: " + error.message };
+    }
+
+    // 결제 정보 저장 (payments 테이블)
+    if (insertedReservations && insertedReservations.length > 0) {
+      const payments = insertedReservations.map((reservation) => ({
+        reservation_id: reservation.id,
+        amount: reservation.total_amount,
+        payment_method: params.paymentMethod || "card",
+        pg_provider: "nicepay",
+        pg_tid: params.paymentTid || null,
+        status: "paid",
+        paid_at: new Date().toISOString(),
+      }));
+
+      const { error: paymentError } = await supabase
+        .from("payments")
+        .insert(payments);
+
+      if (paymentError) {
+        console.error("Error creating payments:", paymentError);
+        // 결제 정보 저장 실패해도 예약은 생성되었으므로 성공으로 처리
+        // 하지만 로그는 남김
+      }
     }
 
     return {
