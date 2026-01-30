@@ -46,7 +46,7 @@ export function LoginForm() {
     try {
       const supabase = createClient();
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
@@ -54,6 +54,21 @@ export function LoginForm() {
       if (error) {
         toast.error(error.message || "로그인에 실패했습니다");
         return;
+      }
+
+      // 승인 상태 확인
+      if (authData.user) {
+        const { data: daycare } = await supabase
+          .from("daycares")
+          .select("status")
+          .eq("id", authData.user.id)
+          .single();
+
+        if (!daycare || daycare.status !== "approved") {
+          router.push("/signup/complete");
+          router.refresh();
+          return;
+        }
       }
 
       toast.success("로그인되었습니다");

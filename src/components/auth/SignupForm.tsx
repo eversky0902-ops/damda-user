@@ -102,7 +102,15 @@ export function SignupForm() {
       });
 
       if (authError) {
-        toast.error(authError.message || "회원가입에 실패했습니다");
+        if (authError.message?.includes("over_email_send_rate_limit") ||
+            authError.code === "over_email_send_rate_limit") {
+          toast.error("잠시 후 다시 시도해주세요 (25초 후 가능)");
+        } else if (authError.message?.includes("already registered") ||
+                   authError.message?.includes("already been registered")) {
+          toast.error("이미 가입된 이메일입니다");
+        } else {
+          toast.error(authError.message || "회원가입에 실패했습니다");
+        }
         return;
       }
 
@@ -115,10 +123,10 @@ export function SignupForm() {
       let licenseFileUrl = "";
       if (licenseFile) {
         const fileExt = licenseFile.name.split(".").pop();
-        const fileName = `${authData.user.id}/license.${fileExt}`;
+        const fileName = `licenses/${authData.user.id}/license.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
-          .from("licenses")
+          .from("public")
           .upload(fileName, licenseFile, {
             cacheControl: "3600",
             upsert: true,
@@ -131,7 +139,7 @@ export function SignupForm() {
         }
 
         const { data: urlData } = supabase.storage
-          .from("licenses")
+          .from("public")
           .getPublicUrl(fileName);
 
         licenseFileUrl = urlData.publicUrl;
@@ -156,10 +164,8 @@ export function SignupForm() {
         return;
       }
 
-      toast.success(
-        "회원가입이 완료되었습니다. 관리자 승인 후 서비스 이용이 가능합니다."
-      );
-      router.push("/login");
+      toast.success("회원가입이 완료되었습니다.");
+      router.push("/signup/complete");
     } catch {
       toast.error("오류가 발생했습니다");
     } finally {
