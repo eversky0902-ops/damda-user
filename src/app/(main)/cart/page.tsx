@@ -27,7 +27,7 @@ import { ko } from "date-fns/locale";
 
 export default function CartPage() {
   const router = useRouter();
-  const { items, removeItem, updateItem, clearCart, getTotalAmount, isSyncing } = useCart();
+  const { items, removeItem, updateItem, clearCart, clearDirectItem, getTotalAmount, isSyncing } = useCart();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [mounted, setMounted] = useState(false);
 
@@ -164,6 +164,8 @@ export default function CartPage() {
       toast.error("결제할 상품을 선택해주세요.");
       return;
     }
+    // 바로예약 아이템이 있으면 클리어 (장바구니에서 결제하는 것이므로)
+    clearDirectItem();
     router.push("/checkout");
   };
 
