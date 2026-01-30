@@ -129,6 +129,17 @@ export async function getProducts(
 ): Promise<PaginatedProducts> {
   const supabase = await createClient();
 
+  // 카테고리 필터가 있는 경우, 해당 카테고리와 하위 카테고리 ID들을 먼저 조회
+  let categoryIds: string[] | null = null;
+  if (filter.categoryId) {
+    const { data: categories } = await supabase
+      .from("categories")
+      .select("id")
+      .or(`id.eq.${filter.categoryId},parent_id.eq.${filter.categoryId}`);
+
+    categoryIds = categories?.map((c) => c.id) || [filter.categoryId];
+  }
+
   let query = supabase
     .from("products")
     .select(
@@ -149,9 +160,9 @@ export async function getProducts(
     )
     .eq("is_visible", true);
 
-  // 카테고리 필터
-  if (filter.categoryId) {
-    query = query.eq("category_id", filter.categoryId);
+  // 카테고리 필터 - 대분류 선택 시 하위 카테고리 포함
+  if (categoryIds) {
+    query = query.in("category_id", categoryIds);
   }
 
   // 지역 필터

@@ -367,12 +367,15 @@ export interface DaycareInfo {
   representative: string | null;
   contact_name: string;
   contact_phone: string;
+  tel: string | null;
   business_number: string | null;
   license_number: string;
+  license_file: string;
   address: string;
   address_detail: string | null;
+  zipcode: string | null;
   capacity: number | null;
-  status: "pending" | "requested" | "approved" | "rejected";
+  status: "pending" | "requested" | "approved" | "rejected" | "deleted";
   created_at: string;
 }
 
