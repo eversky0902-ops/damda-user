@@ -156,17 +156,30 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
     ((product.original_price - product.sale_price) / product.original_price) * 100
   );
 
-  // 예약 불가일 계산
+  // 예약 불가일 계산 (휴무일 + 영업일이 아닌 요일)
   const isDateUnavailable = (date: Date): boolean => {
     const dateStr = format(date, "yyyy-MM-dd");
     const dayOfWeek = getDay(date);
 
-    return product.unavailable_dates.some((ud) => {
+    // 1. 휴무일 체크 (기존 로직)
+    const isHoliday = product.unavailable_dates.some((ud) => {
       if (ud.is_recurring && ud.day_of_week !== null) {
         return ud.day_of_week === dayOfWeek;
       }
       return ud.unavailable_date === dateStr;
     });
+
+    if (isHoliday) return true;
+
+    // 2. 영업일이 아닌 요일 체크 (available_time_slots에 해당 요일이 없으면 비활성화)
+    const timeSlots = product.available_time_slots;
+    if (timeSlots && Array.isArray(timeSlots) && timeSlots.length > 0) {
+      const availableDays = timeSlots.map((slot) => slot.day);
+      const hasTimeSlotForDay = availableDays.includes(dayOfWeek);
+      if (!hasTimeSlotForDay) return true;
+    }
+
+    return false;
   };
 
   // 선택 가능한 날짜 범위 (오늘부터 3개월)

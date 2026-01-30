@@ -334,7 +334,7 @@ function ReviewableItem({
         size="sm"
         className="bg-damda-yellow hover:bg-damda-yellow-dark text-gray-900 flex-shrink-0"
       >
-        <Link href={`/mypage/reviews/new?reservationId=${reservation.id}`}>
+        <Link href={`/mypage/reviews/write?reservationId=${reservation.id}`}>
           <PenLine className="w-3.5 h-3.5 mr-1" />
           리뷰 작성
         </Link>
