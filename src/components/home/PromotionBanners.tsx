@@ -1,23 +1,20 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
-import { getSubBanners } from "@/services/bannerService";
 
 export async function PromotionBanners() {
-  const banners = await getSubBanners();
-
   return (
     <section className="py-10 bg-white">
       <div className="max-w-5xl mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* 첫 번째 배너 - 담다 소개 */}
           <Link
-            href={banners[0]?.link_url || "/about"}
+            href="/about"
             className="relative overflow-hidden rounded-2xl group hover:shadow-lg transition-shadow h-[160px]"
           >
             <Image
-              src={banners[0]?.image_url || "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=800&q=80"}
-              alt={banners[0]?.title || "담다 소개"}
+              src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=800&q=80"
+              alt="담다 소개"
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
@@ -37,12 +34,12 @@ export async function PromotionBanners() {
 
           {/* 두 번째 배너 - 이벤트 모음 */}
           <Link
-            href={banners[1]?.link_url || "/events"}
+            href="/events"
             className="relative overflow-hidden rounded-2xl group hover:shadow-lg transition-shadow h-[160px]"
           >
             <Image
-              src={banners[1]?.image_url || "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=800&q=80"}
-              alt={banners[1]?.title || "이벤트"}
+              src="https://images.unsplash.com/photo-1513151233558-d860c5398176?w=800&q=80"
+              alt="이벤트"
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
             />

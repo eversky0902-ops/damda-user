@@ -109,16 +109,12 @@ export interface Review {
   user?: Pick<User, "id" | "name">;
 }
 
-// 배너 타입
+// 메인 이미지(배너) 타입
 export interface Banner {
   id: string;
-  type: "main" | "sub";
-  title: string;
+  title: string | null;
   imageUrl: string;
-  linkUrl?: string;
   sortOrder: number;
-  startDate: string;
-  endDate: string;
   isVisible: boolean;
 }
 

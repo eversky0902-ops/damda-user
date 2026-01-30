@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { useCart } from "@/hooks/use-cart";
 import { toast } from "sonner";
 import { format, addDays, isBefore, isAfter, startOfDay, getDay } from "date-fns";
+import { useMemo } from "react";
 import { ko } from "date-fns/locale";
 import type { ProductDetail } from "@/services/productService";
 import { addRecentView } from "@/services/recentViewService";
@@ -49,13 +50,79 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
   const [participantsInput, setParticipantsInput] = useState(String(product.min_participants));
   const [isWishlisted, setIsWishlisted] = useState(false);
 
-  // 실제 예약 가능 시간 (DB에서 가져옴)
-  const availableTimeSlots = product.available_time_slots || [
-    { time: "09:00", label: "오전 9시" },
-    { time: "10:00", label: "오전 10시" },
-    { time: "14:00", label: "오후 2시" },
-    { time: "15:00", label: "오후 3시" },
-  ];
+  // 시간 문자열을 라벨로 변환
+  const formatTimeLabel = (time: string): string => {
+    const [hour] = time.split(":").map(Number);
+    if (hour < 12) {
+      return `오전 ${hour}시`;
+    } else if (hour === 12) {
+      return "오후 12시";
+    } else {
+      return `오후 ${hour - 12}시`;
+    }
+  };
+
+  // 자동 시간 슬롯 생성
+  const generateTimeSlots = (start: string, end: string, interval: number): string[] => {
+    const slots: string[] = [];
+    const [startHour, startMin] = start.split(":").map(Number);
+    const [endHour, endMin] = end.split(":").map(Number);
+
+    let currentMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+
+    while (currentMinutes < endMinutes) {
+      const hour = Math.floor(currentMinutes / 60);
+      const min = currentMinutes % 60;
+      slots.push(`${hour.toString().padStart(2, "0")}:${min.toString().padStart(2, "0")}`);
+      currentMinutes += interval;
+    }
+
+    return slots;
+  };
+
+  // 선택한 날짜에 맞는 예약 가능 시간 슬롯 계산
+  const availableTimeSlots = useMemo(() => {
+    // DB에 저장된 시간 슬롯이 없으면 빈 배열
+    if (!product.available_time_slots || product.available_time_slots.length === 0) {
+      return [];
+    }
+
+    // 날짜가 선택되지 않았으면 빈 배열
+    if (!selectedDate) {
+      return [];
+    }
+
+    // 선택한 날짜의 요일 (0=일, 1=월, ... 6=토)
+    const dayOfWeek = getDay(selectedDate);
+
+    // 해당 요일의 시간 설정 찾기
+    const dayConfig = product.available_time_slots.find(
+      (slot) => slot.day === dayOfWeek
+    );
+
+    if (!dayConfig) {
+      return [];
+    }
+
+    // mode에 따라 시간 슬롯 생성
+    let timeStrings: string[] = [];
+
+    if (dayConfig.mode === "custom" && dayConfig.customSlots && dayConfig.customSlots.length > 0) {
+      // 커스텀 모드: 직접 지정된 시간 사용
+      timeStrings = [...dayConfig.customSlots].sort();
+    } else {
+      // 자동 모드: 간격에 따라 생성 (기본 60분)
+      const interval = dayConfig.interval || 60;
+      timeStrings = generateTimeSlots(dayConfig.start, dayConfig.end, interval);
+    }
+
+    // { time, label } 형식으로 변환
+    return timeStrings.map((time) => ({
+      time,
+      label: formatTimeLabel(time),
+    }));
+  }, [product.available_time_slots, selectedDate]);
 
   // 인원 입력 처리
   const handleParticipantsInputChange = (value: string) => {
@@ -454,39 +521,45 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
               </div>
               <div className="p-4">
                 {selectedDate ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    {availableTimeSlots.map((slot) => (
-                      <button
-                        key={slot.time}
-                        type="button"
-                        onClick={() => handleTimeSelect(slot.time)}
-                        className={cn(
-                          "relative p-3 rounded-lg border-2 transition-all text-center",
-                          selectedTime === slot.time
-                            ? "border-damda-yellow bg-damda-yellow-light/50"
-                            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                        )}
-                      >
-                        <span className={cn(
-                          "text-base font-semibold block",
-                          selectedTime === slot.time ? "text-gray-900" : "text-gray-700"
-                        )}>
-                          {slot.time}
-                        </span>
-                        <span className={cn(
-                          "text-xs",
-                          selectedTime === slot.time ? "text-gray-700" : "text-gray-500"
-                        )}>
-                          {slot.label}
-                        </span>
-                        {selectedTime === slot.time && (
-                          <div className="absolute top-1 right-1">
-                            <Check className="w-4 h-4 text-damda-teal" />
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                  availableTimeSlots.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {availableTimeSlots.map((slot) => (
+                        <button
+                          key={slot.time}
+                          type="button"
+                          onClick={() => handleTimeSelect(slot.time)}
+                          className={cn(
+                            "relative p-3 rounded-lg border-2 transition-all text-center",
+                            selectedTime === slot.time
+                              ? "border-damda-yellow bg-damda-yellow-light/50"
+                              : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                          )}
+                        >
+                          <span className={cn(
+                            "text-base font-semibold block",
+                            selectedTime === slot.time ? "text-gray-900" : "text-gray-700"
+                          )}>
+                            {slot.time}
+                          </span>
+                          <span className={cn(
+                            "text-xs",
+                            selectedTime === slot.time ? "text-gray-700" : "text-gray-500"
+                          )}>
+                            {slot.label}
+                          </span>
+                          {selectedTime === slot.time && (
+                            <div className="absolute top-1 right-1">
+                              <Check className="w-4 h-4 text-damda-teal" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400 text-center py-4">
+                      해당 날짜는 예약 가능한 시간이 없습니다
+                    </p>
+                  )
                 ) : (
                   <p className="text-sm text-gray-400 text-center py-4">
                     먼저 날짜를 선택해주세요

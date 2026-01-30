@@ -353,11 +353,20 @@ export async function getRegions(): Promise<string[]> {
   return regions.sort();
 }
 
-// 예약 가능 시간 슬롯
+// 시간 슬롯 모드 타입
+export type TimeSlotMode = "auto" | "custom";
+
+// 시간 슬롯 간격 타입
+export type TimeSlotInterval = 30 | 60 | 90 | 120;
+
+// 예약 가능 시간 슬롯 (Admin에서 저장하는 형식)
 export interface ProductTimeSlot {
-  time: string;
-  label: string;
-  max_capacity?: number;
+  day: number; // 0=일, 1=월, ..., 6=토
+  start: string; // "09:00"
+  end: string; // "18:00"
+  mode?: TimeSlotMode; // 'auto' | 'custom'
+  interval?: TimeSlotInterval; // 30 | 60 | 90 | 120 (auto 모드)
+  customSlots?: string[]; // ["10:00", "14:00"] (custom 모드)
 }
 
 // 상품 상세 정보 (이미지, 옵션, 예약불가일 포함)

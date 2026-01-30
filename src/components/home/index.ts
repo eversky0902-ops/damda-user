@@ -1,6 +1,7 @@
 export { MainHeader } from "./MainHeader";
 export { MainFooter } from "./MainFooter";
 export { HeroBanner } from "./HeroBanner";
+export { HeroBannerCarousel } from "./HeroBannerCarousel";
 export { CategoryGrid } from "./CategoryGrid";
 export { PromotionCards } from "./PromotionCards";
 export { EventTabs } from "./EventTabs";
