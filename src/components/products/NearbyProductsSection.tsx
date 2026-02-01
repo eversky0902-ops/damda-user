@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ChevronRight, Star, MapPin, Heart } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { Product } from "@/services/productService";
 
 interface NearbyProductsSectionProps {
@@ -46,13 +45,16 @@ export function NearbyProductsSection({ products, region = "서울" }: NearbyPro
 function NearbyProductCard({ product }: { product: Product }) {
   const [imageError, setImageError] = useState(false);
 
+  // 표시 가격 (할인가 우선, 없으면 정가)
+  const displayPrice = product.sale_price || product.original_price;
+
   return (
     <Link
       href={`/products/${product.id}`}
-      className="flex-shrink-0 w-[200px] md:w-[240px] group"
+      className="flex-shrink-0 w-[180px] md:w-[200px] group bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
     >
       {/* 이미지 */}
-      <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 mb-3">
+      <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
         {imageError || !product.thumbnail ? (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
             <span className="text-xs text-gray-400">No Image</span>
@@ -63,28 +65,52 @@ function NearbyProductCard({ product }: { product: Product }) {
             alt={product.name}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-300"
-            sizes="240px"
+            sizes="200px"
             onError={() => setImageError(true)}
           />
         )}
 
-        {/* 별점 뱃지 */}
-        <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 bg-damda-yellow rounded text-xs font-semibold text-gray-900">
-          <Star className="w-3 h-3 fill-current" />
-          {product.average_rating?.toFixed(1) || "0.0"}
+        {/* 찜 아이콘 (우측 상단) */}
+        <div className="absolute top-2 right-2">
+          <Heart className="w-5 h-5 text-white drop-shadow-md" />
         </div>
       </div>
 
       {/* 내용 */}
-      <h3 className="font-medium text-gray-900 line-clamp-1 mb-1 group-hover:text-damda-yellow-dark transition-colors">
-        {product.name}
-      </h3>
-      {product.region && (
-        <p className="flex items-center gap-1 text-xs text-gray-500">
-          <MapPin className="w-3 h-3" />
-          {product.region}
-        </p>
-      )}
+      <div className="p-3">
+        {/* 상품명 */}
+        <h3 className="font-bold text-gray-900 line-clamp-2 text-sm leading-tight mb-1.5 group-hover:text-damda-yellow-dark transition-colors">
+          {product.name}
+        </h3>
+
+        {/* 위치 */}
+        {product.region && (
+          <p className="flex items-center gap-1 text-xs text-gray-500 mb-1.5">
+            <MapPin className="w-3 h-3" />
+            {product.region}
+          </p>
+        )}
+
+        {/* 별점 */}
+        <div className="flex items-center gap-1 mb-2">
+          <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+          <span className="text-sm font-medium text-gray-900">
+            {product.average_rating?.toFixed(1) || "0.0"}
+          </span>
+          <span className="text-xs text-gray-400">
+            ({product.review_count || 0})
+          </span>
+          <ChevronRight className="w-3 h-3 text-gray-300" />
+        </div>
+
+        {/* 가격 */}
+        <div className="text-right">
+          <span className="text-sm font-bold text-gray-900">
+            {displayPrice?.toLocaleString() || 0}원
+          </span>
+          <span className="text-xs text-gray-500"> ~</span>
+        </div>
+      </div>
     </Link>
   );
 }
