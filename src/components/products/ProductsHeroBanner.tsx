@@ -1,9 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useSearchParams, useRouter } from "next/navigation";
 import { SearchBar } from "@/components/home/SearchBar";
-import { Checkbox } from "@/components/ui/checkbox";
 
 interface ProductsHeroBannerProps {
   categoryName?: string;
@@ -31,26 +29,11 @@ export function ProductsHeroBanner({
   categoryName,
   categoryBannerUrl,
 }: ProductsHeroBannerProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const availableOnly = searchParams.get("availableOnly") === "true";
-
   // 배너 이미지 결정: 커스텀 배너 > 카테고리명 기반 기본 배너 > 전체 기본 배너
   const bannerUrl =
     categoryBannerUrl ||
     (categoryName && DEFAULT_BANNERS[categoryName]) ||
     DEFAULT_BANNER;
-
-  const handleAvailableOnlyChange = (checked: boolean) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (checked) {
-      params.set("availableOnly", "true");
-    } else {
-      params.delete("availableOnly");
-    }
-    params.set("page", "1");
-    router.push(`/products?${params.toString()}`);
-  };
 
   return (
     <section className="relative h-[280px] md:h-[320px]">
@@ -80,16 +63,6 @@ export function ProductsHeroBanner({
 
         {/* 검색 바 */}
         <SearchBar />
-
-        {/* 예약가능 체크박스 */}
-        <label className="flex items-center gap-2 mt-4 cursor-pointer">
-          <Checkbox
-            checked={availableOnly}
-            onCheckedChange={handleAvailableOnlyChange}
-            className="border-white/60 data-[state=checked]:bg-damda-yellow data-[state=checked]:border-damda-yellow"
-          />
-          <span className="text-sm text-white/90">예약가능한 체험학습만 보기</span>
-        </label>
       </div>
     </section>
   );

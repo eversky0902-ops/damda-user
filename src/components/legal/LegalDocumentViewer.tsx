@@ -99,7 +99,7 @@ export function LegalDocumentViewer({
         {currentDocument ? (
           <div className="px-4 py-6">
             <div
-              className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700"
+              className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-headings:mt-6 prose-headings:mb-3 prose-p:text-gray-700 prose-p:mb-4 prose-p:leading-relaxed prose-li:text-gray-700 prose-ul:my-3 prose-ol:my-3"
               dangerouslySetInnerHTML={{ __html: currentDocument.content }}
             />
           </div>
