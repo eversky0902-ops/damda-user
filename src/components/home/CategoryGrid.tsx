@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Sparkles } from "lucide-react";
 import { getMainCategories, type Category } from "@/services/categoryService";
+import { CategoryCarousel } from "./CategoryCarousel";
 
 export async function CategoryGrid() {
   const categories = await getMainCategories();
@@ -12,34 +13,45 @@ export async function CategoryGrid() {
   return (
     <section className="py-10 bg-white">
       <div className="max-w-5xl mx-auto px-4">
-        <div className="grid grid-cols-6 gap-4">
+        {/* PC: 6열 그리드 */}
+        <div className="hidden md:grid grid-cols-6 gap-4">
           {displayCategories.map((category) => (
-            <Link
-              key={category.id}
-              href={`/products?category=${category.id}`}
-              className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-damda-yellow-light/50 transition-colors group"
-            >
-              <div className="w-14 h-14 flex items-center justify-center">
-                {category.icon_url ? (
-                  <Image
-                    src={category.icon_url}
-                    alt={category.name}
-                    width={48}
-                    height={48}
-                    className="w-12 h-12"
-                  />
-                ) : (
-                  <Sparkles className="w-10 h-10 text-damda-yellow-dark" />
-                )}
-              </div>
-              <span className="text-sm text-gray-700 font-medium text-center">
-                {category.name}
-              </span>
-            </Link>
+            <CategoryItem key={category.id} category={category} />
           ))}
+        </div>
+
+        {/* 모바일: 3열 2줄 캐러셀 */}
+        <div className="md:hidden">
+          <CategoryCarousel categories={displayCategories} />
         </div>
       </div>
     </section>
+  );
+}
+
+export function CategoryItem({ category }: { category: Category }) {
+  return (
+    <Link
+      href={`/products?category=${category.id}`}
+      className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-damda-yellow-light/50 transition-colors group"
+    >
+      <div className="w-14 h-14 flex items-center justify-center">
+        {category.icon_url ? (
+          <Image
+            src={category.icon_url}
+            alt={category.name}
+            width={48}
+            height={48}
+            className="w-12 h-12"
+          />
+        ) : (
+          <Sparkles className="w-10 h-10 text-damda-yellow-dark" />
+        )}
+      </div>
+      <span className="text-sm text-gray-700 font-medium text-center line-clamp-1">
+        {category.name}
+      </span>
+    </Link>
   );
 }
 
