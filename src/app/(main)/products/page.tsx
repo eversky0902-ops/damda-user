@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getProducts, getPopularProducts, type ProductFilter } from "@/services/productService";
+import { getProducts, getPopularProducts, getProductsByRegion, type ProductFilter } from "@/services/productService";
 import { getCategoriesWithChildren } from "@/services/categoryService";
 import { ProductsHeroBanner } from "@/components/products/ProductsHeroBanner";
 import { ProductFilterBar } from "@/components/products/ProductFilterBar";
@@ -40,11 +40,15 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const page = parseInt(params.page || "1", 10);
   const pageSize = 9; // 3열 그리드에 맞게 9개
 
+  // 검색 지역 (기본값: 서울)
+  const searchRegion = params.region || "서울";
+
   // 병렬로 데이터 fetching
-  const [productsResult, categories, popularProducts] = await Promise.all([
+  const [productsResult, categories, popularProducts, regionProducts] = await Promise.all([
     getProducts(filter, page, pageSize),
     getCategoriesWithChildren(),
     getPopularProducts(4),
+    getProductsByRegion(searchRegion, 4),
   ]);
 
   // 현재 선택된 카테고리 찾기
@@ -96,8 +100,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         )}
       </div>
 
-      {/* 근처 체험장 추천 */}
-      <NearbyProductsSection products={popularProducts} />
+      {/* 지역 기반 체험장 추천 */}
+      <NearbyProductsSection products={regionProducts} region={searchRegion} />
 
       {/* 인기 체험장 TOP 4 */}
       <PopularTop4Section products={popularProducts} />

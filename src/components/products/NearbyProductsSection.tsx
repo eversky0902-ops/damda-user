@@ -9,9 +9,10 @@ import type { Product } from "@/services/productService";
 
 interface NearbyProductsSectionProps {
   products: Product[];
+  region?: string;
 }
 
-export function NearbyProductsSection({ products }: NearbyProductsSectionProps) {
+export function NearbyProductsSection({ products, region = "서울" }: NearbyProductsSectionProps) {
   if (products.length === 0) return null;
 
   return (
@@ -20,10 +21,10 @@ export function NearbyProductsSection({ products }: NearbyProductsSectionProps) 
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg md:text-xl font-bold text-gray-900">
-            현재 위치에서 가까운 체험장 추천
+            {region} 지역 추천 체험장
           </h2>
           <Link
-            href="/products"
+            href={`/products?region=${encodeURIComponent(region)}`}
             className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
           >
             전체보기

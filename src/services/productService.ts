@@ -352,6 +352,47 @@ export async function getProductsByCategory(
   }));
 }
 
+// 지역 기반 상품 조회 (추천 섹션용)
+export async function getProductsByRegion(
+  region: string,
+  limit = 4
+): Promise<Product[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("products")
+    .select(
+      `
+      *,
+      business_owners:business_owner_id (
+        id,
+        name,
+        logo_url
+      ),
+      categories:category_id (
+        id,
+        name,
+        parent_id
+      )
+    `
+    )
+    .eq("is_visible", true)
+    .ilike("region", `${region}%`)
+    .order("view_count", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("Error fetching products by region:", error);
+    return [];
+  }
+
+  return (data || []).map((item) => ({
+    ...item,
+    business_owner: item.business_owners as unknown as Product["business_owner"],
+    category: item.categories as unknown as Product["category"],
+  }));
+}
+
 // 지역 목록 조회
 export async function getRegions(): Promise<string[]> {
   const supabase = await createClient();
