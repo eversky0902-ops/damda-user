@@ -51,10 +51,10 @@ function NearbyProductCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="flex-shrink-0 w-[180px] md:w-[200px] group bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+      className="flex-shrink-0 w-[320px] md:w-[360px] group bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex"
     >
-      {/* 이미지 */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+      {/* 이미지 (왼쪽) */}
+      <div className="relative w-[120px] md:w-[140px] flex-shrink-0 overflow-hidden bg-gray-100">
         {imageError || !product.thumbnail ? (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
             <span className="text-xs text-gray-400">No Image</span>
@@ -65,7 +65,7 @@ function NearbyProductCard({ product }: { product: Product }) {
             alt={product.name}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-300"
-            sizes="200px"
+            sizes="140px"
             onError={() => setImageError(true)}
           />
         )}
@@ -76,35 +76,37 @@ function NearbyProductCard({ product }: { product: Product }) {
         </div>
       </div>
 
-      {/* 내용 */}
-      <div className="p-3">
-        {/* 상품명 */}
-        <h3 className="font-bold text-gray-900 line-clamp-2 text-sm leading-tight mb-1.5 group-hover:text-damda-yellow-dark transition-colors">
-          {product.name}
-        </h3>
+      {/* 내용 (오른쪽) */}
+      <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
+        <div>
+          {/* 상품명 */}
+          <h3 className="font-bold text-gray-900 line-clamp-2 text-sm leading-tight mb-1.5 group-hover:text-damda-yellow-dark transition-colors">
+            {product.name}
+          </h3>
 
-        {/* 위치 */}
-        {product.region && (
-          <p className="flex items-center gap-1 text-xs text-gray-500 mb-1.5">
-            <MapPin className="w-3 h-3" />
-            {product.region}
-          </p>
-        )}
+          {/* 위치 */}
+          {product.region && (
+            <p className="flex items-center gap-1 text-xs text-gray-500 mb-1.5">
+              <MapPin className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">{product.region}</span>
+            </p>
+          )}
 
-        {/* 별점 */}
-        <div className="flex items-center gap-1 mb-2">
-          <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-          <span className="text-sm font-medium text-gray-900">
-            {product.average_rating?.toFixed(1) || "0.0"}
-          </span>
-          <span className="text-xs text-gray-400">
-            ({product.review_count || 0})
-          </span>
-          <ChevronRight className="w-3 h-3 text-gray-300" />
+          {/* 별점 */}
+          <div className="flex items-center gap-1">
+            <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+            <span className="text-sm font-medium text-gray-900">
+              {product.average_rating?.toFixed(1) || "0.0"}
+            </span>
+            <span className="text-xs text-gray-400">
+              ({product.review_count || 0})
+            </span>
+            <ChevronRight className="w-3 h-3 text-gray-300" />
+          </div>
         </div>
 
-        {/* 가격 */}
-        <div className="text-right">
+        {/* 가격 (하단 우측) */}
+        <div className="text-right mt-2">
           <span className="text-sm font-bold text-gray-900">
             {displayPrice?.toLocaleString() || 0}원
           </span>
