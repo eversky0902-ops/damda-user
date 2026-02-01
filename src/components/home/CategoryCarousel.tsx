@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, TouchEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Sparkles } from "lucide-react";
@@ -12,21 +12,51 @@ interface CategoryCarouselProps {
 
 export function CategoryCarousel({ categories }: CategoryCarouselProps) {
   const [currentPage, setCurrentPage] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // 페이지당 6개 (3열 x 2줄)
   const itemsPerPage = 6;
   const totalPages = Math.ceil(categories.length / itemsPerPage);
 
-  // 현재 페이지의 카테고리들
-  const currentCategories = categories.slice(
-    currentPage * itemsPerPage,
-    (currentPage + 1) * itemsPerPage
-  );
+  // 스와이프 감지 최소 거리
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe && currentPage < totalPages - 1) {
+      setCurrentPage((prev) => prev + 1);
+    }
+    if (isRightSwipe && currentPage > 0) {
+      setCurrentPage((prev) => prev - 1);
+    }
+  };
 
   return (
     <div className="relative">
       {/* 캐러셀 컨테이너 */}
-      <div className="overflow-hidden">
+      <div
+        ref={containerRef}
+        className="overflow-hidden touch-pan-y"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         <div
           className="flex transition-transform duration-300 ease-out"
           style={{ transform: `translateX(-${currentPage * 100}%)` }}
