@@ -2,11 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Search, MapPin, Calendar, ChevronRight, Loader2, X, ChevronLeft } from "lucide-react";
 import { DayPicker } from "react-day-picker";
-import { format, addMonths, startOfMonth } from "date-fns";
+import { format, addMonths, startOfMonth, parse } from "date-fns";
 import { ko } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import "react-day-picker/style.css";
@@ -14,13 +14,34 @@ import { getRegions, getPopularRegions, type RegionWithChildren } from "@/servic
 
 export function SearchBar() {
   const router = useRouter();
-  const [region, setRegion] = useState("");
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const searchParams = useSearchParams();
+
+  // URL 파라미터에서 초기값 읽기
+  const initialRegion = searchParams.get("region") || "";
+  const initialDateStr = searchParams.get("date") || "";
+  const initialDate = initialDateStr
+    ? (() => {
+        try {
+          return parse(initialDateStr, "yyyy-MM-dd", new Date());
+        } catch {
+          return undefined;
+        }
+      })()
+    : undefined;
+
+  const [region, setRegion] = useState(initialRegion);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialDate);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedProvinceId, setSelectedProvinceId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [mobileTab, setMobileTab] = useState<"region" | "date">("region");
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+
+  // URL 파라미터 변경 시 상태 업데이트
+  useEffect(() => {
+    setRegion(initialRegion);
+    setSelectedDate(initialDate);
+  }, [initialRegion, initialDateStr]);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const desktopDropdownRef = useRef<HTMLDivElement>(null);
