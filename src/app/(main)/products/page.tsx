@@ -17,8 +17,14 @@ interface ProductsPageProps {
     sort?: string;
     page?: string;
     date?: string;
-    participants?: string;
     availableOnly?: string;
+    // 더보기 필터
+    minPrice?: string;
+    maxPrice?: string;
+    durationMin?: string;
+    durationMax?: string;
+    participants?: string;
+    minRating?: string;
   }>;
 }
 
@@ -35,13 +41,21 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     region: params.region,
     sortBy: (params.sort as ProductFilter["sortBy"]) || "recommended",
     availableOnly: params.availableOnly === "true",
+    // 더보기 필터
+    minPrice: params.minPrice ? parseInt(params.minPrice, 10) : undefined,
+    maxPrice: params.maxPrice ? parseInt(params.maxPrice, 10) : undefined,
+    durationMin: params.durationMin ? parseInt(params.durationMin, 10) : undefined,
+    durationMax: params.durationMax ? parseInt(params.durationMax, 10) : undefined,
+    participants: params.participants ? parseInt(params.participants, 10) : undefined,
+    minRating: params.minRating ? parseFloat(params.minRating) : undefined,
   };
 
   const page = parseInt(params.page || "1", 10);
   const pageSize = 9; // 3열 그리드에 맞게 9개
 
-  // 검색 지역 (기본값: 서울)
-  const searchRegion = params.region || "서울";
+  // 검색 지역 (기본값: 서울) - 다중 지역 중 첫 번째 사용
+  const regions = params.region?.split(",").filter(Boolean) || [];
+  const searchRegion = regions[0] || "서울";
 
   // 병렬로 데이터 fetching
   const [productsResult, categories, popularProducts, regionProducts] = await Promise.all([

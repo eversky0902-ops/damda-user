@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { SlidersHorizontal, X, Calendar, MapPin } from "lucide-react";
+import { SlidersHorizontal, X, Calendar, MapPin, ChevronDown, Users, Clock, Star, Wallet } from "lucide-react";
 import { DayPicker, DateRange } from "react-day-picker";
 import { format, parse } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -101,6 +101,28 @@ const SORT_OPTIONS = [
   { value: "price_high", label: "가격 높은순" },
 ];
 
+// 더보기 필터 옵션
+const PRICE_OPTIONS = [
+  { value: "", label: "전체", min: undefined, max: undefined },
+  { value: "0-10000", label: "1만원 이하", min: 0, max: 10000 },
+  { value: "10000-30000", label: "1~3만원", min: 10000, max: 30000 },
+  { value: "30000-50000", label: "3~5만원", min: 30000, max: 50000 },
+  { value: "50000-", label: "5만원 이상", min: 50000, max: undefined },
+];
+
+const DURATION_OPTIONS = [
+  { value: "", label: "전체", min: undefined, max: undefined },
+  { value: "0-60", label: "1시간 이하", min: 0, max: 60 },
+  { value: "60-120", label: "1~2시간", min: 60, max: 120 },
+  { value: "120-", label: "2시간 이상", min: 120, max: undefined },
+];
+
+const RATING_OPTIONS = [
+  { value: "", label: "전체", min: undefined },
+  { value: "4", label: "4점 이상", min: 4 },
+  { value: "3", label: "3점 이상", min: 3 },
+];
+
 export function ProductFilter({
   categories,
   totalCount,
@@ -111,16 +133,40 @@ export function ProductFilter({
   const [showMobileFilter, setShowMobileFilter] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isRegionOpen, setIsRegionOpen] = useState(false);
+  const [isMoreFilterOpen, setIsMoreFilterOpen] = useState(false);
   const [regionInput, setRegionInput] = useState(searchParams.get("region") || "");
   const [filteredRegions, setFilteredRegions] = useState<string[]>([]);
   const calendarRef = useRef<HTMLDivElement>(null);
   const regionRef = useRef<HTMLDivElement>(null);
+  const moreFilterRef = useRef<HTMLDivElement>(null);
 
   const currentCategory = searchParams.get("category") || "";
   const currentRegion = searchParams.get("region") || "";
   const currentSort = searchParams.get("sort") || "newest";
   const fromDate = searchParams.get("from");
   const toDate = searchParams.get("to");
+
+  // 더보기 필터 현재값
+  const currentMinPrice = searchParams.get("minPrice") || "";
+  const currentMaxPrice = searchParams.get("maxPrice") || "";
+  const currentDurationMin = searchParams.get("durationMin") || "";
+  const currentDurationMax = searchParams.get("durationMax") || "";
+  const currentParticipants = searchParams.get("participants") || "";
+  const currentMinRating = searchParams.get("minRating") || "";
+
+  // 가격 옵션 현재 선택값 계산
+  const currentPriceOption = PRICE_OPTIONS.find(
+    (opt) =>
+      (opt.min?.toString() || "") === currentMinPrice &&
+      (opt.max?.toString() || "") === currentMaxPrice
+  )?.value || "";
+
+  // 소요시간 옵션 현재 선택값 계산
+  const currentDurationOption = DURATION_OPTIONS.find(
+    (opt) =>
+      (opt.min?.toString() || "") === currentDurationMin &&
+      (opt.max?.toString() || "") === currentDurationMax
+  )?.value || "";
 
   // URL 파라미터에서 날짜 범위 파싱
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
@@ -141,6 +187,9 @@ export function ProductFilter({
       }
       if (regionRef.current && !regionRef.current.contains(event.target as Node)) {
         setIsRegionOpen(false);
+      }
+      if (moreFilterRef.current && !moreFilterRef.current.contains(event.target as Node)) {
+        setIsMoreFilterOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -213,7 +262,65 @@ export function ProductFilter({
     setRegionInput("");
   };
 
+  // 더보기 필터 업데이트 함수
+  const updateMoreFilters = useCallback(
+    (updates: Record<string, string>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value) {
+          params.set(key, value);
+        } else {
+          params.delete(key);
+        }
+      });
+      params.set("page", "1");
+      router.push(`/products?${params.toString()}`);
+    },
+    [router, searchParams]
+  );
+
+  const handlePriceChange = (optionValue: string) => {
+    const option = PRICE_OPTIONS.find((opt) => opt.value === optionValue);
+    updateMoreFilters({
+      minPrice: option?.min?.toString() || "",
+      maxPrice: option?.max?.toString() || "",
+    });
+  };
+
+  const handleDurationChange = (optionValue: string) => {
+    const option = DURATION_OPTIONS.find((opt) => opt.value === optionValue);
+    updateMoreFilters({
+      durationMin: option?.min?.toString() || "",
+      durationMax: option?.max?.toString() || "",
+    });
+  };
+
+  const handleRatingChange = (optionValue: string) => {
+    const option = RATING_OPTIONS.find((opt) => opt.value === optionValue);
+    updateMoreFilters({
+      minRating: option?.min?.toString() || "",
+    });
+  };
+
+  const handleParticipantsChange = (value: string) => {
+    const numValue = value.replace(/[^0-9]/g, "");
+    updateMoreFilters({ participants: numValue });
+  };
+
+  const clearMoreFilters = () => {
+    updateMoreFilters({
+      minPrice: "",
+      maxPrice: "",
+      durationMin: "",
+      durationMax: "",
+      participants: "",
+      minRating: "",
+    });
+  };
+
   const hasActiveFilters = currentCategory || currentRegion || fromDate;
+  const hasActiveMoreFilters = currentMinPrice || currentMaxPrice || currentDurationMin || currentDurationMax || currentParticipants || currentMinRating;
+  const moreFilterCount = [currentPriceOption, currentDurationOption, currentParticipants, currentMinRating].filter(Boolean).length;
 
   const getDateRangeText = () => {
     if (!dateRange?.from) return "날짜 선택";
@@ -375,12 +482,151 @@ export function ProductFilter({
               )}
             </div>
 
+            {/* 더보기 필터 */}
+            <div className="relative" ref={moreFilterRef}>
+              <button
+                type="button"
+                onClick={() => setIsMoreFilterOpen(!isMoreFilterOpen)}
+                className={`flex items-center gap-2 px-4 h-10 border rounded-md hover:bg-gray-50 text-sm transition-colors ${
+                  hasActiveMoreFilters
+                    ? "border-damda-yellow bg-amber-50 text-amber-700"
+                    : "border-gray-200 text-gray-700"
+                }`}
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                <span>더보기</span>
+                {moreFilterCount > 0 && (
+                  <span className="flex items-center justify-center w-5 h-5 text-xs font-medium bg-damda-yellow text-gray-900 rounded-full">
+                    {moreFilterCount}
+                  </span>
+                )}
+                <ChevronDown className={`w-4 h-4 transition-transform ${isMoreFilterOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {/* 더보기 필터 팝오버 */}
+              {isMoreFilterOpen && (
+                <div className="absolute top-full left-0 mt-2 w-[320px] bg-white rounded-2xl shadow-xl border border-gray-100 p-4 z-50">
+                  {/* 가격대 */}
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Wallet className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">가격대</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {PRICE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => handlePriceChange(opt.value)}
+                          className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                            currentPriceOption === opt.value
+                              ? "bg-damda-yellow border-damda-yellow text-gray-900 font-medium"
+                              : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 소요시간 */}
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">소요시간</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {DURATION_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => handleDurationChange(opt.value)}
+                          className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                            currentDurationOption === opt.value
+                              ? "bg-damda-yellow border-damda-yellow text-gray-900 font-medium"
+                              : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 인원수 */}
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">인원수</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={currentParticipants}
+                        onChange={(e) => handleParticipantsChange(e.target.value)}
+                        placeholder="인원 입력"
+                        className="w-24 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-damda-yellow focus:border-transparent"
+                      />
+                      <span className="text-sm text-gray-500">명 수용 가능</span>
+                    </div>
+                  </div>
+
+                  {/* 평점 */}
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Star className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">평점</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {RATING_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => handleRatingChange(opt.value)}
+                          className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                            currentMinRating === opt.value
+                              ? "bg-damda-yellow border-damda-yellow text-gray-900 font-medium"
+                              : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 버튼 영역 */}
+                  <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                    <button
+                      type="button"
+                      onClick={clearMoreFilters}
+                      className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
+                    >
+                      초기화
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsMoreFilterOpen(false)}
+                      className="px-4 py-1.5 text-sm bg-damda-yellow rounded-lg hover:bg-amber-400 font-medium"
+                    >
+                      닫기
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* 필터 초기화 */}
-            {hasActiveFilters && (
+            {(hasActiveFilters || hasActiveMoreFilters) && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={clearFilters}
+                onClick={() => {
+                  clearFilters();
+                  clearMoreFilters();
+                }}
                 className="text-gray-500 hover:text-gray-700"
               >
                 <X className="w-4 h-4 mr-1" />
@@ -499,11 +745,98 @@ export function ProductFilter({
               </button>
             </div>
 
-            {hasActiveFilters && (
+            {/* 모바일 더보기 필터 */}
+            <div className="pt-3 border-t border-gray-200">
+              <p className="text-sm font-medium text-gray-700 mb-3">상세 필터</p>
+
+              {/* 가격대 */}
+              <div className="mb-3">
+                <p className="text-xs text-gray-500 mb-2">가격대</p>
+                <div className="flex flex-wrap gap-2">
+                  {PRICE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => handlePriceChange(opt.value)}
+                      className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                        currentPriceOption === opt.value
+                          ? "bg-damda-yellow border-damda-yellow text-gray-900 font-medium"
+                          : "border-gray-200 text-gray-600"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 소요시간 */}
+              <div className="mb-3">
+                <p className="text-xs text-gray-500 mb-2">소요시간</p>
+                <div className="flex flex-wrap gap-2">
+                  {DURATION_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => handleDurationChange(opt.value)}
+                      className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                        currentDurationOption === opt.value
+                          ? "bg-damda-yellow border-damda-yellow text-gray-900 font-medium"
+                          : "border-gray-200 text-gray-600"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 인원수 */}
+              <div className="mb-3">
+                <p className="text-xs text-gray-500 mb-2">인원수</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={currentParticipants}
+                    onChange={(e) => handleParticipantsChange(e.target.value)}
+                    placeholder="인원 입력"
+                    className="w-24 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-damda-yellow"
+                  />
+                  <span className="text-sm text-gray-500">명 수용 가능</span>
+                </div>
+              </div>
+
+              {/* 평점 */}
+              <div className="mb-3">
+                <p className="text-xs text-gray-500 mb-2">평점</p>
+                <div className="flex flex-wrap gap-2">
+                  {RATING_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => handleRatingChange(opt.value)}
+                      className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                        currentMinRating === opt.value
+                          ? "bg-damda-yellow border-damda-yellow text-gray-900 font-medium"
+                          : "border-gray-200 text-gray-600"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {(hasActiveFilters || hasActiveMoreFilters) && (
               <Button
                 variant="outline"
                 className="w-full h-11"
-                onClick={clearFilters}
+                onClick={() => {
+                  clearFilters();
+                  clearMoreFilters();
+                }}
               >
                 필터 초기화
               </Button>

@@ -35,12 +35,17 @@ export interface Product {
 
 export interface ProductFilter {
   categoryId?: string;
-  region?: string;
+  region?: string; // 콤마로 구분된 다중 지역 지원 (예: "서울 강남구,서울 송파구,경기")
   search?: string;
   minPrice?: number;
   maxPrice?: number;
   availableOnly?: boolean; // 예약 가능한 상품만
   sortBy?: "recommended" | "newest" | "sales" | "reviews" | "price_low" | "price_high";
+  // 더보기 필터
+  durationMin?: number; // 소요시간 최소 (분)
+  durationMax?: number; // 소요시간 최대 (분)
+  participants?: number; // 인원수 (min <= N <= max 인 상품)
+  minRating?: number; // 최소 평점
 }
 
 export interface PaginatedProducts {
@@ -59,10 +64,11 @@ export async function getPopularProducts(limit = 8): Promise<Product[]> {
     .select(
       `
       *,
-      business_owners:business_owner_id (
+      business_owners!inner (
         id,
         name,
-        logo_url
+        logo_url,
+        status
       ),
       categories:category_id (
         id,
@@ -72,6 +78,7 @@ export async function getPopularProducts(limit = 8): Promise<Product[]> {
     `
     )
     .eq("is_visible", true)
+    .eq("business_owners.status", "active")
     .order("view_count", { ascending: false })
     .limit(limit);
 
@@ -95,10 +102,11 @@ export async function getProductById(id: string): Promise<Product | null> {
     .select(
       `
       *,
-      business_owners:business_owner_id (
+      business_owners!inner (
         id,
         name,
-        logo_url
+        logo_url,
+        status
       ),
       categories:category_id (
         id,
@@ -108,6 +116,7 @@ export async function getProductById(id: string): Promise<Product | null> {
     `
     )
     .eq("id", id)
+    .eq("business_owners.status", "active")
     .single();
 
   if (error) {
@@ -145,10 +154,11 @@ export async function getProducts(
     .select(
       `
       *,
-      business_owners:business_owner_id (
+      business_owners!inner (
         id,
         name,
-        logo_url
+        logo_url,
+        status
       ),
       categories:category_id (
         id,
@@ -158,22 +168,40 @@ export async function getProducts(
     `,
       { count: "exact" }
     )
-    .eq("is_visible", true);
+    .eq("is_visible", true)
+    .eq("business_owners.status", "active");
 
   // 카테고리 필터 - 대분류 선택 시 하위 카테고리 포함
   if (categoryIds) {
     query = query.in("category_id", categoryIds);
   }
 
-  // 지역 필터
+  // 지역 필터 (다중 지역 지원)
   if (filter.region) {
-    // 구/군이 포함되어 있는지 확인 (공백으로 구분)
-    if (filter.region.includes(" ")) {
-      // 구/군까지 선택된 경우 정확히 일치하는 것 검색
-      query = query.eq("region", filter.region);
-    } else {
-      // 시/도만 선택된 경우 해당 지역으로 시작하는 모든 지역 검색
-      query = query.ilike("region", `${filter.region}%`);
+    const regions = filter.region.split(",").map(r => r.trim()).filter(Boolean);
+
+    if (regions.length === 1) {
+      // 단일 지역
+      const region = regions[0];
+      if (region.includes(" ")) {
+        // 구/군까지 선택된 경우 정확히 일치하는 것 검색
+        query = query.eq("region", region);
+      } else {
+        // 시/도만 선택된 경우 해당 지역으로 시작하는 모든 지역 검색
+        query = query.ilike("region", `${region}%`);
+      }
+    } else if (regions.length > 1) {
+      // 다중 지역: OR 조건으로 연결
+      const orConditions = regions.map(region => {
+        if (region.includes(" ")) {
+          // 구/군까지 선택된 경우 정확히 일치
+          return `region.eq.${region}`;
+        } else {
+          // 시/도만 선택된 경우 해당 지역으로 시작하는 모든 지역
+          return `region.ilike.${region}%`;
+        }
+      }).join(",");
+      query = query.or(orConditions);
     }
   }
 
@@ -195,6 +223,21 @@ export async function getProducts(
   // 예약 가능 필터 (품절 제외)
   if (filter.availableOnly) {
     query = query.eq("is_sold_out", false);
+  }
+
+  // 소요시간 필터
+  if (filter.durationMin !== undefined) {
+    query = query.gte("duration_minutes", filter.durationMin);
+  }
+  if (filter.durationMax !== undefined) {
+    query = query.lte("duration_minutes", filter.durationMax);
+  }
+
+  // 인원수 필터 (min_participants <= N <= max_participants)
+  if (filter.participants !== undefined) {
+    query = query
+      .lte("min_participants", filter.participants)
+      .gte("max_participants", filter.participants);
   }
 
   // 정렬 (reviews, sales는 클라이언트 사이드에서 처리)
@@ -265,6 +308,11 @@ export async function getProducts(
     });
   }
 
+  // 평점 필터 (클라이언트 사이드 - 리뷰 통계 조인 후 필터링)
+  if (filter.minRating !== undefined) {
+    products = products.filter((p) => p.average_rating >= filter.minRating!);
+  }
+
   const total = count || 0;
 
   return {
@@ -329,14 +377,16 @@ export async function getProductsByCategory(
     .select(
       `
       *,
-      business_owners:business_owner_id (
+      business_owners!inner (
         id,
         name,
-        logo_url
+        logo_url,
+        status
       )
     `
     )
     .eq("is_visible", true)
+    .eq("business_owners.status", "active")
     .in("category_id", categoryIds)
     .order("view_count", { ascending: false })
     .limit(limit);
@@ -364,10 +414,11 @@ export async function getProductsByRegion(
     .select(
       `
       *,
-      business_owners:business_owner_id (
+      business_owners!inner (
         id,
         name,
-        logo_url
+        logo_url,
+        status
       ),
       categories:category_id (
         id,
@@ -377,6 +428,7 @@ export async function getProductsByRegion(
     `
     )
     .eq("is_visible", true)
+    .eq("business_owners.status", "active")
     .ilike("region", `${region}%`)
     .order("view_count", { ascending: false })
     .limit(limit);
@@ -399,8 +451,9 @@ export async function getRegions(): Promise<string[]> {
 
   const { data, error } = await supabase
     .from("products")
-    .select("region")
+    .select("region, business_owners!inner (status)")
     .eq("is_visible", true)
+    .eq("business_owners.status", "active")
     .not("region", "is", null);
 
   if (error) {
@@ -473,12 +526,13 @@ export async function getProductDetail(id: string): Promise<ProductDetail | null
       .select(
         `
         *,
-        business_owners:business_owner_id (
+        business_owners!inner (
           id,
           name,
           logo_url,
           address,
-          contact_phone
+          contact_phone,
+          status
         ),
         categories:category_id (
           id,
@@ -488,6 +542,7 @@ export async function getProductDetail(id: string): Promise<ProductDetail | null
       `
       )
       .eq("id", id)
+      .eq("business_owners.status", "active")
       .single(),
     // 상품 이미지
     supabase
