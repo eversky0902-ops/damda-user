@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { MapPin } from "lucide-react";
 import type { Product } from "@/services/productService";
 
@@ -25,6 +26,9 @@ const CATEGORY_HASHTAGS: Record<string, string[]> = {
 };
 
 export function PopularTop4Section({ products }: PopularTop4SectionProps) {
+  const searchParams = useSearchParams();
+  const dateParam = searchParams.get("date");
+
   if (products.length === 0) return null;
 
   return (
@@ -38,7 +42,7 @@ export function PopularTop4Section({ products }: PopularTop4SectionProps) {
         {/* 2x2 그리드 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {products.slice(0, 4).map((product) => (
-            <PopularProductCard key={product.id} product={product} />
+            <PopularProductCard key={product.id} product={product} dateParam={dateParam} />
           ))}
         </div>
       </div>
@@ -46,8 +50,11 @@ export function PopularTop4Section({ products }: PopularTop4SectionProps) {
   );
 }
 
-function PopularProductCard({ product }: { product: Product }) {
+function PopularProductCard({ product, dateParam }: { product: Product; dateParam: string | null }) {
   const [imageError, setImageError] = useState(false);
+  const productHref = dateParam
+    ? `/products/${product.id}?date=${dateParam}`
+    : `/products/${product.id}`;
 
   // 카테고리 기반 해시태그
   const hashtags =
@@ -56,7 +63,7 @@ function PopularProductCard({ product }: { product: Product }) {
 
   return (
     <Link
-      href={`/products/${product.id}`}
+      href={productHref}
       className="relative h-[200px] md:h-[240px] rounded-2xl overflow-hidden group"
     >
       {/* 배경 이미지 */}

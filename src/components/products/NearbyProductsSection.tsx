@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { ChevronRight, Star, MapPin, Heart } from "lucide-react";
 import type { Product } from "@/services/productService";
 
@@ -12,6 +13,9 @@ interface NearbyProductsSectionProps {
 }
 
 export function NearbyProductsSection({ products, region = "서울" }: NearbyProductsSectionProps) {
+  const searchParams = useSearchParams();
+  const dateParam = searchParams.get("date");
+
   if (products.length === 0) return null;
 
   return (
@@ -23,7 +27,7 @@ export function NearbyProductsSection({ products, region = "서울" }: NearbyPro
             {region} 지역 추천 체험장
           </h2>
           <Link
-            href={`/products?region=${encodeURIComponent(region)}`}
+            href={`/products?region=${encodeURIComponent(region)}${dateParam ? `&date=${dateParam}` : ""}`}
             className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
           >
             전체보기
@@ -34,7 +38,7 @@ export function NearbyProductsSection({ products, region = "서울" }: NearbyPro
         {/* 수평 스크롤 카드 */}
         <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
           {products.slice(0, 4).map((product) => (
-            <NearbyProductCard key={product.id} product={product} />
+            <NearbyProductCard key={product.id} product={product} dateParam={dateParam} />
           ))}
         </div>
       </div>
@@ -42,15 +46,18 @@ export function NearbyProductsSection({ products, region = "서울" }: NearbyPro
   );
 }
 
-function NearbyProductCard({ product }: { product: Product }) {
+function NearbyProductCard({ product, dateParam }: { product: Product; dateParam: string | null }) {
   const [imageError, setImageError] = useState(false);
+  const productHref = dateParam
+    ? `/products/${product.id}?date=${dateParam}`
+    : `/products/${product.id}`;
 
   // 표시 가격 (할인가 우선, 없으면 정가)
   const displayPrice = product.sale_price || product.original_price;
 
   return (
     <Link
-      href={`/products/${product.id}`}
+      href={productHref}
       className="flex-shrink-0 w-[180px] md:w-[200px] group bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
     >
       {/* 이미지 */}

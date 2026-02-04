@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Search, MapPin, Calendar, ChevronRight, Loader2, X, ChevronLeft } from "lucide-react";
+import { Search, MapPin, Calendar, ChevronRight, Loader2, X, ChevronLeft, Check } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 import { format, addMonths, startOfMonth, parse } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -16,8 +16,8 @@ export function SearchBar() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // URL 파라미터에서 초기값 읽기
-  const initialRegion = searchParams.get("region") || "";
+  // URL 파라미터에서 초기값 읽기 (콤마로 구분된 다중 지역 지원)
+  const initialRegions = searchParams.get("region")?.split(",").filter(Boolean) || [];
   const initialDateStr = searchParams.get("date") || "";
   const initialDate = initialDateStr
     ? (() => {
@@ -29,19 +29,20 @@ export function SearchBar() {
       })()
     : undefined;
 
-  const [region, setRegion] = useState(initialRegion);
+  const [selectedRegions, setSelectedRegions] = useState<string[]>(initialRegions);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialDate);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedProvinceId, setSelectedProvinceId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [mobileTab, setMobileTab] = useState<"region" | "date">("region");
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [initialScrollY, setInitialScrollY] = useState(0);
 
   // URL 파라미터 변경 시 상태 업데이트
   useEffect(() => {
-    setRegion(initialRegion);
+    setSelectedRegions(initialRegions);
     setSelectedDate(initialDate);
-  }, [initialRegion, initialDateStr]);
+  }, [searchParams.get("region"), initialDateStr]);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const desktopDropdownRef = useRef<HTMLDivElement>(null);
@@ -85,6 +86,32 @@ export function SearchBar() {
     }
   }, [regions, selectedProvinceId]);
 
+  // 드롭다운이 열릴 때 현재 스크롤 위치 저장
+  useEffect(() => {
+    if (isOpen) {
+      setInitialScrollY(window.scrollY);
+    }
+  }, [isOpen]);
+
+  // 스크롤 시 드롭다운 닫기 (데스크탑, 일정 거리 이상 스크롤 시)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleScroll = () => {
+      // 데스크탑에서만 스크롤로 닫기
+      if (window.innerWidth >= 768) {
+        const scrollDiff = Math.abs(window.scrollY - initialScrollY);
+        // 100px 이상 스크롤하면 닫기
+        if (scrollDiff > 100) {
+          setIsOpen(false);
+        }
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isOpen, initialScrollY]);
+
   // 외부 클릭시 닫기 (데스크탑만)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -116,16 +143,47 @@ export function SearchBar() {
 
   const selectedProvince = regions.find((r) => r.id === selectedProvinceId);
 
+  // 지역 선택/해제 토글 (다중 선택 지원)
   const handleRegionSelect = (province: RegionWithChildren, districtName?: string) => {
-    if (!districtName) {
-      setRegion(province.name);
-    } else {
-      setRegion(`${province.name} ${districtName}`);
-    }
-    // 모바일에서 지역 선택 후 날짜 탭으로 자동 이동
-    if (window.innerWidth < 768) {
-      setMobileTab("date");
-    }
+    const regionKey = districtName
+      ? `${province.name} ${districtName}`
+      : province.name;
+
+    setSelectedRegions(prev => {
+      // "전체" 선택 시: 해당 시/도의 개별 구/군 선택 모두 해제하고 "전체"만 선택
+      if (!districtName) {
+        // 이미 "전체"가 선택되어 있으면 해제
+        if (prev.includes(province.name)) {
+          return prev.filter(r => r !== province.name);
+        }
+        // "전체" 선택 시 해당 시/도의 개별 구/군 제거 후 "전체" 추가
+        const filtered = prev.filter(r => !r.startsWith(province.name + " ") && r !== province.name);
+        return [...filtered, province.name];
+      }
+
+      // 개별 구/군 선택 시
+      if (prev.includes(regionKey)) {
+        // 이미 선택되어 있으면 해제
+        return prev.filter(r => r !== regionKey);
+      } else {
+        // 선택되어 있지 않으면 추가 (해당 시/도의 "전체"가 있으면 제거)
+        const filtered = prev.filter(r => r !== province.name);
+        return [...filtered, regionKey];
+      }
+    });
+  };
+
+  // 특정 지역이 선택되어 있는지 확인
+  const isRegionSelected = (province: RegionWithChildren, districtName?: string) => {
+    const regionKey = districtName
+      ? `${province.name} ${districtName}`
+      : province.name;
+    return selectedRegions.includes(regionKey);
+  };
+
+  // 선택된 지역 제거
+  const removeRegion = (regionToRemove: string) => {
+    setSelectedRegions(prev => prev.filter(r => r !== regionToRemove));
   };
 
   const handlePopularClick = (provinceId: string) => {
@@ -134,7 +192,7 @@ export function SearchBar() {
 
   const handleSearch = () => {
     const params = new URLSearchParams();
-    if (region) params.set("region", region);
+    if (selectedRegions.length > 0) params.set("region", selectedRegions.join(","));
     if (selectedDate) params.set("date", format(selectedDate, "yyyy-MM-dd"));
 
     setIsOpen(false);
@@ -152,7 +210,9 @@ export function SearchBar() {
   };
 
   const getRegionText = () => {
-    return region || "지역 선택";
+    if (selectedRegions.length === 0) return "지역 선택";
+    if (selectedRegions.length === 1) return selectedRegions[0];
+    return `${selectedRegions[0]} 외 ${selectedRegions.length - 1}개`;
   };
 
   return (
@@ -167,7 +227,7 @@ export function SearchBar() {
             <MapPin className="w-5 h-5 text-damda-yellow-dark shrink-0" />
             <div className="flex flex-col items-start min-w-0 flex-1">
               <span className="text-xs text-gray-500 font-medium">지역</span>
-              <span className={`text-sm ${region ? "text-gray-700" : "text-gray-400"}`}>
+              <span className={`text-sm ${selectedRegions.length > 0 ? "text-gray-700" : "text-gray-400"}`}>
                 {getRegionText()}
               </span>
             </div>
@@ -246,9 +306,9 @@ export function SearchBar() {
                         >
                           <MapPin className="w-4 h-4" />
                           지역
-                          {region && (
+                          {selectedRegions.length > 0 && (
                             <span className="ml-1 px-2 py-0.5 bg-damda-yellow/20 rounded-full text-xs">
-                              {region.length > 8 ? region.substring(0, 8) + "..." : region}
+                              {selectedRegions.length}개 선택
                             </span>
                           )}
                           {mobileTab === "region" && (
@@ -350,12 +410,13 @@ export function SearchBar() {
                                         <button
                                           type="button"
                                           onClick={() => handleRegionSelect(selectedProvince)}
-                                          className={`px-2 py-2.5 text-center text-sm rounded-xl transition-all ${
-                                            region === selectedProvince.name
+                                          className={`px-2 py-2.5 text-center text-sm rounded-xl transition-all flex items-center justify-center gap-1 ${
+                                            isRegionSelected(selectedProvince)
                                               ? "bg-damda-yellow text-gray-800 font-semibold shadow-sm"
                                               : "text-gray-700 hover:bg-gray-100"
                                           }`}
                                         >
+                                          {isRegionSelected(selectedProvince) && <Check className="w-3 h-3" />}
                                           전체
                                         </button>
                                         {selectedProvince.children.map((district) => (
@@ -363,13 +424,14 @@ export function SearchBar() {
                                             key={district.id}
                                             type="button"
                                             onClick={() => handleRegionSelect(selectedProvince, district.name)}
-                                            className={`px-2 py-2.5 text-center text-sm rounded-xl transition-all truncate ${
-                                              region === `${selectedProvince.name} ${district.name}`
+                                            className={`px-2 py-2.5 text-center text-sm rounded-xl transition-all truncate flex items-center justify-center gap-1 ${
+                                              isRegionSelected(selectedProvince, district.name)
                                                 ? "bg-damda-yellow text-gray-800 font-semibold shadow-sm"
                                                 : "text-gray-700 hover:bg-gray-100"
                                             }`}
                                           >
-                                            {district.name}
+                                            {isRegionSelected(selectedProvince, district.name) && <Check className="w-3 h-3 shrink-0" />}
+                                            <span className="truncate">{district.name}</span>
                                           </button>
                                         ))}
                                       </>
@@ -462,6 +524,34 @@ export function SearchBar() {
                         </AnimatePresence>
                       </div>
 
+                      {/* 선택된 지역 태그 - 하단 버튼 위 */}
+                      {selectedRegions.length > 0 && mobileTab === "region" && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="px-4 py-3 border-t border-gray-100 bg-gray-50"
+                        >
+                          <p className="text-xs text-gray-500 mb-2">선택된 지역 ({selectedRegions.length}개)</p>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedRegions.map((r) => (
+                              <span
+                                key={r}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-damda-yellow/20 rounded-full text-sm text-gray-700"
+                              >
+                                {r}
+                                <button
+                                  type="button"
+                                  onClick={() => removeRegion(r)}
+                                  className="hover:bg-damda-yellow/30 rounded-full p-0.5"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+
                       {/* 하단 버튼 - 고정 */}
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -473,7 +563,7 @@ export function SearchBar() {
                         <button
                           type="button"
                           onClick={() => {
-                            setRegion("");
+                            setSelectedRegions([]);
                             setSelectedDate(undefined);
                           }}
                           className="px-6 py-3 text-sm text-gray-600 border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
@@ -520,9 +610,9 @@ export function SearchBar() {
                       <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
                         <MapPin className="w-4 h-4 text-damda-yellow-dark" />
                         지역 선택
-                        {region && (
+                        {selectedRegions.length > 0 && (
                           <span className="ml-auto px-2 py-0.5 bg-damda-yellow/20 rounded-full text-xs text-damda-yellow-dark">
-                            {region}
+                            {selectedRegions.length}개 선택
                           </span>
                         )}
                       </div>
@@ -581,12 +671,13 @@ export function SearchBar() {
                               <button
                                 type="button"
                                 onClick={() => handleRegionSelect(selectedProvince)}
-                                className={`px-2 py-1.5 text-left text-sm rounded-lg transition-colors ${
-                                  region === selectedProvince.name
+                                className={`px-2 py-1.5 text-left text-sm rounded-lg transition-colors flex items-center gap-1 ${
+                                  isRegionSelected(selectedProvince)
                                     ? "bg-damda-yellow text-gray-800 font-medium"
                                     : "text-gray-700 hover:bg-damda-yellow-light/50"
                                 }`}
                               >
+                                {isRegionSelected(selectedProvince) && <Check className="w-3 h-3 shrink-0" />}
                                 전체
                               </button>
                               {selectedProvince.children.map((district) => (
@@ -594,13 +685,14 @@ export function SearchBar() {
                                   key={district.id}
                                   type="button"
                                   onClick={() => handleRegionSelect(selectedProvince, district.name)}
-                                  className={`px-2 py-1.5 text-left text-sm rounded-lg transition-colors truncate ${
-                                    region === `${selectedProvince.name} ${district.name}`
+                                  className={`px-2 py-1.5 text-left text-sm rounded-lg transition-colors truncate flex items-center gap-1 ${
+                                    isRegionSelected(selectedProvince, district.name)
                                       ? "bg-damda-yellow text-gray-800 font-medium"
                                       : "text-gray-700 hover:bg-damda-yellow-light/50"
                                   }`}
                                 >
-                                  {district.name}
+                                  {isRegionSelected(selectedProvince, district.name) && <Check className="w-3 h-3 shrink-0" />}
+                                  <span className="truncate">{district.name}</span>
                                 </button>
                               ))}
                             </>
@@ -608,6 +700,29 @@ export function SearchBar() {
                         </div>
                       </div>
                     </div>
+
+                    {/* 선택된 지역 태그 */}
+                    {selectedRegions.length > 0 && (
+                      <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/50 max-h-[80px] overflow-y-auto">
+                        <div className="flex flex-wrap gap-1">
+                          {selectedRegions.map((r) => (
+                            <span
+                              key={r}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-damda-yellow/20 rounded-full text-xs text-gray-700"
+                            >
+                              {r}
+                              <button
+                                type="button"
+                                onClick={() => removeRegion(r)}
+                                className="hover:bg-damda-yellow/30 rounded-full"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* 우측: 날짜 선택 */}
@@ -673,7 +788,7 @@ export function SearchBar() {
                   <button
                     type="button"
                     onClick={() => {
-                      setRegion("");
+                      setSelectedRegions([]);
                       setSelectedDate(undefined);
                     }}
                     className="text-sm text-gray-500 hover:text-gray-700"

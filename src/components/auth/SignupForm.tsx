@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Upload, X, FileText } from "lucide-react";
+import { Loader2, Upload, X, FileText, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,11 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 import { createClient } from "@/lib/supabase/client";
+
+interface FileItem {
+  file: File;
+  id: string;
+}
 
 const signupSchema = z.object({
   email: z.string().email("올바른 이메일을 입력해주세요"),
@@ -43,32 +48,53 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 export function SignupForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [licenseFile, setLicenseFile] = useState<File | null>(null);
+  const [licenseFiles, setLicenseFiles] = useState<FileItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newFiles: FileItem[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+
       // 파일 크기 제한 (10MB)
       if (file.size > 10 * 1024 * 1024) {
-        toast.error("파일 크기는 10MB 이하여야 합니다");
-        return;
+        toast.error(`${file.name}: 파일 크기는 10MB 이하여야 합니다`);
+        continue;
       }
       // 허용된 파일 형식
       const allowedTypes = ["image/jpeg", "image/png", "image/gif", "application/pdf"];
       if (!allowedTypes.includes(file.type)) {
-        toast.error("JPG, PNG, GIF, PDF 파일만 업로드 가능합니다");
-        return;
+        toast.error(`${file.name}: JPG, PNG, GIF, PDF 파일만 업로드 가능합니다`);
+        continue;
       }
-      setLicenseFile(file);
-    }
-  };
+      // 최대 5개 제한
+      if (licenseFiles.length + newFiles.length >= 5) {
+        toast.error("최대 5개까지 업로드 가능합니다");
+        break;
+      }
 
-  const removeFile = () => {
-    setLicenseFile(null);
+      newFiles.push({
+        file,
+        id: `${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      });
+    }
+
+    if (newFiles.length > 0) {
+      setLicenseFiles(prev => [...prev, ...newFiles]);
+    }
+
+    // 입력 초기화 (같은 파일 다시 선택 가능하게)
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const removeFile = (id: string) => {
+    setLicenseFiles(prev => prev.filter(f => f.id !== id));
   };
 
   const form = useForm<SignupFormValues>({
@@ -128,33 +154,7 @@ export function SignupForm() {
         return;
       }
 
-      // 2. 인가증 파일 업로드 (있는 경우)
-      let licenseFileUrl = "";
-      if (licenseFile) {
-        const fileExt = licenseFile.name.split(".").pop();
-        const fileName = `licenses/${authData.user.id}/license.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("public")
-          .upload(fileName, licenseFile, {
-            cacheControl: "3600",
-            upsert: true,
-          });
-
-        if (uploadError) {
-          console.error("License file upload error:", uploadError);
-          toast.error("인가증 파일 업로드에 실패했습니다");
-          return;
-        }
-
-        const { data: urlData } = supabase.storage
-          .from("public")
-          .getPublicUrl(fileName);
-
-        licenseFileUrl = urlData.publicUrl;
-      }
-
-      // 3. daycares 테이블에 어린이집 정보 저장
+      // 2. daycares 테이블에 어린이집 정보 저장 (파일 업로드 전에 먼저 생성)
       const { error: daycareError } = await supabase.from("daycares").insert({
         id: authData.user.id,
         email: values.email,
@@ -162,7 +162,7 @@ export function SignupForm() {
         contact_name: values.contactName,
         contact_phone: values.contactPhone,
         license_number: values.licenseNumber,
-        license_file: licenseFileUrl,
+        license_file: "", // 레거시 필드 - 빈 값으로 유지
         address: "",
         status: "pending",
       });
@@ -177,6 +177,46 @@ export function SignupForm() {
           toast.error("어린이집 정보 저장에 실패했습니다");
         }
         return;
+      }
+
+      // 3. 인가증 파일 업로드 (있는 경우) - daycare_documents 테이블에 저장
+      if (licenseFiles.length > 0) {
+        for (let i = 0; i < licenseFiles.length; i++) {
+          const fileItem = licenseFiles[i];
+          const file = fileItem.file;
+          const fileExt = file.name.split(".").pop();
+          const timestamp = Date.now();
+          const random = Math.random().toString(36).substring(7);
+          const fileName = `daycare-documents/${authData.user.id}/license_${timestamp}_${random}.${fileExt}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from("public")
+            .upload(fileName, file, {
+              cacheControl: "3600",
+              upsert: true,
+            });
+
+          if (uploadError) {
+            console.error("License file upload error:", uploadError);
+            // 파일 업로드 실패해도 회원가입은 진행 (나중에 추가 가능)
+            continue;
+          }
+
+          const { data: urlData } = supabase.storage
+            .from("public")
+            .getPublicUrl(fileName);
+
+          // daycare_documents 테이블에 저장
+          await supabase.from("daycare_documents").insert({
+            daycare_id: authData.user.id,
+            document_type: "license",
+            file_name: file.name,
+            file_url: urlData.publicUrl,
+            file_size: file.size,
+            mime_type: file.type,
+            sort_order: i,
+          });
+        }
       }
 
       toast.success("회원가입이 완료되었습니다.");
@@ -281,45 +321,64 @@ export function SignupForm() {
                 )}
               />
 
-              {/* 인가증 파일 업로드 */}
+              {/* 인가증 파일 업로드 (다중) */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">
-                  인가증 첨부 <span className="text-muted-foreground font-normal">(선택)</span>
+                  인가증 첨부 <span className="text-muted-foreground font-normal">(선택, 최대 5개)</span>
                 </label>
                 <div className="flex flex-col gap-2">
-                  {licenseFile ? (
-                    <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
-                      <FileText className="h-8 w-8 text-primary" />
+                  {/* 업로드된 파일 목록 */}
+                  {licenseFiles.map((fileItem) => (
+                    <div
+                      key={fileItem.id}
+                      className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3"
+                    >
+                      <FileText className="h-8 w-8 text-primary flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{licenseFile.name}</p>
+                        <p className="text-sm font-medium truncate">{fileItem.file.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {(licenseFile.size / 1024 / 1024).toFixed(2)} MB
+                          {(fileItem.file.size / 1024 / 1024).toFixed(2)} MB
                         </p>
                       </div>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={removeFile}
-                        className="h-8 w-8 p-0"
+                        onClick={() => removeFile(fileItem.id)}
+                        className="h-8 w-8 p-0 flex-shrink-0"
                       >
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
-                  ) : (
+                  ))}
+
+                  {/* 파일 추가 버튼 (5개 미만일 때만 표시) */}
+                  {licenseFiles.length < 5 && (
                     <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/50 p-6 transition-colors hover:border-primary/50 hover:bg-muted">
-                      <Upload className="h-8 w-8 text-muted-foreground" />
-                      <div className="text-center">
-                        <p className="text-sm font-medium">파일을 선택하세요</p>
-                        <p className="text-xs text-muted-foreground">
-                          JPG, PNG, GIF, PDF (최대 10MB)
-                        </p>
-                      </div>
+                      {licenseFiles.length === 0 ? (
+                        <>
+                          <Upload className="h-8 w-8 text-muted-foreground" />
+                          <div className="text-center">
+                            <p className="text-sm font-medium">파일을 선택하세요</p>
+                            <p className="text-xs text-muted-foreground">
+                              JPG, PNG, GIF, PDF (각 최대 10MB)
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-6 w-6 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            파일 추가 ({licenseFiles.length}/5)
+                          </p>
+                        </>
+                      )}
                       <input
                         ref={fileInputRef}
                         type="file"
                         accept=".jpg,.jpeg,.png,.gif,.pdf"
                         onChange={handleFileChange}
+                        multiple
                         className="hidden"
                       />
                     </label>

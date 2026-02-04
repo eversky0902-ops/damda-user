@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Heart, MapPin, Star, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/services/productService";
@@ -19,6 +20,13 @@ export function ProductCard({
   isWishlisted = false,
 }: ProductCardProps) {
   const [imageError, setImageError] = useState(false);
+  const searchParams = useSearchParams();
+
+  // 검색 파라미터에서 date 유지
+  const dateParam = searchParams.get("date");
+  const productHref = dateParam
+    ? `/products/${product.id}?date=${dateParam}`
+    : `/products/${product.id}`;
 
   const handleWishlistClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -30,7 +38,7 @@ export function ProductCard({
 
   return (
     <Link
-      href={`/products/${product.id}`}
+      href={productHref}
       className="group block bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-300"
     >
       {/* 이미지 */}
