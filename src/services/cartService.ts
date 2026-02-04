@@ -342,7 +342,7 @@ export interface UnavailableItem {
   productName: string;
   reservedDate: string;
   reservedTime: string | null;
-  reason: "sold_out" | "time_passed" | "fully_booked";
+  reason: "sold_out" | "time_passed" | "fully_booked" | "already_reserved" | "hold_by_other";
 }
 
 // 예약 생성
@@ -510,7 +510,7 @@ export async function checkCartAvailability(
     // 3. 상품이 품절인지 확인
     const { data: product } = await supabase
       .from("products")
-      .select("is_sold_out, max_participants")
+      .select("is_sold_out")
       .eq("id", item.productId)
       .single();
 
@@ -525,35 +525,29 @@ export async function checkCartAvailability(
       continue;
     }
 
-    // 4. 해당 날짜/시간에 예약이 꽉 찼는지 확인
-    if (product?.max_participants) {
-      let query = supabase
-        .from("reservations")
-        .select("participant_count")
-        .eq("product_id", item.productId)
-        .eq("reserved_date", item.reservedDate)
-        .in("status", ["pending", "paid", "confirmed"]);
-
-      if (item.reservedTime) {
-        query = query.eq("reserved_time", item.reservedTime);
+    // 4. 1일 1예약 + 홀드 체크 (RPC 함수 사용으로 RLS 우회)
+    const { data: availabilityResult, error: availabilityError } = await supabase.rpc(
+      "check_reservation_available",
+      {
+        p_product_id: item.productId,
+        p_reserved_date: item.reservedDate,
       }
+    );
 
-      const { data: existingReservations } = await query;
+    if (availabilityError) {
+      console.error("Error checking availability:", availabilityError);
+      continue;
+    }
 
-      const totalBooked = existingReservations?.reduce(
-        (sum, r) => sum + (r.participant_count || 0),
-        0
-      ) || 0;
-
-      if (totalBooked + item.participants > product.max_participants) {
-        unavailableItems.push({
-          productId: item.productId,
-          productName: item.productName,
-          reservedDate: item.reservedDate,
-          reservedTime: item.reservedTime || null,
-          reason: "fully_booked",
-        });
-      }
+    if (availabilityResult && !availabilityResult.available) {
+      unavailableItems.push({
+        productId: item.productId,
+        productName: item.productName,
+        reservedDate: item.reservedDate,
+        reservedTime: item.reservedTime || null,
+        reason: availabilityResult.reason as "already_reserved" | "hold_by_other",
+      });
+      continue;
     }
   }
 

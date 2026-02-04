@@ -29,6 +29,7 @@ import {
 import { useCartStore } from "@/stores/cart-store";
 import { useAuth } from "@/hooks/use-auth";
 import { checkCartAvailability, type UnavailableItem } from "@/services/cartService";
+import { createHolds, releaseAllUserHolds, type HoldItem } from "@/services/holdService";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -113,6 +114,25 @@ export default function CheckoutPage() {
     }
   }, [items.length, router]);
 
+  // 페이지 이탈 시 홀드 정리
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // 결제 진행 중이 아닐 때만 홀드 해제
+      const holdsData = localStorage.getItem("damda_payment_holds");
+      if (holdsData && !isProcessing) {
+        // sendBeacon을 사용해 비동기적으로 홀드 해제 요청
+        // 실패하더라도 10분 후 자동 만료됨
+        releaseAllUserHolds();
+        localStorage.removeItem("damda_payment_holds");
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [isProcessing]);
+
   if (!mounted) {
     return <CheckoutSkeleton />;
   }
@@ -148,6 +168,10 @@ export default function CheckoutPage() {
         return "예약 시간이 지났습니다.";
       case "fully_booked":
         return "해당 시간대가 마감되었습니다.";
+      case "already_reserved":
+        return "해당 날짜에 이미 예약이 있습니다.";
+      case "hold_by_other":
+        return "다른 사용자가 결제를 진행 중입니다.";
       default:
         return "예약이 불가능합니다.";
     }
@@ -222,6 +246,30 @@ export default function CheckoutPage() {
         return;
       }
 
+      // 홀드 생성 (동시 결제 방지)
+      const holdItems: HoldItem[] = items.map((item) => ({
+        productId: item.product.id,
+        reservedDate: item.reservationDate,
+      }));
+
+      const holdResult = await createHolds(holdItems);
+
+      if (!holdResult.success) {
+        const failedResult = holdResult.results.find((r) => !r.success);
+        if (failedResult?.errorCode === "ALREADY_HELD") {
+          toast.error("다른 사용자가 결제를 진행 중입니다. 잠시 후 다시 시도해주세요.", { duration: 5000 });
+        } else if (failedResult?.errorCode === "ALREADY_RESERVED") {
+          toast.error("해당 날짜에 이미 예약이 있습니다.", { duration: 5000 });
+        } else {
+          toast.error(failedResult?.error || "홀드 생성에 실패했습니다.", { duration: 5000 });
+        }
+        setIsProcessing(false);
+        return;
+      }
+
+      // 홀드 정보를 localStorage에 저장 (콜백에서 사용)
+      localStorage.setItem("damda_payment_holds", JSON.stringify(holdItems));
+
       // NICE Pay SDK 체크
       if (!sdkLoaded || typeof window === "undefined" || !window.AUTHNICE) {
         toast.error("결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
@@ -260,8 +308,11 @@ export default function CheckoutPage() {
         amount: totalAmount,
         goodsName: goodsName,
         returnUrl: returnUrl,
-        fnError: (result: { errorCode?: string; errorMsg?: string }) => {
+        fnError: async (result: { errorCode?: string; errorMsg?: string }) => {
           console.error("Payment error:", result);
+          // 결제 에러 시 홀드 해제
+          await releaseAllUserHolds();
+          localStorage.removeItem("damda_payment_holds");
           toast.error(`[${result.errorCode}] ${result.errorMsg || "결제 중 오류가 발생했습니다."}`);
           setIsProcessing(false);
         },
@@ -270,6 +321,9 @@ export default function CheckoutPage() {
       console.log("Payment request params:", paymentParams);
       window.AUTHNICE.requestPay(paymentParams);
     } catch {
+      // 에러 발생 시 홀드 해제
+      await releaseAllUserHolds();
+      localStorage.removeItem("damda_payment_holds");
       toast.error("결제 처리 중 오류가 발생했습니다.");
       setIsProcessing(false);
     }

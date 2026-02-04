@@ -48,6 +48,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     durationMax: params.durationMax ? parseInt(params.durationMax, 10) : undefined,
     participants: params.participants ? parseInt(params.participants, 10) : undefined,
     minRating: params.minRating ? parseFloat(params.minRating) : undefined,
+    // 날짜 필터 (1일 1예약: 해당 날짜에 예약 가능한 상품만)
+    date: params.date,
   };
 
   const page = parseInt(params.page || "1", 10);

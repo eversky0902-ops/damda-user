@@ -46,6 +46,7 @@ export interface ProductFilter {
   durationMax?: number; // 소요시간 최대 (분)
   participants?: number; // 인원수 (min <= N <= max 인 상품)
   minRating?: number; // 최소 평점
+  date?: string; // 특정 날짜에 예약 가능한 상품만 (yyyy-MM-dd)
 }
 
 export interface PaginatedProducts {
@@ -149,6 +150,31 @@ export async function getProducts(
     categoryIds = categories?.map((c) => c.id) || [filter.categoryId];
   }
 
+  // 날짜 필터: 해당 날짜에 예약 불가능한 상품 ID 조회 (1일 1예약)
+  let unavailableProductIds: string[] = [];
+  if (filter.date) {
+    // 해당 날짜에 예약이 있는 상품 조회
+    const { data: reservations } = await supabase
+      .from("reservations")
+      .select("product_id")
+      .eq("reserved_date", filter.date)
+      .in("status", ["pending", "paid", "confirmed"]);
+
+    const reservedProductIds = (reservations || []).map((r) => r.product_id);
+
+    // 해당 날짜에 홀드가 있는 상품 조회
+    const { data: holds } = await supabase
+      .from("reservation_holds")
+      .select("product_id")
+      .eq("reserved_date", filter.date)
+      .gt("expires_at", new Date().toISOString());
+
+    const heldProductIds = (holds || []).map((h) => h.product_id);
+
+    // 중복 제거
+    unavailableProductIds = [...new Set([...reservedProductIds, ...heldProductIds])];
+  }
+
   let query = supabase
     .from("products")
     .select(
@@ -174,6 +200,14 @@ export async function getProducts(
   // 카테고리 필터 - 대분류 선택 시 하위 카테고리 포함
   if (categoryIds) {
     query = query.in("category_id", categoryIds);
+  }
+
+  // 날짜 필터 - 해당 날짜에 예약 불가능한 상품 제외
+  if (filter.date && unavailableProductIds.length > 0) {
+    // Supabase는 NOT IN을 직접 지원하지 않으므로 필터링은 클라이언트에서 처리
+    // 하지만 성능을 위해 가능하면 DB에서 필터링
+    // not.in 필터 사용
+    query = query.not("id", "in", `(${unavailableProductIds.join(",")})`);
   }
 
   // 지역 필터 (다중 지역 지원)

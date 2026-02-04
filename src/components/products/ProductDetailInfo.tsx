@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   MapPin,
   Users,
@@ -23,11 +23,11 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/hooks/use-cart";
 import { toast } from "sonner";
-import { format, addDays, isBefore, isAfter, startOfDay, getDay } from "date-fns";
-import { useMemo } from "react";
+import { format, addDays, isBefore, isAfter, startOfDay, getDay, parse } from "date-fns";
 import { ko } from "date-fns/locale";
 import type { ProductDetail } from "@/services/productService";
 import { addRecentView } from "@/services/recentViewService";
+import { getUnavailableDates } from "@/services/holdService";
 
 interface ProductDetailInfoProps {
   product: ProductDetail;
@@ -35,20 +35,62 @@ interface ProductDetailInfoProps {
 
 export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { addItem, setDirectItem } = useCart();
+
+  // URL 파라미터에서 날짜 읽기
+  const initialDate = useMemo(() => {
+    const dateParam = searchParams.get("date");
+    if (!dateParam) return undefined;
+    try {
+      const parsed = parse(dateParam, "yyyy-MM-dd", new Date());
+      // 유효한 날짜이고, 오늘 이후인 경우에만 사용
+      if (!isNaN(parsed.getTime()) && !isBefore(parsed, startOfDay(new Date()))) {
+        return parsed;
+      }
+    } catch {
+      // 파싱 실패 시 무시
+    }
+    return undefined;
+  }, [searchParams]);
 
   // 최근 본 상품에 추가 (DB 저장)
   useEffect(() => {
     addRecentView(product.id);
   }, [product.id]);
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialDate);
   const [selectedTime, setSelectedTime] = useState<string | undefined>();
   const [isCalendarOpen, setIsCalendarOpen] = useState(true);
   const [selectedOptions, setSelectedOptions] = useState<Map<string, number>>(new Map());
   const [participants, setParticipants] = useState(product.min_participants);
   const [participantsInput, setParticipantsInput] = useState(String(product.min_participants));
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [reservedDates, setReservedDates] = useState<Set<string>>(new Set());
+
+  // 예약된 날짜 목록 조회 (1일 1예약 체크용)
+  useEffect(() => {
+    const fetchReservedDates = async () => {
+      try {
+        const dates = await getUnavailableDates(product.id);
+        const dateSet = new Set(dates);
+        setReservedDates(dateSet);
+
+        // URL 파라미터로 설정된 날짜가 예약 불가능한 경우 초기화
+        if (selectedDate) {
+          const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
+          if (dateSet.has(selectedDateStr)) {
+            setSelectedDate(undefined);
+            setSelectedTime(undefined);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching reserved dates:", error);
+      }
+    };
+    fetchReservedDates();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id]);
 
   // 시간 문자열을 라벨로 변환
   const formatTimeLabel = (time: string): string => {
@@ -156,12 +198,17 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
     ((product.original_price - product.sale_price) / product.original_price) * 100
   );
 
-  // 예약 불가일 계산 (휴무일 + 영업일이 아닌 요일)
+  // 예약 불가일 계산 (휴무일 + 영업일이 아닌 요일 + 이미 예약된 날짜)
   const isDateUnavailable = (date: Date): boolean => {
     const dateStr = format(date, "yyyy-MM-dd");
     const dayOfWeek = getDay(date);
 
-    // 1. 휴무일 체크 (기존 로직)
+    // 1. 이미 예약된 날짜 체크 (1일 1예약)
+    if (reservedDates.has(dateStr)) {
+      return true;
+    }
+
+    // 2. 휴무일 체크 (기존 로직)
     const isHoliday = product.unavailable_dates.some((ud) => {
       if (ud.is_recurring && ud.day_of_week !== null) {
         return ud.day_of_week === dayOfWeek;
@@ -171,7 +218,7 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
 
     if (isHoliday) return true;
 
-    // 2. 영업일이 아닌 요일 체크 (available_time_slots에 해당 요일이 없으면 비활성화)
+    // 3. 영업일이 아닌 요일 체크 (available_time_slots에 해당 요일이 없으면 비활성화)
     const timeSlots = product.available_time_slots;
     if (timeSlots && Array.isArray(timeSlots) && timeSlots.length > 0) {
       const availableDays = timeSlots.map((slot) => slot.day);
@@ -227,22 +274,24 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
       return false;
     }
 
-    const requiredOptions = product.options.filter((o) => o.is_required);
-    const missingRequired = requiredOptions.find((o) => !selectedOptions.has(o.id));
-    if (missingRequired) {
-      toast.error(`필수 옵션 "${missingRequired.name}"을(를) 선택해주세요.`);
-      return false;
-    }
+    // 옵션 임시 비활성화
+    // const requiredOptions = product.options.filter((o) => o.is_required);
+    // const missingRequired = requiredOptions.find((o) => !selectedOptions.has(o.id));
+    // if (missingRequired) {
+    //   toast.error(`필수 옵션 "${missingRequired.name}"을(를) 선택해주세요.`);
+    //   return false;
+    // }
 
-    const options = Array.from(selectedOptions.entries()).map(([optionId, quantity]) => {
-      const option = product.options.find((o) => o.id === optionId)!;
-      return {
-        id: optionId,
-        name: option.name,
-        price: option.price,
-        quantity,
-      };
-    });
+    // const options = Array.from(selectedOptions.entries()).map(([optionId, quantity]) => {
+    //   const option = product.options.find((o) => o.id === optionId)!;
+    //   return {
+    //     id: optionId,
+    //     name: option.name,
+    //     price: option.price,
+    //     quantity,
+    //   };
+    // });
+    const options: { id: string; name: string; price: number; quantity: number }[] = [];
 
     addItem({
       product: {
@@ -277,22 +326,24 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
       return;
     }
 
-    const requiredOptions = product.options.filter((o) => o.is_required);
-    const missingRequired = requiredOptions.find((o) => !selectedOptions.has(o.id));
-    if (missingRequired) {
-      toast.error(`필수 옵션 "${missingRequired.name}"을(를) 선택해주세요.`);
-      return;
-    }
+    // 옵션 임시 비활성화
+    // const requiredOptions = product.options.filter((o) => o.is_required);
+    // const missingRequired = requiredOptions.find((o) => !selectedOptions.has(o.id));
+    // if (missingRequired) {
+    //   toast.error(`필수 옵션 "${missingRequired.name}"을(를) 선택해주세요.`);
+    //   return;
+    // }
 
-    const options = Array.from(selectedOptions.entries()).map(([optionId, quantity]) => {
-      const option = product.options.find((o) => o.id === optionId)!;
-      return {
-        id: optionId,
-        name: option.name,
-        price: option.price,
-        quantity,
-      };
-    });
+    // const options = Array.from(selectedOptions.entries()).map(([optionId, quantity]) => {
+    //   const option = product.options.find((o) => o.id === optionId)!;
+    //   return {
+    //     id: optionId,
+    //     name: option.name,
+    //     price: option.price,
+    //     quantity,
+    //   };
+    // });
+    const options: { id: string; name: string; price: number; quantity: number }[] = [];
 
     // 바로예약 전용 아이템으로 설정 (장바구니에 담지 않음)
     setDirectItem({
@@ -656,8 +707,8 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
         </div>
       </div>
 
-      {/* 옵션 선택 */}
-      {product.options.length > 0 && (
+      {/* 옵션 선택 - 임시 비활성화 */}
+      {/* {product.options.length > 0 && (
         <div className="space-y-3">
           <label className="block text-sm font-medium text-gray-700">추가 옵션</label>
           <div className="space-y-2">
@@ -704,7 +755,7 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
             ))}
           </div>
         </div>
-      )}
+      )} */}
 
       {/* 총 금액 */}
       <div className="bg-gray-50 rounded-lg p-4">

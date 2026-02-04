@@ -7,6 +7,7 @@ import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/stores/cart-store";
 import { createReservations, clearCart as clearCartDB } from "@/services/cartService";
+import { releaseAllUserHolds } from "@/services/holdService";
 
 type PaymentStatus = "processing" | "success" | "error";
 
@@ -32,12 +33,18 @@ function PaymentCallbackContent() {
 
       // 인증 실패 체크
       if (authResultCode !== "0000") {
+        // 홀드 해제
+        await releaseAllUserHolds();
+        localStorage.removeItem("damda_payment_holds");
         setStatus("error");
         setMessage(`결제 인증에 실패했습니다.\n[${authResultCode}] ${authResultMsg || "알 수 없는 오류"}`);
         return;
       }
 
       if (!tid) {
+        // 홀드 해제
+        await releaseAllUserHolds();
+        localStorage.removeItem("damda_payment_holds");
         setStatus("error");
         setMessage("결제 정보가 올바르지 않습니다. (tid 없음)");
         return;
@@ -46,6 +53,9 @@ function PaymentCallbackContent() {
       // localStorage에서 결제 금액 계산
       const storedCartItems = localStorage.getItem("damda_checkout_items");
       if (!storedCartItems) {
+        // 홀드 해제
+        await releaseAllUserHolds();
+        localStorage.removeItem("damda_payment_holds");
         setStatus("error");
         setMessage("장바구니 정보를 찾을 수 없습니다.");
         return;
@@ -80,6 +90,9 @@ function PaymentCallbackContent() {
         const approveResult = await approveResponse.json();
 
         if (!approveResult.success) {
+          // 홀드 해제
+          await releaseAllUserHolds();
+          localStorage.removeItem("damda_payment_holds");
           setStatus("error");
           setMessage(approveResult.error || "결제 승인에 실패했습니다.");
           return;
@@ -127,6 +140,9 @@ function PaymentCallbackContent() {
         });
 
         if (!result.success) {
+          // 홀드 해제
+          await releaseAllUserHolds();
+          localStorage.removeItem("damda_payment_holds");
           setStatus("error");
           setMessage(result.error || "예약 생성에 실패했습니다.");
           // TODO: 결제 취소 API 호출 필요
@@ -138,10 +154,14 @@ function PaymentCallbackContent() {
         clearDirectItem();
         await clearCartDB();
 
+        // 홀드 해제 (결제 성공 시)
+        await releaseAllUserHolds();
+
         // localStorage 정리
         localStorage.removeItem("damda_reserver_info");
         localStorage.removeItem("damda_payment_method");
         localStorage.removeItem("damda_checkout_items");
+        localStorage.removeItem("damda_payment_holds");
 
         setOrderId(result.orderId || null);
         setReservationId(result.reservationId || null);
@@ -149,6 +169,9 @@ function PaymentCallbackContent() {
         setMessage("결제 및 예약이 완료되었습니다!");
       } catch (error) {
         console.error("Payment processing error:", error);
+        // 홀드 해제
+        await releaseAllUserHolds();
+        localStorage.removeItem("damda_payment_holds");
         setStatus("error");
         setMessage("결제 처리 중 오류가 발생했습니다.");
       }
