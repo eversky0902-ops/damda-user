@@ -37,18 +37,18 @@ export function Footer() {
               />
             </div>
             <div className="text-xs text-gray-400 space-y-1">
-              <p>상호명 : 담다 | 대표자명 : 이승규 | Tel : 010-5717-0711 | 주소 : 경기도 고양시 덕양구 창릉 2로 21 골드프라이스빌딩 302-305호</p>
-              <p>사업자등록번호 : 660-08-02811, 통신판매업신고 : 2025-고양덕양구-0961, 개인정보보호책임자 : 이승규</p>
+              <p>상호명 : 담다 | 대표자명 : 이승규 {/* | Tel : 010-5717-0711 */} | 주소 : 인천광역시 연수구 컨벤시아대로 81, 5층 509호-175A호</p>
+              <p>사업자등록번호 : 660-08-02811 | 통신판매업신고 : 2026-인천연수구-0118호 | 개인정보보호책임자 : 이승규</p>
             </div>
           </div>
 
           {/* Customer center */}
           <div className="lg:text-right">
             <p className="text-sm text-gray-400 mb-1">고객센터</p>
-            <p className="text-2xl font-bold text-white mb-2">1111-2222</p>
+            <p className="text-2xl font-bold text-white mb-2">010-7625-3711</p>
             <div className="text-xs text-gray-400 space-y-1">
-              <p>평일 : 9:00~19:00, 점심 : 12:00~13:00 (토/일/공휴일 휴무)</p>
-              <p>FAX : 02-1234-5678 | 이메일 : damda@gmail.com</p>
+              <p>평일 09:00~18:00, 점심 12:00~13:00 (토/일/공휴일 휴무)</p>
+              <p>{/* FAX : 02-1234-5678 | */}이메일 : damda_0003@naver.com</p>
             </div>
           </div>
         </div>
