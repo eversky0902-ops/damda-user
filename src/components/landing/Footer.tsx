@@ -57,8 +57,11 @@ export function Footer() {
       {/* Copyright */}
       <div className="border-t border-gray-600">
         <div className="max-w-6xl mx-auto px-4 py-4">
+          <p className="text-[11px] text-gray-400 text-center mb-2">
+            담다는 통신판매 중개자로서 통신판매의 당사자가 아니며 상품의 예약, 이용 및 환불 등과 관련한 의무와 책임은 각 판매자에게 있습니다.
+          </p>
           <p className="text-xs text-gray-500 text-center">
-            ©2025 담다. All rights reserved.
+            ©2026 담다. All rights reserved.
           </p>
         </div>
       </div>
