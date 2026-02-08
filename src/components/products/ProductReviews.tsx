@@ -2,8 +2,14 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Star, ChevronDown, ImageIcon } from "lucide-react";
+import { Star, ChevronDown, ImageIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogClose,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -25,6 +31,7 @@ export function ProductReviews({
   hasMore = false,
 }: ProductReviewsProps) {
   const [expandedImages, setExpandedImages] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   return (
     <div className="space-y-8">
@@ -122,15 +129,15 @@ export function ProductReviews({
                     {review.images.slice(0, expandedImages === review.id ? undefined : 4).map((image, index) => (
                       <button
                         key={image.id}
-                        className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100"
-                        onClick={() => setExpandedImages(expandedImages === review.id ? null : review.id)}
+                        className="relative w-28 h-28 rounded-lg overflow-hidden bg-gray-100 hover:opacity-80 transition-opacity"
+                        onClick={() => setSelectedImage(image.image_url)}
                       >
                         <Image
                           src={image.image_url}
                           alt={`리뷰 이미지 ${index + 1}`}
                           fill
                           className="object-cover"
-                          sizes="80px"
+                          sizes="112px"
                         />
                         {index === 3 && review.images!.length > 4 && expandedImages !== review.id && (
                           <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-sm font-medium">
@@ -140,6 +147,14 @@ export function ProductReviews({
                       </button>
                     ))}
                   </div>
+                  {review.images.length > 4 && (
+                    <button
+                      onClick={() => setExpandedImages(expandedImages === review.id ? null : review.id)}
+                      className="mt-2 text-sm text-gray-500 hover:text-gray-700"
+                    >
+                      {expandedImages === review.id ? "접기" : `전체보기 (${review.images.length})`}
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -165,6 +180,25 @@ export function ProductReviews({
           </Button>
         </div>
       )}
+
+      {/* 이미지 확대 모달 */}
+      <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+        <DialogContent className="w-auto max-w-[90vw] sm:max-w-[90vw] p-0 gap-0 bg-transparent border-none shadow-none" showCloseButton={false}>
+          <DialogTitle className="sr-only">리뷰 이미지 확대</DialogTitle>
+          <div className="relative">
+            {selectedImage && (
+              <img
+                src={selectedImage}
+                alt="리뷰 이미지 확대"
+                className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+              />
+            )}
+            <DialogClose className="absolute top-2 right-2 rounded-full bg-black/50 p-1.5 hover:bg-black/70 transition-colors">
+              <X className="h-5 w-5 text-white" />
+            </DialogClose>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

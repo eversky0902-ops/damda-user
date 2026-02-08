@@ -413,6 +413,7 @@ export default function PartnerPage() {
             <DialogTitle>주소검색</DialogTitle>
           </DialogHeader>
           <DaumPostcodeEmbed
+            scriptUrl="https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
             onComplete={handlePostcodeComplete}
             style={{ height: 450 }}
           />

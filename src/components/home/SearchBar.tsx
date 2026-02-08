@@ -6,11 +6,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Search, MapPin, Calendar, ChevronRight, Loader2, X, ChevronLeft, Check } from "lucide-react";
 import { DayPicker } from "react-day-picker";
-import { format, addMonths, startOfMonth, parse } from "date-fns";
+import { format, addDays, startOfMonth, parse } from "date-fns";
 import { ko } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import "react-day-picker/style.css";
 import { getRegions, getPopularRegions, type RegionWithChildren } from "@/services/regionService";
+import { useReservationSettings } from "@/hooks/use-reservation-settings";
 
 export function SearchBar() {
   const router = useRouter();
@@ -46,6 +47,11 @@ export function SearchBar() {
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const desktopDropdownRef = useRef<HTMLDivElement>(null);
+
+  // 예약 설정 (예약 가능 기간, 최소 사전 기간)
+  const { reservationAdvanceDays, minReservationNotice } = useReservationSettings();
+  const minDate = addDays(new Date(), minReservationNotice);
+  const maxDate = addDays(new Date(), reservationAdvanceDays);
 
   // Portal을 위한 mounted 상태
   useEffect(() => {
@@ -514,9 +520,9 @@ export function SearchBar() {
                                   onSelect={setSelectedDate}
                                   locale={ko}
                                   numberOfMonths={1}
-                                  disabled={{ before: new Date() }}
+                                  disabled={{ before: minDate, after: maxDate }}
                                   startMonth={startOfMonth(new Date())}
-                                  endMonth={addMonths(new Date(), 3)}
+                                  endMonth={startOfMonth(maxDate)}
                                 />
                               </div>
                             </motion.div>
@@ -774,9 +780,9 @@ export function SearchBar() {
                           onSelect={setSelectedDate}
                           locale={ko}
                           numberOfMonths={1}
-                          disabled={{ before: new Date() }}
+                          disabled={{ before: minDate, after: maxDate }}
                           startMonth={startOfMonth(new Date())}
-                          endMonth={addMonths(new Date(), 3)}
+                          endMonth={startOfMonth(maxDate)}
                         />
                       </div>
                     </div>

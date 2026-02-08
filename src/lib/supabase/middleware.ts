@@ -63,5 +63,25 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // 로그인된 사용자가 로그인/회원가입 페이지에 접근하면 상태에 따라 리다이렉트
+  if (user && (pathname === "/login" || pathname === "/signup")) {
+    const { data: daycare } = await supabase
+      .from("daycares")
+      .select("status")
+      .eq("id", user.id)
+      .single();
+
+    if (daycare?.status === "approved") {
+      return NextResponse.redirect(new URL("/home", request.url));
+    } else if (daycare?.status === "rejected") {
+      return NextResponse.redirect(new URL("/signup/rejected", request.url));
+    } else if (daycare?.status === "revision_required") {
+      return NextResponse.redirect(new URL("/signup/revision", request.url));
+    } else {
+      // pending 등
+      return NextResponse.redirect(new URL("/signup/complete", request.url));
+    }
+  }
+
   return supabaseResponse;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -31,6 +31,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export function LoginForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -39,6 +40,24 @@ export function LoginForm() {
       password: "",
     },
   });
+
+  // 이미 로그인된 경우 리다이렉트
+  useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        // 로그인된 상태면 홈으로 리다이렉트
+        router.push("/home");
+        router.refresh();
+      } else {
+        setIsChecking(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
 
   async function onSubmit(values: LoginFormValues) {
     setIsLoading(true);
@@ -107,6 +126,15 @@ export function LoginForm() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  // 로그인 상태 확인 중에는 로딩 표시
+  if (isChecking) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (

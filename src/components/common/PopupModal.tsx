@@ -126,7 +126,7 @@ export function PopupContainer({ popups }: PopupContainerProps) {
   if (visiblePopups.length === 0) return null;
 
   return (
-    <div className="fixed top-0 left-0 z-50 flex flex-col">
+    <div className="fixed top-0 left-0 z-50 flex flex-row gap-2">
       {visiblePopups.map((popup, index) => (
         <PopupItem
           key={popup.id}

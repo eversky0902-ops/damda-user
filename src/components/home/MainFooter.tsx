@@ -1,7 +1,52 @@
 import Link from "next/link";
 import Image from "next/image";
+import { createClient } from "@/lib/supabase/server";
 
-export function MainFooter() {
+async function getServiceSettings() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("site_settings")
+    .select("key, value")
+    .in("key", ["service_phone", "service_email", "business_hours"]);
+
+  if (!data) return { phone: "010-7625-3711", email: "damda_0003@naver.com", hoursStart: "09:00", hoursEnd: "18:00" };
+
+  const settings: Record<string, unknown> = {};
+  for (const row of data) {
+    try {
+      settings[row.key] = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+    } catch {
+      settings[row.key] = row.value;
+    }
+  }
+
+  const phone = (settings.service_phone as string) || "010-7625-3711";
+  const email = (settings.service_email as string) || "damda_0003@naver.com";
+  const hours = settings.business_hours as { start: string; end: string } | undefined;
+
+  return {
+    phone,
+    email,
+    hoursStart: hours?.start || "09:00",
+    hoursEnd: hours?.end || "18:00",
+  };
+}
+
+function formatPhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  return phone;
+}
+
+export async function MainFooter() {
+  const settings = await getServiceSettings();
+  const displayPhone = formatPhone(settings.phone);
+
   return (
     <footer className="bg-[#3d3d3d] text-gray-300">
       {/* Top links */}
@@ -35,7 +80,7 @@ export function MainFooter() {
               />
             </div>
             <div className="text-xs text-gray-400 space-y-1">
-              <p>상호명 : 담다 | 대표자명 : 이승규 {/* | Tel : 010-5717-0711 */} | 주소 : 인천광역시 연수구 컨벤시아대로 81, 5층 509호-175A호</p>
+              <p>상호명 : 담다 | 대표자명 : 이승규 | 주소 : 인천광역시 연수구 컨벤시아대로 81, 5층 509호-175A호</p>
               <p>사업자등록번호 : 660-08-02811 | 통신판매업신고 : 2026-인천연수구-0118호 | 개인정보보호책임자 : 이승규</p>
             </div>
           </div>
@@ -43,10 +88,10 @@ export function MainFooter() {
           {/* Customer center */}
           <div className="lg:text-right">
             <p className="text-sm text-gray-400 mb-1">고객센터</p>
-            <p className="text-2xl font-bold text-white mb-2">010-7625-3711</p>
+            <p className="text-2xl font-bold text-white mb-2">{displayPhone}</p>
             <div className="text-xs text-gray-400 space-y-1">
-              <p>평일 09:00~18:00, 점심 12:00~13:00 (토/일/공휴일 휴무)</p>
-              <p>{/* FAX : 02-1234-5678 | */}이메일 : damda_0003@naver.com</p>
+              <p>평일 {settings.hoursStart}~{settings.hoursEnd}, 점심 12:00~13:00 (토/일/공휴일 휴무)</p>
+              <p>이메일 : {settings.email}</p>
             </div>
           </div>
         </div>

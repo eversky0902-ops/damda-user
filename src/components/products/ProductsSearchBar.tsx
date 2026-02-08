@@ -5,10 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { MapPin, Calendar, Users, Search, X, ChevronDown } from "lucide-react";
 import { DayPicker } from "react-day-picker";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { ko } from "date-fns/locale";
 import "react-day-picker/style.css";
 import { getRegions, type RegionWithChildren } from "@/services/regionService";
+import { useReservationSettings } from "@/hooks/use-reservation-settings";
 
 interface ProductsSearchBarProps {
   defaultRegion?: string;
@@ -37,6 +38,11 @@ export function ProductsSearchBar({
   const [selectedProvinceId, setSelectedProvinceId] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // 예약 설정 (예약 가능 기간, 최소 사전 기간)
+  const { reservationAdvanceDays, minReservationNotice } = useReservationSettings();
+  const minDate = addDays(new Date(), minReservationNotice);
+  const maxDate = addDays(new Date(), reservationAdvanceDays);
 
   // 지역 데이터 조회
   const { data: regions = [] } = useQuery({
@@ -238,7 +244,7 @@ export function ProductsSearchBar({
                 setActiveDropdown(null);
               }}
               locale={ko}
-              disabled={{ before: new Date() }}
+              disabled={{ before: minDate, after: maxDate }}
             />
           </div>
         </div>

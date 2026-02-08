@@ -6,8 +6,9 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Upload, X, FileText, Plus } from "lucide-react";
+import { Loader2, Upload, X, FileText, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
+import { DaumPostcodeEmbed, type Address } from "react-daum-postcode";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,12 @@ import {
   FormMessage,
   FormDescription,
 } from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 
 interface FileItem {
@@ -29,7 +36,12 @@ interface FileItem {
 
 const signupSchema = z.object({
   email: z.string().email("올바른 이메일을 입력해주세요"),
-  password: z.string().min(6, "비밀번호는 6자 이상이어야 합니다"),
+  password: z
+    .string()
+    .min(8, "비밀번호는 8자 이상이어야 합니다")
+    .regex(/[A-Za-z]/, "영문자를 포함해야 합니다")
+    .regex(/[0-9]/, "숫자를 포함해야 합니다")
+    .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "특수문자를 포함해야 합니다"),
   passwordConfirm: z.string(),
   name: z.string().min(2, "어린이집명을 입력해주세요"),
   contactName: z.string().min(2, "담당자명을 입력해주세요"),
@@ -38,6 +50,9 @@ const signupSchema = z.object({
     .regex(/^[0-9-]+$/, "올바른 전화번호를 입력해주세요")
     .min(10, "올바른 전화번호를 입력해주세요"),
   licenseNumber: z.string().min(1, "인가번호를 입력해주세요"),
+  zipcode: z.string().min(1, "주소를 검색해주세요"),
+  address: z.string().min(1, "주소를 검색해주세요"),
+  addressDetail: z.string().optional(),
 }).refine((data) => data.password === data.passwordConfirm, {
   message: "비밀번호가 일치하지 않습니다",
   path: ["passwordConfirm"],
@@ -49,6 +64,7 @@ export function SignupForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [licenseFiles, setLicenseFiles] = useState<FileItem[]>([]);
+  const [isPostcodeOpen, setIsPostcodeOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,8 +123,17 @@ export function SignupForm() {
       contactName: "",
       contactPhone: "",
       licenseNumber: "",
+      zipcode: "",
+      address: "",
+      addressDetail: "",
     },
   });
+
+  const handlePostcodeComplete = (data: Address) => {
+    form.setValue("zipcode", data.zonecode, { shouldValidate: true });
+    form.setValue("address", data.roadAddress || data.jibunAddress, { shouldValidate: true });
+    setIsPostcodeOpen(false);
+  };
 
   async function onSubmit(values: SignupFormValues) {
     setIsLoading(true);
@@ -163,7 +188,9 @@ export function SignupForm() {
         contact_phone: values.contactPhone,
         license_number: values.licenseNumber,
         license_file: "", // 레거시 필드 - 빈 값으로 유지
-        address: "",
+        zipcode: values.zipcode,
+        address: values.address,
+        address_detail: values.addressDetail || "",
         status: "pending",
       });
 
@@ -266,7 +293,7 @@ export function SignupForm() {
                 <FormControl>
                   <Input type="password" placeholder="••••••••" {...field} />
                 </FormControl>
-                <FormDescription>6자 이상 입력해주세요</FormDescription>
+                <FormDescription>8자 이상, 영문+숫자+특수문자 포함</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -320,6 +347,52 @@ export function SignupForm() {
                   </FormItem>
                 )}
               />
+
+              {/* 주소 */}
+              <div className="space-y-2">
+                <FormField
+                  control={form.control}
+                  name="zipcode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>주소</FormLabel>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input placeholder="우편번호" readOnly className="w-28" {...field} />
+                        </FormControl>
+                        <Button type="button" variant="outline" className="h-9" onClick={() => setIsPostcodeOpen(true)}>
+                          <Search className="h-4 w-4 mr-1" />
+                          주소검색
+                        </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Input placeholder="주소검색을 통해 입력해주세요" readOnly {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="addressDetail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Input placeholder="상세주소 입력" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               {/* 인가증 파일 업로드 (다중) */}
               <div className="space-y-2">
@@ -432,6 +505,19 @@ export function SignupForm() {
           로그인
         </Link>
       </div>
+
+      <Dialog open={isPostcodeOpen} onOpenChange={setIsPostcodeOpen}>
+        <DialogContent className="sm:max-w-[500px] p-0">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle>주소검색</DialogTitle>
+          </DialogHeader>
+          <DaumPostcodeEmbed
+            scriptUrl="https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
+            onComplete={handlePostcodeComplete}
+            style={{ height: 450 }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

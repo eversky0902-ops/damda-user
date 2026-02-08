@@ -56,9 +56,20 @@ export default async function NoticeDetailPage({ params }: NoticeDetailPageProps
 
         {/* 본문 */}
         <div className="px-4 py-6">
-          <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-            {notice.content}
-          </div>
+          <div
+            className="text-sm text-gray-700 leading-relaxed notice-content"
+            dangerouslySetInnerHTML={{ __html: notice.content }}
+          />
+          <style>{`
+            .notice-content img {
+              max-width: 100%;
+              height: auto;
+            }
+            .notice-content p {
+              margin: 0;
+              min-height: 1.4em;
+            }
+          `}</style>
         </div>
 
         {/* 하단 목록 버튼 */}

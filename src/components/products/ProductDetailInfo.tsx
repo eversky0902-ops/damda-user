@@ -28,6 +28,7 @@ import { ko } from "date-fns/locale";
 import type { ProductDetail } from "@/services/productService";
 import { addRecentView } from "@/services/recentViewService";
 import { getUnavailableDates } from "@/services/holdService";
+import { useReservationSettings } from "@/hooks/use-reservation-settings";
 
 interface ProductDetailInfoProps {
   product: ProductDetail;
@@ -229,9 +230,11 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
     return false;
   };
 
-  // 선택 가능한 날짜 범위 (오늘부터 3개월)
+  // 예약 설정 (예약 가능 기간, 최소 사전 기간)
+  const { reservationAdvanceDays, minReservationNotice } = useReservationSettings();
   const today = startOfDay(new Date());
-  const maxDate = addDays(today, 90);
+  const minDate = addDays(today, minReservationNotice);
+  const maxDate = addDays(today, reservationAdvanceDays);
 
   // 옵션 수량 변경
   const handleOptionChange = (optionId: string, delta: number) => {
@@ -570,7 +573,7 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
                   selected={selectedDate}
                   onSelect={handleDateSelect}
                   disabled={(date) =>
-                    isBefore(date, today) || isAfter(date, maxDate) || isDateUnavailable(date)
+                    isBefore(date, minDate) || isAfter(date, maxDate) || isDateUnavailable(date)
                   }
                   locale={ko}
                 />

@@ -43,7 +43,7 @@ export function Hero() {
               className="group h-12 gap-2 rounded-full px-8 text-base font-semibold shadow-lg shadow-primary/20"
             >
               <Link href="/signup">
-                가입 신청하기
+                기관 가입신청하기
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
             </Button>
@@ -53,9 +53,9 @@ export function Hero() {
               asChild
               className="h-12 gap-2 rounded-full border-2 px-8 text-base font-semibold"
             >
-              <Link href="#products">
+              <Link href="/partner">
                 <Play className="h-4 w-4 fill-current" />
-                프로그램 둘러보기
+                제휴 입점문의
               </Link>
             </Button>
           </div>
