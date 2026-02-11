@@ -33,11 +33,14 @@ export async function generateMetadata({ params }: ProductDetailPageProps) {
   }
 
   return {
-    title: `${product.name} | 담다`,
+    title: product.name,
     description: product.summary || product.name,
     openGraph: {
       title: product.name,
       description: product.summary || product.name,
+      siteName: "담다",
+      locale: "ko_KR",
+      type: "article",
       images: [product.thumbnail],
     },
   };
