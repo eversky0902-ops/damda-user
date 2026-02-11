@@ -9,12 +9,16 @@ interface ReservationActionsProps {
   reservationId: string;
   canReview: boolean;
   canCancel: boolean;
+  servicePhone: string;
+  businessHours: string;
 }
 
 export function ReservationActions({
   reservationId,
   canReview,
   canCancel,
+  servicePhone,
+  businessHours,
 }: ReservationActionsProps) {
   const [showCancelModal, setShowCancelModal] = useState(false);
 
@@ -79,20 +83,17 @@ export function ReservationActions({
                 처리해 드리고 있습니다.
               </p>
               <p className="text-sm text-gray-500 mt-3">
-                운영시간: 평일 09:00 ~ 18:00
+                운영시간: {businessHours}
               </p>
             </div>
 
-            <div className="px-6 pb-6 space-y-2">
-              <Button
-                asChild
-                className="w-full h-12 bg-damda-yellow hover:bg-damda-yellow-dark text-gray-900 font-medium"
-              >
-                <a href="tel:1588-0000">
-                  <Phone className="w-5 h-5 mr-2" />
-                  고객센터 전화하기
-                </a>
-              </Button>
+            <div className="px-6 pb-6 space-y-3">
+              <div className="bg-gray-50 rounded-xl p-4 text-center">
+                <p className="text-xs text-gray-500 mb-1">고객센터 전화번호</p>
+                <p className="text-2xl font-bold text-gray-900 tracking-wide select-all">
+                  {servicePhone}
+                </p>
+              </div>
               <Button
                 variant="ghost"
                 className="w-full h-10 text-gray-500"

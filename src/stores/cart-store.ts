@@ -31,12 +31,14 @@ export interface CartItem {
 interface CartState {
   items: CartItem[];
   directItem: CartItem | null; // 바로예약 전용 (장바구니에 담지 않음)
+  selectedItemIds: string[]; // 장바구니에서 결제할 상품 선택
   addItem: (item: CartItem) => void;
   removeItem: (productId: string) => void;
   updateItem: (productId: string, updates: Partial<Omit<CartItem, "product">>) => void;
   clearCart: () => void;
   setDirectItem: (item: CartItem) => void; // 바로예약용
   clearDirectItem: () => void;
+  setSelectedItemIds: (ids: string[]) => void;
   getTotalAmount: () => number;
   getItemCount: () => number;
 }
@@ -46,6 +48,7 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       directItem: null,
+      selectedItemIds: [],
       addItem: (item) =>
         set((state) => {
           const existingIndex = state.items.findIndex(
@@ -71,6 +74,7 @@ export const useCartStore = create<CartState>()(
       clearCart: () => set({ items: [] }),
       setDirectItem: (item) => set({ directItem: item }),
       clearDirectItem: () => set({ directItem: null }),
+      setSelectedItemIds: (ids) => set({ selectedItemIds: ids }),
       getTotalAmount: () => {
         const { items, directItem } = get();
         // 바로예약 아이템이 있으면 해당 금액만 계산

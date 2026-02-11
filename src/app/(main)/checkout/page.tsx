@@ -42,10 +42,14 @@ const PAYMENT_METHODS = [
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items: cartItems, directItem, clearDirectItem, getTotalAmount } = useCartStore();
+  const { items: cartItems, directItem, clearDirectItem, selectedItemIds } = useCartStore();
 
-  // 바로예약 아이템이 있으면 우선 사용, 없으면 장바구니 아이템 사용
-  const items = directItem ? [directItem] : cartItems;
+  // 바로예약 아이템이 있으면 우선 사용, 없으면 장바구니에서 선택된 아이템만 사용
+  const items = directItem
+    ? [directItem]
+    : selectedItemIds.length > 0
+      ? cartItems.filter((item) => selectedItemIds.includes(item.product.id))
+      : cartItems;
   const isDirectCheckout = !!directItem;
   const { user, profile } = useAuth();
 
@@ -141,22 +145,27 @@ export default function CheckoutPage() {
     return null;
   }
 
-  const totalAmount = getTotalAmount();
+  // 선택된 아이템 기준으로 금액 계산
+  const originalAmount = items.reduce((total, item) => {
+    let itemTotal = item.product.original_price * item.participants;
+    if (item.options) {
+      item.options.forEach((opt) => {
+        itemTotal += opt.price * opt.quantity;
+      });
+    }
+    return total + itemTotal;
+  }, 0);
 
-  // 정가 총액 계산
-  const getOriginalAmount = () => {
-    return items.reduce((total, item) => {
-      let itemTotal = item.product.original_price * item.participants;
-      if (item.options) {
-        item.options.forEach((opt) => {
-          itemTotal += opt.price * opt.quantity;
-        });
-      }
-      return total + itemTotal;
-    }, 0);
-  };
+  const totalAmount = items.reduce((total, item) => {
+    let itemTotal = item.product.sale_price * item.participants;
+    if (item.options) {
+      item.options.forEach((opt) => {
+        itemTotal += opt.price * opt.quantity;
+      });
+    }
+    return total + itemTotal;
+  }, 0);
 
-  const originalAmount = getOriginalAmount();
   const discountAmount = originalAmount - totalAmount;
 
   // 예약 불가 사유 메시지

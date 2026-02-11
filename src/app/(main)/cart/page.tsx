@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCart } from "@/hooks/use-cart";
-import { type CartItem } from "@/stores/cart-store";
+import { useCartStore, type CartItem } from "@/stores/cart-store";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -28,6 +28,7 @@ import { ko } from "date-fns/locale";
 export default function CartPage() {
   const router = useRouter();
   const { items, removeItem, updateItem, clearCart, clearDirectItem, getTotalAmount, isSyncing } = useCart();
+  const setSelectedItemIds = useCartStore((s) => s.setSelectedItemIds);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [mounted, setMounted] = useState(false);
 
@@ -168,6 +169,8 @@ export default function CartPage() {
     }
     // 바로예약 아이템이 있으면 클리어 (장바구니에서 결제하는 것이므로)
     clearDirectItem();
+    // 선택된 상품 ID를 스토어에 저장
+    setSelectedItemIds(Array.from(selectedIds));
     router.push("/checkout");
   };
 

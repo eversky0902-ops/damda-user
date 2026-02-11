@@ -8,9 +8,10 @@ import { cn } from "@/lib/utils";
 interface ProductDescriptionProps {
   description: string | null;
   address?: string | null;
+  addressDetail?: string | null;
 }
 
-export function ProductDescription({ description, address }: ProductDescriptionProps) {
+export function ProductDescription({ description, address, addressDetail }: ProductDescriptionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!description) {
@@ -60,7 +61,10 @@ export function ProductDescription({ description, address }: ProductDescriptionP
       {address && (
         <div className="mt-8 p-4 bg-gray-50 rounded-lg">
           <h4 className="font-medium text-gray-900 mb-2">체험 장소</h4>
-          <p className="text-gray-600">{address}</p>
+          <p className="text-gray-600">
+            {address}
+            {addressDetail && ` ${addressDetail}`}
+          </p>
         </div>
       )}
     </div>

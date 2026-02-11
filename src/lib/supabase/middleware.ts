@@ -9,6 +9,9 @@ const PUBLIC_PATHS = [
   "/partner",
   "/privacy",
   "/terms",
+  "/find-email",
+  "/find-password",
+  "/reset-password",
 ];
 
 function isPublicPath(pathname: string): boolean {

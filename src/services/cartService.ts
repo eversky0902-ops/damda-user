@@ -414,6 +414,9 @@ export async function createReservations(
         participant_count: item.participants,
         total_amount: item.totalAmount,
         status: "confirmed",
+        reserver_name: params.reserverInfo.name || null,
+        reserver_phone: params.reserverInfo.phone || null,
+        reserver_email: params.reserverInfo.email || null,
       });
     }
 

@@ -148,6 +148,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               <ProductDescription
                 description={product.description}
                 address={product.address}
+                addressDetail={product.address_detail}
               />
             </TabsContent>
 
@@ -215,7 +216,7 @@ function ReservationNotice({ content }: { content?: string | null }) {
 
   return (
     <div
-      className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700"
+      className="legal-content text-sm text-gray-700 leading-relaxed [&>p]:mb-4 [&>p]:leading-relaxed [&>h1]:text-lg [&>h1]:font-bold [&>h1]:text-gray-900 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:text-base [&>h2]:font-bold [&>h2]:text-gray-900 [&>h2]:mt-6 [&>h2]:mb-3 [&>h3]:text-sm [&>h3]:font-semibold [&>h3]:text-gray-900 [&>h3]:mt-5 [&>h3]:mb-2 [&>ul]:my-3 [&>ul]:pl-5 [&>ul]:list-disc [&>ol]:my-3 [&>ol]:pl-5 [&>ol]:list-decimal [&>li]:mb-1 [&>br]:block [&>br]:content-[''] [&>br]:mb-4"
       dangerouslySetInnerHTML={{ __html: content }}
     />
   );

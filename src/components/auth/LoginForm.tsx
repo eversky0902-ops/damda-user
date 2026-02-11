@@ -191,7 +191,17 @@ export function LoginForm() {
         </form>
       </Form>
 
-      <div className="mt-6 text-center text-sm">
+      <div className="mt-4 flex items-center justify-center gap-3 text-sm">
+        <a href="/find-email" className="text-muted-foreground hover:text-primary hover:underline">
+          아이디(이메일) 찾기
+        </a>
+        <span className="text-muted-foreground">|</span>
+        <a href="/find-password" className="text-muted-foreground hover:text-primary hover:underline">
+          비밀번호 찾기
+        </a>
+      </div>
+
+      <div className="mt-4 text-center text-sm">
         <span className="text-muted-foreground">계정이 없으신가요? </span>
         <Link href="/signup" className="font-medium text-primary hover:underline">
           회원가입

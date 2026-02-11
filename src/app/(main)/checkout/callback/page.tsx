@@ -14,7 +14,7 @@ type PaymentStatus = "processing" | "success" | "error";
 function PaymentCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { items, clearCart, clearDirectItem } = useCartStore();
+  const { items, clearCart, clearDirectItem, setSelectedItemIds } = useCartStore();
   const [status, setStatus] = useState<PaymentStatus>("processing");
   const [message, setMessage] = useState("결제를 처리하고 있습니다...");
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -152,6 +152,7 @@ function PaymentCallbackContent() {
         // 장바구니 및 바로예약 아이템 비우기
         clearCart();
         clearDirectItem();
+        setSelectedItemIds([]);
         await clearCartDB();
 
         // 홀드 해제 (결제 성공 시)
@@ -178,7 +179,7 @@ function PaymentCallbackContent() {
     };
 
     processPayment();
-  }, [searchParams, items, clearCart, clearDirectItem]);
+  }, [searchParams, items, clearCart, clearDirectItem, setSelectedItemIds]);
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center">

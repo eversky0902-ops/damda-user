@@ -16,6 +16,7 @@ export interface Product {
   category_id: string | null;
   business_owner_id: string;
   address: string | null;
+  address_detail: string | null;
   duration_minutes: number | null;
   created_at: string;
   // 리뷰 통계 (목록 조회 시 포함)

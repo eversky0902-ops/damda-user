@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import useEmblaCarousel from "embla-carousel-react";
 
 interface ImageGalleryProps {
   images: { id: string; image_url: string }[];
@@ -40,38 +41,80 @@ export function ImageGallery({ images, thumbnail, productName }: ImageGalleryPro
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
 
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, dragFree: false });
+
   const handleImageError = (index: number) => {
     setImageErrors((prev) => new Set(prev).add(index));
   };
 
   const hasNoImages = allImages.length === 0;
-  const currentImageHasError = imageErrors.has(currentIndex);
 
-  const goToPrevious = () => {
-    setCurrentIndex((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));
-  };
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setCurrentIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
 
-  const goToNext = () => {
-    setCurrentIndex((prev) => (prev === allImages.length - 1 ? 0 : prev + 1));
-  };
+  useEffect(() => {
+    if (!emblaApi) return;
+    emblaApi.on("select", onSelect);
+    return () => {
+      emblaApi.off("select", onSelect);
+    };
+  }, [emblaApi, onSelect]);
+
+  const goToPrevious = useCallback(() => {
+    emblaApi?.scrollPrev();
+  }, [emblaApi]);
+
+  const goToNext = useCallback(() => {
+    emblaApi?.scrollNext();
+  }, [emblaApi]);
+
+  const goToSlide = useCallback(
+    (index: number) => {
+      emblaApi?.scrollTo(index);
+    },
+    [emblaApi]
+  );
+
+  if (hasNoImages) {
+    return (
+      <div className="space-y-4">
+        <div className="relative aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden">
+          <NoImagePlaceholder />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      {/* 메인 이미지 */}
+      {/* 메인 이미지 - Embla Carousel */}
       <div className="relative aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden">
-        {hasNoImages || currentImageHasError ? (
-          <NoImagePlaceholder />
-        ) : (
-          <Image
-            src={allImages[currentIndex]?.image_url}
-            alt={`${productName} - 이미지 ${currentIndex + 1}`}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, 50vw"
-            priority
-            onError={() => handleImageError(currentIndex)}
-          />
-        )}
+        <div ref={emblaRef} className="h-full overflow-hidden">
+          <div className="flex h-full">
+            {allImages.map((image, index) => (
+              <div
+                key={image.id}
+                className="relative min-w-0 flex-[0_0_100%] h-full"
+              >
+                {imageErrors.has(index) ? (
+                  <NoImagePlaceholder />
+                ) : (
+                  <Image
+                    src={image.image_url}
+                    alt={`${productName} - 이미지 ${index + 1}`}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    priority={index === 0}
+                    onError={() => handleImageError(index)}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* 네비게이션 버튼 */}
         {allImages.length > 1 && (
@@ -99,7 +142,7 @@ export function ImageGallery({ images, thumbnail, productName }: ImageGalleryPro
             {allImages.map((_, index) => (
               <button
                 key={index}
-                onClick={() => setCurrentIndex(index)}
+                onClick={() => goToSlide(index)}
                 className={cn(
                   "w-2 h-2 rounded-full transition-colors",
                   index === currentIndex ? "bg-white" : "bg-white/50"
@@ -117,7 +160,7 @@ export function ImageGallery({ images, thumbnail, productName }: ImageGalleryPro
           {allImages.map((image, index) => (
             <button
               key={image.id}
-              onClick={() => setCurrentIndex(index)}
+              onClick={() => goToSlide(index)}
               className={cn(
                 "relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-colors bg-gray-50",
                 index === currentIndex

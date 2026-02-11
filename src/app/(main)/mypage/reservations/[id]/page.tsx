@@ -94,6 +94,38 @@ export default async function ReservationDetailPage({
   const canCancel = ["pending", "paid", "confirmed"].includes(reservation.status);
   const canReview = reservation.status === "completed";
 
+  // 고객센터 정보 조회
+  const { data: siteSettings } = await supabase
+    .from("site_settings")
+    .select("key, value")
+    .in("key", ["service_phone", "business_hours"]);
+
+  let servicePhone = "010-7625-3711";
+  let businessHours = "평일 09:00~18:00";
+
+  if (siteSettings) {
+    for (const row of siteSettings) {
+      try {
+        const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+        if (row.key === "service_phone") servicePhone = val as string;
+        if (row.key === "business_hours") {
+          const h = val as { start: string; end: string };
+          businessHours = `평일 ${h.start}~${h.end}`;
+        }
+      } catch {
+        if (row.key === "service_phone") servicePhone = row.value as string;
+      }
+    }
+  }
+
+  // 전화번호 포맷팅
+  const phoneDigits = servicePhone.replace(/\D/g, "");
+  const displayPhone = phoneDigits.length === 11
+    ? `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 7)}-${phoneDigits.slice(7)}`
+    : phoneDigits.length === 10
+      ? `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`
+      : servicePhone;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 헤더 */}
@@ -302,6 +334,8 @@ export default async function ReservationDetailPage({
         reservationId={reservation.id}
         canReview={canReview}
         canCancel={canCancel}
+        servicePhone={displayPhone}
+        businessHours={businessHours}
       />
     </div>
   );
