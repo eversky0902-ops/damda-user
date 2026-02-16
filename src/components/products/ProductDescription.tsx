@@ -24,7 +24,7 @@ export function ProductDescription({ description, address, addressDetail }: Prod
       <div className="relative">
         <div
           className={cn(
-            "prose prose-gray max-w-none overflow-hidden transition-all [&_img]:w-full [&_img]:h-auto [&_img]:rounded-lg",
+            "legal-content text-sm text-gray-700 leading-relaxed max-w-none overflow-hidden transition-all [&_img]:w-full [&_img]:h-auto [&_img]:rounded-lg [&>p]:mb-4 [&>p]:leading-relaxed [&>h1]:text-lg [&>h1]:font-bold [&>h1]:text-gray-900 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:text-base [&>h2]:font-bold [&>h2]:text-gray-900 [&>h2]:mt-6 [&>h2]:mb-3 [&>h3]:text-sm [&>h3]:font-semibold [&>h3]:text-gray-900 [&>h3]:mt-5 [&>h3]:mb-2 [&>ul]:my-3 [&>ul]:pl-5 [&>ul]:list-disc [&>ol]:my-3 [&>ol]:pl-5 [&>ol]:list-decimal [&>li]:mb-1 [&>br]:block [&>br]:content-[''] [&>br]:mb-4",
             !isExpanded && "max-h-[400px]"
           )}
           dangerouslySetInnerHTML={{ __html: description }}
