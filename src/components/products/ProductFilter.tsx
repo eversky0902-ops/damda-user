@@ -16,79 +16,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Category } from "@/services/categoryService";
+import { REGION_GROUPS } from "@/constants/regionGroups";
 
-// 지역 목록
-const REGIONS = [
-  "서울특별시",
-  "서울 강남구",
-  "서울 강동구",
-  "서울 강북구",
-  "서울 강서구",
-  "서울 관악구",
-  "서울 광진구",
-  "서울 구로구",
-  "서울 금천구",
-  "서울 노원구",
-  "서울 도봉구",
-  "서울 동대문구",
-  "서울 동작구",
-  "서울 마포구",
-  "서울 서대문구",
-  "서울 서초구",
-  "서울 성동구",
-  "서울 성북구",
-  "서울 송파구",
-  "서울 양천구",
-  "서울 영등포구",
-  "서울 용산구",
-  "서울 은평구",
-  "서울 종로구",
-  "서울 중구",
-  "서울 중랑구",
-  "부산광역시",
-  "대구광역시",
-  "인천광역시",
-  "광주광역시",
-  "대전광역시",
-  "울산광역시",
-  "세종특별자치시",
-  "경기도",
-  "경기 수원시",
-  "경기 성남시",
-  "경기 고양시",
-  "경기 용인시",
-  "경기 부천시",
-  "경기 안산시",
-  "경기 안양시",
-  "경기 남양주시",
-  "경기 화성시",
-  "경기 평택시",
-  "경기 의정부시",
-  "경기 시흥시",
-  "경기 파주시",
-  "경기 김포시",
-  "경기 광명시",
-  "경기 광주시",
-  "경기 군포시",
-  "경기 하남시",
-  "경기 오산시",
-  "경기 이천시",
-  "경기 안성시",
-  "경기 의왕시",
-  "경기 양평군",
-  "강원도",
-  "강원 춘천시",
-  "강원 원주시",
-  "강원 강릉시",
-  "강원 속초시",
-  "충청북도",
-  "충청남도",
-  "전라북도",
-  "전라남도",
-  "경상북도",
-  "경상남도",
-  "제주특별자치도",
-];
+// REGION_GROUPS에서 검색 가능한 항목 생성
+// 각 항목: { label: 검색/표시 텍스트, value: URL 파라미터에 넣을 값 }
+type RegionSearchItem = { label: string; value: string };
+
+const REGION_SEARCH_ITEMS: RegionSearchItem[] = (() => {
+  const items: RegionSearchItem[] = [];
+  for (const [province, groups] of Object.entries(REGION_GROUPS)) {
+    // 시/도 전체
+    items.push({ label: province, value: province });
+    // 각 그룹
+    for (const group of groups) {
+      const regionValues = group.districts.map(d => `${province} ${d}`).join(",");
+      items.push({
+        label: `${province} ${group.label}`,
+        value: regionValues,
+      });
+    }
+  }
+  return items;
+})();
 
 interface ProductFilterProps {
   categories: Category[];
@@ -197,23 +146,30 @@ export function ProductFilter({
   }, []);
 
   // 지역 검색 필터링
+  const [filteredSearchItems, setFilteredSearchItems] = useState<RegionSearchItem[]>([]);
+
   useEffect(() => {
     if (regionInput.trim()) {
-      const filtered = REGIONS.filter((r) =>
-        r.toLowerCase().includes(regionInput.toLowerCase())
+      const query = regionInput.toLowerCase();
+      const filtered = REGION_SEARCH_ITEMS.filter((item) =>
+        item.label.toLowerCase().includes(query)
       );
-      setFilteredRegions(filtered);
+      setFilteredSearchItems(filtered);
+      setFilteredRegions(filtered.map(item => item.label));
       setIsRegionOpen(filtered.length > 0);
     } else {
+      setFilteredSearchItems([]);
       setFilteredRegions([]);
       setIsRegionOpen(false);
     }
   }, [regionInput]);
 
-  const handleRegionSelect = (selectedRegion: string) => {
-    setRegionInput(selectedRegion);
+  const handleRegionSelect = (selectedLabel: string) => {
+    const item = filteredSearchItems.find(i => i.label === selectedLabel);
+    const value = item?.value || selectedLabel;
+    setRegionInput(selectedLabel);
     setIsRegionOpen(false);
-    updateFilter("region", selectedRegion);
+    updateFilter("region", value);
   };
 
   const clearRegion = () => {
