@@ -14,6 +14,29 @@ import { useReservationSettings } from "@/hooks/use-reservation-settings";
 
 const provinces = Object.keys(REGION_GROUPS);
 
+type SelectedGroup = {
+  type: 'province' | 'group';
+  province: string;
+  label: string;
+  regionKeys: string[];
+};
+
+const findGroupFromRegions = (regions: string[]): SelectedGroup | null => {
+  if (regions.length === 0) return null;
+  const province = provinces.find(p => regions.length === 1 && regions[0] === p);
+  if (province) return { type: 'province', province, label: '전체', regionKeys: [province] };
+  for (const [prov, groups] of Object.entries(REGION_GROUPS)) {
+    for (const group of groups) {
+      const keys = group.districts.map(d => `${prov} ${d}`);
+      if (keys.length === regions.length && keys.every(k => regions.includes(k)) && regions.every(k => keys.includes(k))) {
+        return { type: 'group', province: prov, label: group.label, regionKeys: keys };
+      }
+    }
+  }
+  const firstProvince = regions[0]?.split(' ')[0] || provinces[0];
+  return { type: 'group', province: firstProvince, label: regions.join(', '), regionKeys: regions };
+};
+
 export function SearchBar() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -31,7 +54,7 @@ export function SearchBar() {
       })()
     : undefined;
 
-  const [selectedRegions, setSelectedRegions] = useState<string[]>(initialRegions);
+  const [selectedGroup, setSelectedGroup] = useState<SelectedGroup | null>(findGroupFromRegions(initialRegions));
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialDate);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedProvince, setSelectedProvince] = useState<string>(provinces[0] || "서울");
@@ -42,7 +65,7 @@ export function SearchBar() {
 
   // URL 파라미터 변경 시 상태 업데이트
   useEffect(() => {
-    setSelectedRegions(initialRegions);
+    setSelectedGroup(findGroupFromRegions(initialRegions));
     setSelectedDate(initialDate);
   }, [searchParams.get("region"), initialDateStr]);
 
@@ -132,36 +155,36 @@ export function SearchBar() {
 
   // 시/도 "전체" 선택/해제 (단일 선택)
   const handleProvinceSelect = (province: string) => {
-    setSelectedRegions(prev =>
-      prev.length === 1 && prev[0] === province ? [] : [province]
+    setSelectedGroup(prev =>
+      prev?.type === 'province' && prev?.province === province
+        ? null
+        : { type: 'province', province, label: '전체', regionKeys: [province] }
     );
   };
 
-  // 그룹 선택/해제 (단일 선택 - 그룹 내 모든 districts로 교체)
+  // 그룹 선택/해제 (단일 선택 - 그룹 identity 기반)
   const handleGroupSelect = (province: string, group: RegionGroup) => {
     const regionKeys = group.districts.map(d => `${province} ${d}`);
-
-    setSelectedRegions(prev => {
-      const allSelected = regionKeys.every(k => prev.includes(k)) && prev.length === regionKeys.length;
-      return allSelected ? [] : regionKeys;
-    });
+    setSelectedGroup(prev =>
+      prev?.type === 'group' && prev?.province === province && prev?.label === group.label
+        ? null
+        : { type: 'group', province, label: group.label, regionKeys }
+    );
   };
 
   // 시/도 "전체" 선택 여부
   const isProvinceSelected = (province: string) => {
-    return selectedRegions.length === 1 && selectedRegions[0] === province;
+    return selectedGroup?.type === 'province' && selectedGroup?.province === province;
   };
 
-  // 그룹 선택 여부
+  // 그룹 선택 여부 (label 기반으로 고유 식별)
   const isGroupSelected = (province: string, group: RegionGroup) => {
-    if (group.districts.length === 0) return false;
-    const regionKeys = group.districts.map(d => `${province} ${d}`);
-    return regionKeys.every(k => selectedRegions.includes(k)) && selectedRegions.length === regionKeys.length;
+    return selectedGroup?.type === 'group' && selectedGroup?.province === province && selectedGroup?.label === group.label;
   };
 
   const handleSearch = () => {
     const params = new URLSearchParams();
-    if (selectedRegions.length > 0) params.set("region", selectedRegions.join(","));
+    if (selectedGroup) params.set("region", selectedGroup.regionKeys.join(","));
     if (selectedDate) params.set("date", format(selectedDate, "yyyy-MM-dd"));
 
     setIsOpen(false);
@@ -179,8 +202,9 @@ export function SearchBar() {
   };
 
   const getRegionText = () => {
-    if (selectedRegions.length === 0) return "지역 선택";
-    return selectedRegions.join(", ");
+    if (!selectedGroup) return "지역 선택";
+    if (selectedGroup.type === 'province') return `${selectedGroup.province} 전체`;
+    return `${selectedGroup.province} ${selectedGroup.label}`;
   };
 
   return (
@@ -195,7 +219,7 @@ export function SearchBar() {
             <MapPin className="w-5 h-5 text-damda-yellow-dark shrink-0" />
             <div className="flex flex-col items-start min-w-0 flex-1">
               <span className="text-xs text-gray-500 font-medium">지역</span>
-              <span className={`text-sm ${selectedRegions.length > 0 ? "text-gray-700" : "text-gray-400"}`}>
+              <span className={`text-sm ${selectedGroup ? "text-gray-700" : "text-gray-400"}`}>
                 {getRegionText()}
               </span>
             </div>
@@ -469,7 +493,7 @@ export function SearchBar() {
                         <button
                           type="button"
                           onClick={() => {
-                            setSelectedRegions([]);
+                            setSelectedGroup(null);
                             setSelectedDate(undefined);
                           }}
                           className="px-6 py-3 text-sm text-gray-600 border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
@@ -516,7 +540,7 @@ export function SearchBar() {
                       <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
                         <MapPin className="w-4 h-4 text-damda-yellow-dark" />
                         지역 선택
-                        {selectedRegions.length > 0 && (
+                        {selectedGroup && (
                           <span className="ml-auto px-2 py-0.5 bg-damda-yellow/20 rounded-full text-xs text-damda-yellow-dark">
                             {getRegionText()}
                           </span>
@@ -645,7 +669,7 @@ export function SearchBar() {
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedRegions([]);
+                      setSelectedGroup(null);
                       setSelectedDate(undefined);
                     }}
                     className="text-sm text-gray-500 hover:text-gray-700"
