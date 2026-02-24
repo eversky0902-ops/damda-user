@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, Upload, X, FileText, Loader2, ArrowRight } from "lucide-react";
+import { AlertTriangle, Upload, X, FileText, Loader2, ArrowRight, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +18,12 @@ export default function SignupRevisionPage() {
   const [response, setResponse] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
 
   useEffect(() => {
     async function fetchRevisionReason() {
@@ -250,16 +256,22 @@ export default function SignupRevisionPage() {
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         문의사항이 있으시면{" "}
-        <a href="mailto:support@damda.com" className="text-primary hover:underline">
-          support@damda.com
+        <a href="mailto:damda_0003@naver.com" className="text-primary hover:underline">
+          damda_0003@naver.com
         </a>
         으로 연락해주세요.
       </p>
 
-      <div className="mt-4">
-        <Link href="/" className="text-sm text-muted-foreground hover:text-primary">
-          홈으로 돌아가기
-        </Link>
+      <div className="mt-4 flex w-full flex-col gap-3">
+        <Button asChild variant="ghost" className="w-full">
+          <Link href="/">
+            홈으로 돌아가기
+          </Link>
+        </Button>
+        <Button variant="outline" className="w-full" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          로그아웃
+        </Button>
       </div>
     </div>
   );

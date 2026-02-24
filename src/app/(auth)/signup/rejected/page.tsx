@@ -1,14 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { XCircle, ArrowRight } from "lucide-react";
+import { XCircle, ArrowRight, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
 export default function SignupRejectedPage() {
+  const router = useRouter();
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
 
   useEffect(() => {
     async function fetchRejectionReason() {
@@ -57,17 +65,23 @@ export default function SignupRejectedPage() {
         </div>
       )}
 
-      <Button asChild className="w-full">
-        <Link href="/">
-          홈으로 돌아가기
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Link>
-      </Button>
+      <div className="flex w-full flex-col gap-3">
+        <Button asChild className="w-full">
+          <Link href="/">
+            홈으로 돌아가기
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
+        <Button variant="outline" className="w-full" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          로그아웃
+        </Button>
+      </div>
 
       <p className="mt-6 text-sm text-muted-foreground">
         문의사항이 있으시면{" "}
-        <a href="mailto:support@damda.com" className="text-primary hover:underline">
-          support@damda.com
+        <a href="mailto:damda_0003@naver.com" className="text-primary hover:underline">
+          damda_0003@naver.com
         </a>
         으로 연락해주세요.
       </p>

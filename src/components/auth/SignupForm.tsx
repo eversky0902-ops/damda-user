@@ -44,7 +44,7 @@ const signupSchema = z.object({
     .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "특수문자를 포함해야 합니다"),
   passwordConfirm: z.string(),
   name: z.string().min(2, "어린이집명을 입력해주세요"),
-  contactName: z.string().min(2, "담당자명을 입력해주세요"),
+  contactName: z.string().min(2, "담당선생님 성함을 입력해주세요"),
   contactPhone: z
     .string()
     .regex(/^[0-9-]+$/, "올바른 전화번호를 입력해주세요")
@@ -245,6 +245,9 @@ export function SignupForm() {
           });
         }
       }
+
+      // 자동 로그인 방지 - 세션 제거
+      await supabase.auth.signOut();
 
       toast.success("회원가입이 완료되었습니다.");
       router.push("/signup/complete");
@@ -467,7 +470,7 @@ export function SignupForm() {
                 name="contactName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>담당자명</FormLabel>
+                    <FormLabel>담당선생님 성함</FormLabel>
                     <FormControl>
                       <Input placeholder="홍길동" {...field} />
                     </FormControl>
@@ -481,7 +484,7 @@ export function SignupForm() {
                 name="contactPhone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>담당자 연락처</FormLabel>
+                    <FormLabel>담당선생님 연락처</FormLabel>
                     <FormControl>
                       <Input placeholder="010-1234-5678" {...field} />
                     </FormControl>

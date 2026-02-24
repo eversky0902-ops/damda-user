@@ -1,10 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle, Clock, ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CheckCircle, Clock, ArrowRight, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
 
 export default function SignupCompletePage() {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
   return (
     <div className="flex flex-col items-center text-center">
       <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
@@ -32,17 +42,23 @@ export default function SignupCompletePage() {
         </div>
       </div>
 
-      <Button asChild className="w-full">
-        <Link href="/">
-          홈으로 돌아가기
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Link>
-      </Button>
+      <div className="flex w-full flex-col gap-3">
+        <Button asChild className="w-full">
+          <Link href="/">
+            홈으로 돌아가기
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
+        <Button variant="outline" className="w-full" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          로그아웃
+        </Button>
+      </div>
 
       <p className="mt-6 text-sm text-muted-foreground">
         문의사항이 있으시면{" "}
-        <a href="mailto:support@damda.com" className="text-primary hover:underline">
-          support@damda.com
+        <a href="mailto:damda_0003@naver.com" className="text-primary hover:underline">
+          damda_0003@naver.com
         </a>
         으로 연락해주세요.
       </p>
