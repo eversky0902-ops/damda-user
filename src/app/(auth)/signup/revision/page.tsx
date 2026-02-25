@@ -22,7 +22,7 @@ export default function SignupRevisionPage() {
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push("/login");
+    window.location.href = "/login";
   };
 
   useEffect(() => {
@@ -263,9 +263,10 @@ export default function SignupRevisionPage() {
       </p>
 
       <div className="mt-4 flex w-full flex-col gap-3">
-        <Button asChild variant="ghost" className="w-full">
+        <Button asChild className="w-full">
           <Link href="/">
             홈으로 돌아가기
+            <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
         <Button variant="outline" className="w-full" onClick={handleLogout}>
