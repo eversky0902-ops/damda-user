@@ -1,5 +1,6 @@
 import { Suspense, cache } from "react";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import {
@@ -22,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface ProductDetailPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ preview_token?: string }>;
 }
 
 export async function generateMetadata({ params }: ProductDetailPageProps) {
@@ -49,6 +51,9 @@ export async function generateMetadata({ params }: ProductDetailPageProps) {
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { id } = await params;
 
+  const headersList = await headers();
+  const isPreview = headersList.get('x-preview-mode') === 'true';
+
   // 모든 데이터를 병렬로 fetch
   const [product, reviewsResult, reviewStats, reservationGuide] = await Promise.all([
     getCachedProductDetail(id),
@@ -73,6 +78,15 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
   return (
     <div className="min-h-screen bg-white">
+      {/* 미리보기 배너 */}
+      {isPreview && (
+        <div className="bg-amber-50 border-b border-amber-200">
+          <div className="max-w-7xl mx-auto px-4 py-3 text-center text-amber-800 text-sm font-medium">
+            미리보기 모드 - 예약 기능은 비활성화되어 있습니다
+          </div>
+        </div>
+      )}
+
       {/* 브레드크럼 */}
       <div className="bg-gray-50 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-3">
@@ -117,7 +131,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
           {/* 상품 정보 */}
           <Suspense fallback={<ProductInfoSkeleton />}>
-            <ProductDetailInfo product={product} />
+            <ProductDetailInfo product={product} isPreview={isPreview} />
           </Suspense>
         </div>
       </div>

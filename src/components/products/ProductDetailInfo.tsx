@@ -32,9 +32,10 @@ import { useReservationSettings } from "@/hooks/use-reservation-settings";
 
 interface ProductDetailInfoProps {
   product: ProductDetail;
+  isPreview?: boolean;
 }
 
-export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
+export function ProductDetailInfo({ product, isPreview = false }: ProductDetailInfoProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addItem, setDirectItem } = useCart();
@@ -55,10 +56,10 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
     return undefined;
   }, [searchParams]);
 
-  // 최근 본 상품에 추가 (DB 저장)
+  // 최근 본 상품에 추가 (DB 저장) - 미리보기 모드에서는 스킵
   useEffect(() => {
-    addRecentView(product.id);
-  }, [product.id]);
+    if (!isPreview) addRecentView(product.id);
+  }, [product.id, isPreview]);
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialDate);
   const [selectedTime, setSelectedTime] = useState<string | undefined>();
@@ -438,7 +439,7 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
       </div>
 
       {/* 날짜 & 시간 선택 */}
-      <div className="space-y-3">
+      <div className={cn("space-y-3", isPreview && "opacity-60 pointer-events-none")}>
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
             <Calendar className="w-4 h-4 text-damda-teal" />
@@ -659,7 +660,7 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
       </div>
 
       {/* 인원 선택 */}
-      <div className="space-y-3">
+      <div className={cn("space-y-3", isPreview && "opacity-60 pointer-events-none")}>
         <label className="block text-sm font-medium text-gray-700">
           <Users className="w-4 h-4 inline mr-1" />
           인원 선택
@@ -771,37 +772,43 @@ export function ProductDetailInfo({ product }: ProductDetailInfoProps) {
       </div>
 
       {/* 액션 버튼 */}
-      <div className="flex gap-3">
-        <Button
-          variant="outline"
-          size="icon"
-          className={cn(
-            "h-12 w-12 flex-shrink-0",
-            isWishlisted && "bg-damda-yellow border-damda-yellow"
-          )}
-          onClick={handleWishlistToggle}
-        >
-          <Heart
-            className={cn("w-5 h-5", isWishlisted && "fill-current text-gray-900")}
-          />
-        </Button>
-        <Button
-          variant="outline"
-          className="flex-1 h-12"
-          onClick={handleAddToCart}
-          disabled={product.is_sold_out}
-        >
-          <ShoppingCart className="w-5 h-5 mr-2" />
-          장바구니
-        </Button>
-        <Button
-          className="flex-1 h-12 bg-damda-yellow hover:bg-damda-yellow-dark text-gray-900"
-          onClick={handleDirectReservation}
-          disabled={product.is_sold_out}
-        >
-          {product.is_sold_out ? "품절" : "바로 예약"}
-        </Button>
-      </div>
+      {isPreview ? (
+        <div className="bg-gray-100 rounded-lg p-4 text-center text-gray-500 text-sm">
+          미리보기 모드에서는 예약 기능을 사용할 수 없습니다
+        </div>
+      ) : (
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            size="icon"
+            className={cn(
+              "h-12 w-12 flex-shrink-0",
+              isWishlisted && "bg-damda-yellow border-damda-yellow"
+            )}
+            onClick={handleWishlistToggle}
+          >
+            <Heart
+              className={cn("w-5 h-5", isWishlisted && "fill-current text-gray-900")}
+            />
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1 h-12"
+            onClick={handleAddToCart}
+            disabled={product.is_sold_out}
+          >
+            <ShoppingCart className="w-5 h-5 mr-2" />
+            장바구니
+          </Button>
+          <Button
+            className="flex-1 h-12 bg-damda-yellow hover:bg-damda-yellow-dark text-gray-900"
+            onClick={handleDirectReservation}
+            disabled={product.is_sold_out}
+          >
+            {product.is_sold_out ? "품절" : "바로 예약"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

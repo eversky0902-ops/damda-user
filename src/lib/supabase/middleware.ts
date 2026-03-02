@@ -60,11 +60,50 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  // 미리보기 토큰 바이패스
+  const previewToken = request.nextUrl.searchParams.get('preview_token')
+  const productPathMatch = pathname.match(/^\/products\/([0-9a-f-]{36})$/)
+
+  if (previewToken && productPathMatch) {
+    const { data: tokenRecord } = await supabase
+      .from('product_preview_tokens')
+      .select('id')
+      .eq('token', previewToken)
+      .eq('product_id', productPathMatch[1])
+      .single()
+
+    if (tokenRecord) {
+      const requestHeaders = new Headers(request.headers)
+      requestHeaders.set('x-preview-mode', 'true')
+      return NextResponse.next({ request: { headers: requestHeaders } })
+    }
+    // 토큰 무효 → 일반 인증 플로우로 fallthrough
+  }
+
   // 로그인하지 않은 사용자가 보호된 페이지에 접근하면 로그인 페이지로 리다이렉트
   if (!user && !isPublicPath(pathname)) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // 상품 상세 페이지: 어린이집 승인 사용자만 접근
+  if (user && productPathMatch) {
+    const { data: daycare } = await supabase
+      .from('daycares')
+      .select('status')
+      .eq('id', user.id)
+      .single()
+
+    if (!daycare || daycare.status !== 'approved') {
+      if (daycare?.status === 'rejected') {
+        return NextResponse.redirect(new URL('/signup/rejected', request.url))
+      } else if (daycare?.status === 'revision_required') {
+        return NextResponse.redirect(new URL('/signup/revision', request.url))
+      } else {
+        return NextResponse.redirect(new URL('/signup/complete', request.url))
+      }
+    }
   }
 
   // 로그인된 사용자가 로그인/회원가입 페이지에 접근하면 상태에 따라 리다이렉트
