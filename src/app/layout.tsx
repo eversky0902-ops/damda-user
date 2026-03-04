@@ -35,6 +35,11 @@ export const metadata: Metadata = {
       },
     ],
   },
+  verification: {
+    other: {
+      "naver-site-verification": "f97183b585fb5ae55e132dbe6b29ef7929573994",
+    },
+  },
   robots: {
     index: true,
     follow: true,
