@@ -13,6 +13,8 @@ const PUBLIC_PATHS = [
   "/find-password",
   "/reset-password",
   "/auth/callback",
+  "/sitemap.xml",
+  "/robots.txt",
 ];
 
 function isPublicPath(pathname: string): boolean {
