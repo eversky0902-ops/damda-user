@@ -49,6 +49,11 @@ export async function updateDaycareInfo(
     return { success: false, error: "정보 수정에 실패했습니다." };
   }
 
+  // 헤더에 표시되는 이름도 갱신 (user_metadata.name)
+  await supabase.auth.updateUser({
+    data: { name: input.name },
+  });
+
   revalidatePath("/mypage");
   revalidatePath("/mypage/profile");
 
