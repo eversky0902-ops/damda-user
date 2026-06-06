@@ -1,4 +1,6 @@
+import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createCacheClient } from "@/lib/supabase/cache-client";
 
 export interface Product {
   id: string;
@@ -58,42 +60,51 @@ export interface PaginatedProducts {
   totalPages: number;
 }
 
-export async function getPopularProducts(limit = 8): Promise<Product[]> {
-  const supabase = await createClient();
+// 인기상품은 모든 방문자에게 동일한 공개 데이터 → 쿠키 없는 클라이언트로 캐싱
+const getPopularProductsCached = unstable_cache(
+  async (limit: number): Promise<Product[]> => {
+    const supabase = createCacheClient();
 
-  const { data, error } = await supabase
-    .from("products")
-    .select(
+    const { data, error } = await supabase
+      .from("products")
+      .select(
+        `
+        *,
+        business_owners!inner (
+          id,
+          name,
+          logo_url,
+          status
+        ),
+        categories:category_id (
+          id,
+          name,
+          parent_id
+        )
       `
-      *,
-      business_owners!inner (
-        id,
-        name,
-        logo_url,
-        status
-      ),
-      categories:category_id (
-        id,
-        name,
-        parent_id
       )
-    `
-    )
-    .eq("is_visible", true)
-    .eq("business_owners.status", "active")
-    .order("view_count", { ascending: false })
-    .limit(limit);
+      .eq("is_visible", true)
+      .eq("business_owners.status", "active")
+      .order("view_count", { ascending: false })
+      .limit(limit);
 
-  if (error) {
-    console.error("Error fetching popular products:", error);
-    return [];
-  }
+    if (error) {
+      console.error("Error fetching popular products:", error);
+      return [];
+    }
 
-  return (data || []).map((item) => ({
-    ...item,
-    business_owner: item.business_owners as unknown as Product["business_owner"],
-    category: item.categories as unknown as Product["category"],
-  }));
+    return (data || []).map((item) => ({
+      ...item,
+      business_owner: item.business_owners as unknown as Product["business_owner"],
+      category: item.categories as unknown as Product["category"],
+    }));
+  },
+  ["popular-products"],
+  { revalidate: 300, tags: ["products"] }
+);
+
+export async function getPopularProducts(limit = 8): Promise<Product[]> {
+  return getPopularProductsCached(limit);
 }
 
 export async function getProductById(id: string): Promise<Product | null> {

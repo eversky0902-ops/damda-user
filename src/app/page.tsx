@@ -10,6 +10,9 @@ import {
 } from "@/components/landing";
 import { getPopularProducts } from "@/services/productService";
 
+// 랜딩은 방문자 공통 콘텐츠 → ISR(5분)로 엣지 캐시. 데이터는 unstable_cache로 별도 갱신.
+export const revalidate = 300;
+
 export default async function Home() {
   const products = await getPopularProducts(8);
 

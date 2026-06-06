@@ -1,36 +1,42 @@
 import Link from "next/link";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createCacheClient } from "@/lib/supabase/cache-client";
 
-async function getServiceSettings() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("site_settings")
-    .select("key, value")
-    .in("key", ["service_phone", "service_email", "business_hours"]);
+// 푸터 고객센터 정보는 공개 데이터 → 쿠키 없는 클라이언트 + 캐시 (레이아웃 전체의 동적화 방지)
+const getServiceSettings = unstable_cache(
+  async () => {
+    const supabase = createCacheClient();
+    const { data } = await supabase
+      .from("site_settings")
+      .select("key, value")
+      .in("key", ["service_phone", "service_email", "business_hours"]);
 
-  if (!data) return { phone: "010-7625-3711", email: "damda_0003@naver.com", hoursStart: "09:00", hoursEnd: "18:00" };
+    if (!data) return { phone: "010-7625-3711", email: "damda_0003@naver.com", hoursStart: "09:00", hoursEnd: "18:00" };
 
-  const settings: Record<string, unknown> = {};
-  for (const row of data) {
-    try {
-      settings[row.key] = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
-    } catch {
-      settings[row.key] = row.value;
+    const settings: Record<string, unknown> = {};
+    for (const row of data) {
+      try {
+        settings[row.key] = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+      } catch {
+        settings[row.key] = row.value;
+      }
     }
-  }
 
-  const phone = (settings.service_phone as string) || "010-7625-3711";
-  const email = (settings.service_email as string) || "damda_0003@naver.com";
-  const hours = settings.business_hours as { start: string; end: string } | undefined;
+    const phone = (settings.service_phone as string) || "010-7625-3711";
+    const email = (settings.service_email as string) || "damda_0003@naver.com";
+    const hours = settings.business_hours as { start: string; end: string } | undefined;
 
-  return {
-    phone,
-    email,
-    hoursStart: hours?.start || "09:00",
-    hoursEnd: hours?.end || "18:00",
-  };
-}
+    return {
+      phone,
+      email,
+      hoursStart: hours?.start || "09:00",
+      hoursEnd: hours?.end || "18:00",
+    };
+  },
+  ["service-settings"],
+  { revalidate: 600, tags: ["site-settings"] }
+);
 
 function formatPhone(phone: string) {
   const digits = phone.replace(/\D/g, "");

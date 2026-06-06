@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getMainBanners } from "@/services/bannerService";
 import { HeroBannerCarousel } from "./HeroBannerCarousel";
 import { SearchBar } from "./SearchBar";
@@ -20,9 +21,11 @@ export async function HeroBanner() {
             아이들을 위한 특별한 장소, 담다가 소개해드릴게요!
           </p>
 
-          {/* Search bar */}
+          {/* Search bar (useSearchParams 사용 → 정적 렌더 시 Suspense 경계 필요) */}
           <div className="pointer-events-auto w-full">
-            <SearchBar />
+            <Suspense fallback={<div className="h-12 w-full" />}>
+              <SearchBar />
+            </Suspense>
           </div>
         </div>
       </div>
