@@ -41,7 +41,7 @@ Vercel 프로젝트의 **Preview** 환경변수를 개발 Supabase로 지정함 
 |---|---|---|
 | damda-user (Next.js) | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 개발(tcdvvslg…) ✅ |
 | damda-admin (Vite) | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | 개발(tcdvvslg…) ✅ |
-| damda-business (Vite) | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | ⚠️ 미설정 (아래 참고) |
+| damda-business (Vite) | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | 개발(tcdvvslg…) ✅ |
 
 > Production 환경변수는 그대로 운영 Supabase를 가리킴(변경 없음).
 > 결제(NICEPAY)·카카오 키 등은 현재 Preview에서도 운영/공용 값 사용. 개발 전용 샌드박스 키가 필요하면 Preview 변수로 별도 추가.
@@ -54,6 +54,7 @@ Vercel 프로젝트의 **Preview** 환경변수를 개발 Supabase로 지정함 
 
 ## 미해결 / 후속 작업
 
-1. **damda-business Vercel 링크 끊김**: 비즈니스의 Vercel 프로젝트(prj_OUfnUTZUPqLnx22WIj0QM5bxAXL0)가 삭제/이전되어 CLI에서 접근 불가. 비즈니스 레포에서 `vercel link`로 올바른 프로젝트에 재연결한 뒤, Preview 환경변수에 개발 Supabase URL/anon key를 추가해야 함.
-2. **개발 DB 테스트 데이터**: 현재 개발 DB는 스키마만 있고 데이터는 비어 있음. 필요 시 운영 데이터를 익명화해 시드하거나 어드민으로 입력.
-3. **git ↔ 운영 정합성**: 1차 성능개선 코드는 운영에 CLI로 직접 배포됨. `develop`에 커밋돼 있으니, `main`에도 병합해 git과 운영을 일치시킬 것(미병합 시 추후 `main` push가 성능개선을 되돌릴 수 있음).
+1. **개발 DB 테스트 데이터**: 현재 개발 DB는 스키마만 있고 데이터는 비어 있음. 필요 시 운영 데이터를 익명화해 시드하거나 어드민으로 입력.
+2. **git ↔ 운영 정합성**: 1차 성능개선 코드는 운영에 CLI로 직접 배포됨. `develop`에 커밋돼 있으니, `main`에도 병합해 git과 운영을 일치시킬 것(미병합 시 추후 `main` push가 성능개선을 되돌릴 수 있음).
+
+> 참고: damda-business의 로컬 Vercel 링크가 옛 projectId로 끊겨 있던 것을 `vercel link --project damda-business --scope team_7rn4sV6JA8uXng2JiVJXYXec`로 재연결함. 3개 앱 모두 Preview→개발 Supabase 설정 완료.
