@@ -12,6 +12,23 @@ export interface HoldItem {
   reservedDate: string;
 }
 
+/** 개수별(quantity) 판매방식 잔여수량 (정원 - 활성예약 인원합) */
+export async function getProductRemaining(
+  productId: string,
+  date: string
+): Promise<number | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_product_remaining", {
+    p_product_id: productId,
+    p_date: date,
+  });
+  if (error) {
+    console.error("Error fetching remaining quantity:", error);
+    return null;
+  }
+  return typeof data === "number" ? data : null;
+}
+
 /**
  * 결제 홀드 생성
  * - 동시 결제 방지를 위해 상품+날짜 조합을 10분간 잠금

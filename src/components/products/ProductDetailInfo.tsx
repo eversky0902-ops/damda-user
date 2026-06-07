@@ -27,7 +27,7 @@ import { format, addDays, isBefore, isAfter, startOfDay, getDay, parse } from "d
 import { ko } from "date-fns/locale";
 import type { ProductDetail } from "@/services/productService";
 import { addRecentView } from "@/services/recentViewService";
-import { getUnavailableDates } from "@/services/holdService";
+import { getUnavailableDates, getProductRemaining } from "@/services/holdService";
 import { useReservationSettings } from "@/hooks/use-reservation-settings";
 
 interface ProductDetailInfoProps {
@@ -70,6 +70,11 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [reservedDates, setReservedDates] = useState<Set<string>>(new Set());
 
+  // 판매방식 (time_slot만 시간 선택 필요)
+  const saleType = product.sale_type ?? "time_slot";
+  const needsTime = saleType === "time_slot";
+  const [remaining, setRemaining] = useState<number | null>(null);
+
   // 예약된 날짜 목록 조회 (1일 1예약 체크용)
   useEffect(() => {
     const fetchReservedDates = async () => {
@@ -93,6 +98,15 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
     fetchReservedDates();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.id]);
+
+  // 개수별 판매방식: 선택 날짜의 잔여수량 조회
+  useEffect(() => {
+    if (saleType !== "quantity" || !selectedDate) {
+      setRemaining(null);
+      return;
+    }
+    getProductRemaining(product.id, format(selectedDate, "yyyy-MM-dd")).then(setRemaining);
+  }, [saleType, selectedDate, product.id]);
 
   // 시간 문자열을 라벨로 변환
   const formatTimeLabel = (time: string): string => {
@@ -273,8 +287,13 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
       return false;
     }
 
-    if (!selectedTime) {
+    if (needsTime && !selectedTime) {
       toast.error("예약 시간을 선택해주세요.");
+      return false;
+    }
+
+    if (saleType === "quantity" && remaining !== null && remaining < participants) {
+      toast.error("선택한 날짜의 잔여 수량이 부족합니다.");
       return false;
     }
 
@@ -325,8 +344,13 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
       return;
     }
 
-    if (!selectedTime) {
+    if (needsTime && !selectedTime) {
       toast.error("예약 시간을 선택해주세요.");
+      return;
+    }
+
+    if (saleType === "quantity" && remaining !== null && remaining < participants) {
+      toast.error("선택한 날짜의 잔여 수량이 부족합니다.");
       return;
     }
 
@@ -586,13 +610,18 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
               <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
                 <p className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   <Clock className="w-4 h-4 text-damda-teal" />
-                  {selectedDate
-                    ? `${format(selectedDate, "M월 d일", { locale: ko })} 예약 가능 시간`
-                    : "시간 선택"}
+                  {needsTime
+                    ? selectedDate
+                      ? `${format(selectedDate, "M월 d일", { locale: ko })} 예약 가능 시간`
+                      : "시간 선택"
+                    : saleType === "quantity"
+                    ? "잔여 수량"
+                    : "예약 안내"}
                 </p>
               </div>
               <div className="p-4">
-                {selectedDate ? (
+                {needsTime ? (
+                  selectedDate ? (
                   availableTimeSlots.length > 0 ? (
                     <div className="grid grid-cols-3 gap-2">
                       {availableTimeSlots.map((slot) => (
@@ -635,6 +664,24 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
                 ) : (
                   <p className="text-sm text-gray-400 text-center py-4">
                     먼저 날짜를 선택해주세요
+                  </p>
+                  )
+                ) : saleType === "quantity" ? (
+                  !selectedDate ? (
+                    <p className="text-sm text-gray-400 text-center py-4">먼저 날짜를 선택해주세요</p>
+                  ) : remaining === null ? (
+                    <p className="text-sm text-gray-400 text-center py-4">잔여 수량 확인 중…</p>
+                  ) : remaining > 0 ? (
+                    <p className="text-center py-2">
+                      <span className="text-2xl font-bold text-damda-teal">{remaining}</span>
+                      <span className="text-sm text-gray-500 ml-1">개 남음</span>
+                    </p>
+                  ) : (
+                    <p className="text-sm text-red-500 text-center py-4">해당 날짜는 매진되었습니다</p>
+                  )
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    당일 1팀 예약 상품입니다. 날짜만 선택하면 됩니다.
                   </p>
                 )}
               </div>
@@ -795,7 +842,7 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
             variant="outline"
             className="flex-1 h-12"
             onClick={handleAddToCart}
-            disabled={product.is_sold_out}
+            disabled={product.is_sold_out || (saleType === "quantity" && remaining === 0)}
           >
             <ShoppingCart className="w-5 h-5 mr-2" />
             장바구니
@@ -803,7 +850,7 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
           <Button
             className="flex-1 h-12 bg-damda-yellow hover:bg-damda-yellow-dark text-gray-900"
             onClick={handleDirectReservation}
-            disabled={product.is_sold_out}
+            disabled={product.is_sold_out || (saleType === "quantity" && remaining === 0)}
           >
             {product.is_sold_out ? "품절" : "바로 예약"}
           </Button>

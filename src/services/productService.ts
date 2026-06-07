@@ -527,6 +527,19 @@ export interface ProductTimeSlot {
   customSlots?: string[]; // ["10:00", "14:00"] (custom 모드)
 }
 
+// 판매방식
+export type SaleType = "daily_one" | "time_slot" | "quantity";
+
+// 요일별 스케줄/정원 (product_schedules)
+export interface ProductSchedule {
+  id: string;
+  product_id: string;
+  day_of_week: number | null; // 0(일)~6(토)
+  slot_time: string | null; // 'HH:mm:ss', time_slot만
+  capacity: number | null; // quantity=수량, time_slot/daily_one=1
+  is_active: boolean;
+}
+
 // 상품 상세 정보 (이미지, 옵션, 예약불가일 포함)
 export interface ProductDetail extends Product {
   description: string | null;
@@ -534,6 +547,8 @@ export interface ProductDetail extends Product {
   options: ProductOption[];
   unavailable_dates: ProductUnavailableDate[];
   available_time_slots: ProductTimeSlot[] | null;
+  sale_type: SaleType;
+  product_schedules: ProductSchedule[];
 }
 
 export interface ProductImage {
@@ -565,7 +580,7 @@ export async function getProductDetail(id: string): Promise<ProductDetail | null
   const supabase = await createClient();
 
   // 모든 쿼리를 병렬로 실행
-  const [productResult, imagesResult, optionsResult, unavailableDatesResult] = await Promise.all([
+  const [productResult, imagesResult, optionsResult, unavailableDatesResult, schedulesResult] = await Promise.all([
     // 상품 기본 정보
     supabase
       .from("products")
@@ -607,6 +622,11 @@ export async function getProductDetail(id: string): Promise<ProductDetail | null
       .from("product_unavailable_dates")
       .select("*")
       .eq("product_id", id),
+    // 요일별 스케줄 (판매방식)
+    supabase
+      .from("product_schedules")
+      .select("*")
+      .eq("product_id", id),
   ]);
 
   const { data: product, error: productError } = productResult;
@@ -636,6 +656,8 @@ export async function getProductDetail(id: string): Promise<ProductDetail | null
     options: optionsResult.data || [],
     unavailable_dates: unavailableDatesResult.data || [],
     available_time_slots: product.available_time_slots as ProductTimeSlot[] | null,
+    sale_type: (product.sale_type as SaleType) ?? "time_slot",
+    product_schedules: schedulesResult.data || [],
   };
 }
 
