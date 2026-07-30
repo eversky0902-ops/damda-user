@@ -60,6 +60,17 @@ export interface PaginatedProducts {
   totalPages: number;
 }
 
+export interface BusinessOwnerShowcase {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  product_count: number;
+  min_sale_price: number;
+  regions: string[];
+  featured_product: Product;
+  products: Product[];
+}
+
 // 인기상품은 모든 방문자에게 동일한 공개 데이터 → 쿠키 없는 클라이언트로 캐싱
 const getPopularProductsCached = unstable_cache(
   async (limit: number): Promise<Product[]> => {
@@ -105,6 +116,95 @@ const getPopularProductsCached = unstable_cache(
 
 export async function getPopularProducts(limit = 8): Promise<Product[]> {
   return getPopularProductsCached(limit);
+}
+
+/**
+ * 홈페이지에는 상품이 아니라 사업주가 한 번만 노출됩니다.
+ * 조회수 순 상품을 사업주별로 묶어 대표 상품과 등록 상품 수를 계산합니다.
+ */
+export async function getPopularBusinessOwners(limit = 8): Promise<BusinessOwnerShowcase[]> {
+  const products = await getPopularProducts(200);
+  const owners = new Map<string, BusinessOwnerShowcase>();
+
+  for (const product of products) {
+    const owner = product.business_owner;
+    if (!owner) continue;
+
+    const existing = owners.get(owner.id);
+    if (existing) {
+      existing.products.push(product);
+      existing.product_count += 1;
+      existing.min_sale_price = Math.min(existing.min_sale_price, product.sale_price);
+      if (product.region && !existing.regions.includes(product.region)) {
+        existing.regions.push(product.region);
+      }
+      continue;
+    }
+
+    owners.set(owner.id, {
+      id: owner.id,
+      name: owner.name,
+      logo_url: owner.logo_url,
+      product_count: 1,
+      min_sale_price: product.sale_price,
+      regions: product.region ? [product.region] : [],
+      featured_product: product,
+      products: [product],
+    });
+  }
+
+  return Array.from(owners.values()).slice(0, limit);
+}
+
+export async function getBusinessOwnerById(id: string): Promise<{
+  id: string;
+  name: string;
+  logo_url: string | null;
+  address: string | null;
+  address_detail: string | null;
+  contact_phone: string | null;
+} | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("business_owners")
+    .select("id, name, logo_url, address, address_detail, contact_phone")
+    .eq("id", id)
+    .eq("status", "active")
+    .single();
+
+  if (error) return null;
+  return data;
+}
+
+export async function getProductsByBusinessOwner(id: string): Promise<Product[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select(`
+      *,
+      business_owners!inner (id, name, logo_url, status),
+      categories:category_id (id, name, parent_id)
+    `)
+    .eq("business_owner_id", id)
+    .eq("is_visible", true)
+    .eq("business_owners.status", "active")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching products by business owner:", error);
+    return [];
+  }
+
+  const productIds = (data || []).map((item) => item.id);
+  const reviewStatsMap = await getProductsReviewStats(productIds);
+
+  return (data || []).map((item) => ({
+    ...item,
+    business_owner: item.business_owners as unknown as Product["business_owner"],
+    category: item.categories as unknown as Product["category"],
+    review_count: reviewStatsMap[item.id]?.count || 0,
+    average_rating: reviewStatsMap[item.id]?.average || 0,
+  }));
 }
 
 export async function getProductById(id: string): Promise<Product | null> {

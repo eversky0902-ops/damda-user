@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   MapPin,
   Users,
@@ -387,10 +388,13 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
           </>
         )}
         {product.business_owner && (
-          <span className="flex items-center gap-1">
+          <Link
+            href={`/businesses/${product.business_owner.id}`}
+            className="flex items-center gap-1 hover:text-gray-900 hover:underline"
+          >
             <Building2 className="w-4 h-4" />
             {product.business_owner.name}
-          </span>
+          </Link>
         )}
       </div>
 
