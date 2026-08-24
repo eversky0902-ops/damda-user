@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Script from "next/script";
 
 declare global {
@@ -17,22 +16,23 @@ declare global {
 
 const NAVER_PREMIUM_LOG_SITE_ID = "s_dce12c01c15";
 const NAVER_ANALYTICS_SITE_ID = "1be49c8dbd80b10";
+const NAVER_CONVERSION_EVENT = "damda:naver-conversion";
+
+type NaverConversionType = "signup_request" | "partner_inquiry";
+
+export function trackNaverConversion(type: NaverConversionType) {
+  window.dispatchEvent(
+    new CustomEvent(NAVER_CONVERSION_EVENT, { detail: { type } }),
+  );
+}
 
 export function NaverAnalytics() {
-  const pathname = usePathname();
   const [isPremiumScriptReady, setIsPremiumScriptReady] = useState(false);
   const [isAnalyticsScriptReady, setIsAnalyticsScriptReady] = useState(false);
-  const lastTrackedPath = useRef<string | null>(null);
+  const pendingConversions = useRef(0);
+  const areScriptsReady = isPremiumScriptReady && isAnalyticsScriptReady;
 
-  useEffect(() => {
-    if (
-      !isPremiumScriptReady ||
-      !isAnalyticsScriptReady ||
-      lastTrackedPath.current === pathname
-    ) {
-      return;
-    }
-
+  const sendConversionPageView = useCallback(() => {
     window.wcs_add ??= {};
     window._nasa ??= {};
 
@@ -43,9 +43,34 @@ export function NaverAnalytics() {
 
       window.wcs_add.wa = NAVER_ANALYTICS_SITE_ID;
       window.wcs_do();
-      lastTrackedPath.current = pathname;
     }
-  }, [isPremiumScriptReady, isAnalyticsScriptReady, pathname]);
+  }, []);
+
+  useEffect(() => {
+    const handleConversion = () => {
+      if (areScriptsReady) {
+        sendConversionPageView();
+      } else {
+        pendingConversions.current += 1;
+      }
+    };
+
+    window.addEventListener(NAVER_CONVERSION_EVENT, handleConversion);
+    return () => {
+      window.removeEventListener(NAVER_CONVERSION_EVENT, handleConversion);
+    };
+  }, [areScriptsReady, sendConversionPageView]);
+
+  useEffect(() => {
+    if (!areScriptsReady || pendingConversions.current === 0) return;
+
+    const queuedConversions = pendingConversions.current;
+    pendingConversions.current = 0;
+
+    for (let index = 0; index < queuedConversions; index += 1) {
+      sendConversionPageView();
+    }
+  }, [areScriptsReady, sendConversionPageView]);
 
   return (
     <>
