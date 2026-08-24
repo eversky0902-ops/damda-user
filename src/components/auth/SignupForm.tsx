@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
+import { trackNaverConversion } from "@/components/common/NaverAnalytics";
 
 interface FileItem {
   file: File;
@@ -249,6 +250,7 @@ export function SignupForm() {
       // 자동 로그인 방지 - 세션 제거
       await supabase.auth.signOut();
 
+      trackNaverConversion("signup_request");
       toast.success("회원가입이 완료되었습니다.");
       router.push("/signup/complete");
     } catch {
