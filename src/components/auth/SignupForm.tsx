@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Upload, X, FileText, Plus, Search } from "lucide-react";
+import { Loader2, Upload, X, FileText, Plus, Search, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { DaumPostcodeEmbed, type Address } from "react-daum-postcode";
 
@@ -320,6 +320,20 @@ export function SignupForm() {
 
           <div className="border-t pt-4">
             <h3 className="mb-4 font-medium">어린이집 정보</h3>
+
+            <div className="mb-5 rounded-xl border border-primary/30 bg-primary/10 p-4">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div className="space-y-1.5">
+                  <p className="font-semibold text-foreground">보육기관 확인 안내</p>
+                  <p className="text-sm leading-relaxed text-foreground/80">
+                    담다는 실제 보육기관만 이용할 수 있는 기관 전용 플랫폼입니다.
+                    <br />
+                    안전한 단체 예약과 기관 전용 가격 제공을 위해 최초 1회만 인가증을 확인합니다.
+                  </p>
+                </div>
+              </div>
+            </div>
 
             <div className="space-y-4">
               <FormField

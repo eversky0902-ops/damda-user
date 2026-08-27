@@ -10,6 +10,10 @@ interface PopularProductsProps {
 }
 
 export function PopularProducts({ businesses }: PopularProductsProps) {
+  const publicBusinesses = businesses.filter(
+    (business) => !/테스트|test/i.test(business.name)
+  );
+
   return (
     <section id="products" className="bg-secondary/30 py-20 md:py-28">
       <div className="mx-auto max-w-6xl px-4">
@@ -28,17 +32,23 @@ export function PopularProducts({ businesses }: PopularProductsProps) {
           </Button>
         </div>
 
-        {businesses.length === 0 ? (
+        {publicBusinesses.length === 0 ? (
           <div className="flex h-64 items-center justify-center rounded-2xl border bg-white">
             <p className="text-muted-foreground">등록된 체험 업체가 없습니다.</p>
           </div>
         ) : (
           <HorizontalCarousel
             ariaLabel="제휴 업체"
-            itemClassName="basis-[88%] sm:basis-1/2 lg:basis-1/4"
+            desktopItems={4}
           >
-            {businesses.map((business) => (
-              <BusinessOwnerCard key={business.id} owner={business} showPrice={false} />
+            {publicBusinesses.map((business) => (
+              <BusinessOwnerCard
+                key={business.id}
+                owner={business}
+                showPrice={false}
+                showLogo={false}
+                showProductName={false}
+              />
             ))}
           </HorizontalCarousel>
         )}

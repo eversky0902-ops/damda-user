@@ -10,11 +10,19 @@ interface BusinessOwnerCardProps {
   owner: BusinessOwnerShowcase;
   href?: string;
   showPrice?: boolean;
+  showLogo?: boolean;
+  showProductName?: boolean;
 }
 
-export function BusinessOwnerCard({ owner, href, showPrice = true }: BusinessOwnerCardProps) {
+export function BusinessOwnerCard({
+  owner,
+  href,
+  showPrice = true,
+  showLogo = true,
+  showProductName = true,
+}: BusinessOwnerCardProps) {
   const destination = href ?? `/businesses/${owner.id}`;
-  const image = owner.featured_product.thumbnail || owner.logo_url || DEFAULT_IMAGE;
+  const image = owner.featured_product?.thumbnail || owner.logo_url || DEFAULT_IMAGE;
   const maxDiscountRate = owner.products.reduce((maximum, product) => {
     if (product.original_price <= 0 || product.sale_price >= product.original_price) return maximum;
     const discountRate = Math.round(((product.original_price - product.sale_price) / product.original_price) * 100);
@@ -38,7 +46,7 @@ export function BusinessOwnerCard({ owner, href, showPrice = true }: BusinessOwn
 
       <div className="p-4">
         <div className="mb-2 flex items-center gap-3">
-          {owner.logo_url && (
+          {showLogo && owner.logo_url && (
             <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border bg-white">
               <Image src={owner.logo_url} alt="" fill className="object-contain p-1" sizes="40px" />
             </div>
@@ -47,10 +55,18 @@ export function BusinessOwnerCard({ owner, href, showPrice = true }: BusinessOwn
             <h3 className="truncate font-semibold text-gray-900 group-hover:text-primary">
               {owner.name}
             </h3>
-            <p className="truncate text-sm text-gray-500">
-              {owner.featured_product.name}
-              {owner.product_count > 1 ? ` 외 ${owner.product_count - 1}개` : ""}
-            </p>
+            {showProductName && (
+              <p className="truncate text-sm text-gray-500">
+                {owner.featured_product ? (
+                  <>
+                    {owner.featured_product.name}
+                    {owner.product_count > 1 ? ` 외 ${owner.product_count - 1}개` : ""}
+                  </>
+                ) : (
+                  "체험 상품 준비 중"
+                )}
+              </p>
+            )}
           </div>
         </div>
 
@@ -68,8 +84,12 @@ export function BusinessOwnerCard({ owner, href, showPrice = true }: BusinessOwn
               </>
             )}
           </span>
-          <strong className="shrink-0 text-gray-900">
-            {showPrice ? `${owner.min_sale_price.toLocaleString()}원부터` : `최대 ${maxDiscountRate}% 할인`}
+          <strong className={`shrink-0 ${showPrice && owner.product_count > 0 ? "text-gray-900" : "text-red-500"}`}>
+            {owner.product_count === 0
+              ? "신규 등록"
+              : showPrice
+                ? `${owner.min_sale_price.toLocaleString()}원부터`
+                : `최대 ${maxDiscountRate}% 할인`}
           </strong>
         </div>
       </div>

@@ -12,7 +12,7 @@ const getServiceSettings = unstable_cache(
       .select("key, value")
       .in("key", ["service_phone", "service_email", "business_hours"]);
 
-    if (!data) return { phone: "010-7625-3711", email: "damda_0003@naver.com", hoursStart: "09:00", hoursEnd: "18:00" };
+    if (!data) return { phone: "010-7625-3711", email: "damda_0001@naver.com", hoursStart: "09:00", hoursEnd: "18:00" };
 
     const settings: Record<string, unknown> = {};
     for (const row of data) {
@@ -24,7 +24,10 @@ const getServiceSettings = unstable_cache(
     }
 
     const phone = (settings.service_phone as string) || "010-7625-3711";
-    const email = (settings.service_email as string) || "damda_0003@naver.com";
+    const configuredEmail = (settings.service_email as string) || "damda_0001@naver.com";
+    const email = configuredEmail === "damda_0003@naver.com"
+      ? "damda_0001@naver.com"
+      : configuredEmail;
     const hours = settings.business_hours as { start: string; end: string } | undefined;
 
     return {
@@ -34,7 +37,7 @@ const getServiceSettings = unstable_cache(
       hoursEnd: hours?.end || "18:00",
     };
   },
-  ["service-settings"],
+  ["service-settings-v2"],
   { revalidate: 600, tags: ["site-settings"] }
 );
 

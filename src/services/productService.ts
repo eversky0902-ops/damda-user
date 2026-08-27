@@ -135,7 +135,7 @@ export interface BusinessOwnerShowcase {
   product_count: number;
   min_sale_price: number;
   regions: string[];
-  featured_product: Product;
+  featured_product?: Product;
   products: Product[];
 }
 
@@ -227,13 +227,21 @@ export async function getPopularBusinessOwners(limit?: number): Promise<Business
     business_owner: item.business_owners as unknown as Product["business_owner"],
     category: item.categories as unknown as Product["category"],
   }));
-  const businessIds = [...new Set(products.map((product) => product.business_id).filter(Boolean))];
-  const { data: businessRows } = businessIds.length
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- businesses 타입은 추가 마이그레이션 이후 생성 타입에 아직 반영되지 않았습니다.
-    ? await (supabase as any).from("businesses").select("id,name,logo_url,status").in("id", businessIds).eq("status", "active")
-    : { data: [] };
-  const businessMap = new Map<string, { id: string; name: string; logo_url: string | null }>(
-    (businessRows || []).map((business: { id: string; name: string; logo_url: string | null }) => [business.id, business])
+  // 활성 사업장 전체를 조회하여 상품이 아직 없는 신규 등록 사업장도 메인에 포함합니다.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- businesses 타입은 생성 타입 갱신 전까지 직접 조회합니다.
+  const { data: businessRows } = await (supabase as any)
+    .from("businesses")
+    .select("id,name,logo_url,status,address,created_at")
+    .eq("status", "active")
+    .order("created_at", { ascending: false });
+  type ActiveBusinessRow = {
+    id: string;
+    name: string;
+    logo_url: string | null;
+    address: string | null;
+  };
+  const businessMap = new Map<string, ActiveBusinessRow>(
+    (businessRows || []).map((business: ActiveBusinessRow) => [business.id, business])
   );
   const owners = new Map<string, BusinessOwnerShowcase>();
 
@@ -263,6 +271,21 @@ export async function getPopularBusinessOwners(limit?: number): Promise<Business
       regions: product.region ? [product.region] : [],
       featured_product: product,
       products: [product],
+    });
+  }
+
+  // 상품이 없는 신규 사업장은 인기 상품 사업장 뒤에 등록 최신순으로 추가됩니다.
+  for (const business of businessMap.values()) {
+    if (owners.has(business.id)) continue;
+    const region = business.address?.trim().split(/\s+/).slice(0, 2).join(" ") || null;
+    owners.set(business.id, {
+      id: business.id,
+      name: business.name,
+      logo_url: business.logo_url,
+      product_count: 0,
+      min_sale_price: 0,
+      regions: region ? [region] : [],
+      products: [],
     });
   }
 

@@ -9,13 +9,17 @@ import {
   Footer,
 } from "@/components/landing";
 import { getPopularBusinessOwners } from "@/services/productService";
+import { getLandingReviews } from "@/services/reviewService";
 
 // 사업주 콘솔의 상품 노출 변경을 메인 화면에 즉시 반영합니다.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function Home() {
-  const businesses = await getPopularBusinessOwners();
+  const [businesses, landingReviews] = await Promise.all([
+    getPopularBusinessOwners(),
+    getLandingReviews(30),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -25,7 +29,7 @@ export default async function Home() {
         <Features />
         <PopularProducts businesses={businesses} />
         <HowItWorks />
-        <Reviews />
+        <Reviews actualReviews={landingReviews} />
         <CTASection />
       </main>
       <Footer />
