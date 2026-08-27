@@ -161,7 +161,7 @@ CREATE POLICY "Sales agents view matching business signup requests"
       SELECT 1 FROM public.partner_onboardings o
       WHERE o.sales_agent_id = auth.uid()
         AND o.business_number = business_owner_signup_requests.business_number
-        AND o.owner_code = business_owner_signup_requests.owner_code
+        AND lower(btrim(o.email)) = lower(btrim(business_owner_signup_requests.email))
     )
   );
 CREATE POLICY "Admins manage partner onboarding documents" ON public.partner_onboarding_documents
@@ -377,8 +377,8 @@ BEGIN
   IF regexp_replace(v_signup.business_number, '[^0-9]', '', 'g') <> v_onboarding.business_number THEN
     RAISE EXCEPTION '가입 신청과 입점 신청의 사업자번호가 일치하지 않습니다.';
   END IF;
-  IF upper(btrim(v_signup.owner_code)) <> v_onboarding.owner_code THEN
-    RAISE EXCEPTION '가입 신청과 입점 신청의 사업주 코드가 일치하지 않습니다.';
+  IF lower(btrim(v_signup.email)) <> lower(btrim(v_onboarding.email)) THEN
+    RAISE EXCEPTION '가입 신청과 입점 신청의 이메일이 일치하지 않습니다.';
   END IF;
   IF EXISTS (SELECT 1 FROM public.business_owners WHERE business_number = v_onboarding.business_number) THEN
     RAISE EXCEPTION '이미 등록된 사업자번호입니다.';
