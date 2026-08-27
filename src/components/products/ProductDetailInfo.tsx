@@ -66,8 +66,13 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
   const [selectedTime, setSelectedTime] = useState<string | undefined>();
   const [isCalendarOpen, setIsCalendarOpen] = useState(true);
   const [selectedOptions, setSelectedOptions] = useState<Map<string, number>>(new Map());
-  const [participants, setParticipants] = useState(product.min_participants);
-  const [participantsInput, setParticipantsInput] = useState(String(product.min_participants));
+  const initialParticipants = useMemo(() => {
+    const value = Number(searchParams.get("participants"));
+    if (!Number.isInteger(value)) return product.min_participants;
+    return Math.max(product.min_participants, Math.min(product.max_participants, value));
+  }, [searchParams, product.min_participants, product.max_participants]);
+  const [participants, setParticipants] = useState(initialParticipants);
+  const [participantsInput, setParticipantsInput] = useState(String(initialParticipants));
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [reservedDates, setReservedDates] = useState<Set<string>>(new Set());
 

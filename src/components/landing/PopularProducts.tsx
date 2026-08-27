@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BusinessOwnerCard } from "@/components/businesses";
 import type { BusinessOwnerShowcase } from "@/services/productService";
+import { HorizontalCarousel } from "./HorizontalCarousel";
 
 interface PopularProductsProps {
   businesses: BusinessOwnerShowcase[];
@@ -20,7 +21,7 @@ export function PopularProducts({ businesses }: PopularProductsProps) {
             </p>
           </div>
           <Button variant="outline" asChild className="hidden md:flex">
-            <Link href="/signup">
+            <Link href="/products">
               전체 보기
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
@@ -32,16 +33,19 @@ export function PopularProducts({ businesses }: PopularProductsProps) {
             <p className="text-muted-foreground">등록된 체험 업체가 없습니다.</p>
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <HorizontalCarousel
+            ariaLabel="제휴 업체"
+            itemClassName="basis-[88%] sm:basis-1/2 lg:basis-1/4"
+          >
             {businesses.map((business) => (
-              <BusinessOwnerCard key={business.id} owner={business} href="/signup" />
+              <BusinessOwnerCard key={business.id} owner={business} showPrice={false} />
             ))}
-          </div>
+          </HorizontalCarousel>
         )}
 
         <div className="mt-8 flex justify-center md:hidden">
           <Button variant="outline" asChild>
-            <Link href="/signup">
+            <Link href="/products">
               전체 업체 보기
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>

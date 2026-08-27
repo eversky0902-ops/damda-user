@@ -9,11 +9,17 @@ const DEFAULT_IMAGE =
 interface BusinessOwnerCardProps {
   owner: BusinessOwnerShowcase;
   href?: string;
+  showPrice?: boolean;
 }
 
-export function BusinessOwnerCard({ owner, href }: BusinessOwnerCardProps) {
+export function BusinessOwnerCard({ owner, href, showPrice = true }: BusinessOwnerCardProps) {
   const destination = href ?? `/businesses/${owner.id}`;
   const image = owner.featured_product.thumbnail || owner.logo_url || DEFAULT_IMAGE;
+  const maxDiscountRate = owner.products.reduce((maximum, product) => {
+    if (product.original_price <= 0 || product.sale_price >= product.original_price) return maximum;
+    const discountRate = Math.round(((product.original_price - product.sale_price) / product.original_price) * 100);
+    return Math.max(maximum, discountRate);
+  }, 0);
 
   return (
     <Link
@@ -28,9 +34,6 @@ export function BusinessOwnerCard({ owner, href }: BusinessOwnerCardProps) {
           className="object-cover transition-transform duration-300 group-hover:scale-105"
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
         />
-        <span className="absolute bottom-3 left-3 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white">
-          상품 {owner.product_count}개
-        </span>
       </div>
 
       <div className="p-4">
@@ -66,7 +69,7 @@ export function BusinessOwnerCard({ owner, href }: BusinessOwnerCardProps) {
             )}
           </span>
           <strong className="shrink-0 text-gray-900">
-            {owner.min_sale_price.toLocaleString()}원부터
+            {showPrice ? `${owner.min_sale_price.toLocaleString()}원부터` : `최대 ${maxDiscountRate}% 할인`}
           </strong>
         </div>
       </div>

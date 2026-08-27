@@ -8,6 +8,7 @@ import {
   getProductReviews,
   getProductReviewStats,
   getProductsByCategory,
+  getProductsByBusinessOwner,
 } from "@/services/productService";
 import { getLatestLegalDocument } from "@/services/contentService";
 
@@ -66,12 +67,13 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     notFound();
   }
 
-  // 연관 상품도 병렬로 fetch (위의 Promise.all과 별개로 빠르게 시작)
-  const relatedProductsPromise = product.category_id
-    ? getProductsByCategory(product.category_id, 5)
-    : Promise.resolve([]);
-
-  const relatedProducts = await relatedProductsPromise;
+  // 같은 사업장의 등록 상품과 카테고리 연관 상품을 함께 조회합니다.
+  const [businessProducts, relatedProducts] = await Promise.all([
+    getProductsByBusinessOwner(product.business_id),
+    product.category_id
+      ? getProductsByCategory(product.category_id, 5)
+      : Promise.resolve([]),
+  ]);
 
   // 현재 상품 제외
   const filteredRelated = relatedProducts.filter((p) => p.id !== product.id).slice(0, 4);
@@ -135,6 +137,27 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           </Suspense>
         </div>
       </div>
+
+      {/* 사업장에 등록된 전체 상품 */}
+      {businessProducts.length > 0 && (
+        <section className="border-t border-gray-200 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 py-10">
+            <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-primary">사업장 등록 상품</p>
+                <h2 className="mt-1 text-2xl font-bold text-gray-900">
+                  {product.business_owner?.name || "이 사업장"}의 상품
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  상품별 이미지와 가격을 비교한 뒤 원하는 상품을 선택하세요.
+                </p>
+              </div>
+              <span className="text-sm text-gray-500">총 {businessProducts.length}개</span>
+            </div>
+            <ProductGrid products={businessProducts} />
+          </div>
+        </section>
+      )}
 
       {/* 탭 영역 */}
       <div className="border-t border-gray-200">

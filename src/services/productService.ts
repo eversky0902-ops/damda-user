@@ -6,6 +6,7 @@ export interface Product {
   id: string;
   name: string;
   summary: string | null;
+  description: string | null;
   thumbnail: string;
   original_price: number;
   sale_price: number;
@@ -17,13 +18,32 @@ export interface Product {
   is_sold_out: boolean;
   category_id: string | null;
   business_owner_id: string;
+  business_id: string;
   address: string | null;
   address_detail: string | null;
   duration_minutes: number | null;
+  minimum_age: number | null;
+  recommended_age_min: number | null;
+  recommended_age_max: number | null;
+  booking_start_date: string | null;
+  booking_end_date: string | null;
+  booking_cutoff_hours: number;
+  allow_same_day_booking: boolean;
+  inclusions: string | null;
+  exclusions: string | null;
+  materials: string | null;
+  usage_method: string | null;
+  product_precautions: string | null;
+  reservation_notice: string | null;
+  refund_notice: string | null;
+  other_notice: string | null;
+  display_order: number;
   created_at: string;
   // 리뷰 통계 (목록 조회 시 포함)
   review_count?: number;
   average_rating?: number;
+  images?: ProductImage[];
+  available_time_slots?: ProductTimeSlot[] | null;
   business_owner?: {
     id: string;
     name: string;
@@ -60,6 +80,54 @@ export interface PaginatedProducts {
   totalPages: number;
 }
 
+export interface BusinessPlaceProfile {
+  introduction: string | null;
+  public_phone: string | null;
+  website_url: string | null;
+  directions: string | null;
+  reservation_notice: string | null;
+}
+
+export interface BusinessPlaceImage {
+  id: string;
+  image_url: string;
+  caption: string | null;
+  is_primary: boolean;
+  sort_order: number;
+}
+
+export interface BusinessHour {
+  id: string;
+  day_of_week: number;
+  is_closed: boolean;
+  open_time: string | null;
+  close_time: string | null;
+  break_start: string | null;
+  break_end: string | null;
+}
+
+export interface BusinessDetail {
+  id: string;
+  business_owner_id: string;
+  name: string;
+  logo_url: string | null;
+  introduction: string | null;
+  summary: string | null;
+  parking_available: boolean;
+  parking_notice: string | null;
+  facilities: string[];
+  common_guide: string | null;
+  common_precautions: string | null;
+  address: string | null;
+  address_detail: string | null;
+  contact_phone: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  place_profile: BusinessPlaceProfile | null;
+  images: BusinessPlaceImage[];
+  hours: BusinessHour[];
+}
+
 export interface BusinessOwnerShowcase {
   id: string;
   name: string;
@@ -69,6 +137,14 @@ export interface BusinessOwnerShowcase {
   regions: string[];
   featured_product: Product;
   products: Product[];
+}
+
+export interface PaginatedBusinesses {
+  data: BusinessOwnerShowcase[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 // 인기상품은 모든 방문자에게 동일한 공개 데이터 → 쿠키 없는 클라이언트로 캐싱
@@ -95,6 +171,7 @@ const getPopularProductsCached = unstable_cache(
       `
       )
       .eq("is_visible", true)
+      .eq("is_sold_out", false)
       .eq("business_owners.status", "active")
       .order("view_count", { ascending: false })
       .limit(limit);
@@ -122,12 +199,46 @@ export async function getPopularProducts(limit = 8): Promise<Product[]> {
  * 홈페이지에는 상품이 아니라 사업주가 한 번만 노출됩니다.
  * 조회수 순 상품을 사업주별로 묶어 대표 상품과 등록 상품 수를 계산합니다.
  */
-export async function getPopularBusinessOwners(limit = 8): Promise<BusinessOwnerShowcase[]> {
-  const products = await getPopularProducts(200);
+export async function getPopularBusinessOwners(limit?: number): Promise<BusinessOwnerShowcase[]> {
+  // 사업주 콘솔에서 노출 상품을 등록한 직후 홈페이지에 반영되어야 하므로
+  // 이 목록은 5분 상품 캐시를 사용하지 않고 공개 데이터를 직접 조회합니다.
+  const supabase = createCacheClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select(`
+      *,
+      business_owners!inner (id, name, logo_url, status),
+      categories:category_id (id, name, parent_id)
+    `)
+    .eq("is_visible", true)
+    .eq("is_sold_out", false)
+    .eq("business_owners.status", "active")
+    .order("view_count", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (error) {
+    console.error("Error fetching popular business owners:", error);
+    return [];
+  }
+
+  const products: Product[] = (data || []).map((item) => ({
+    ...item,
+    business_owner: item.business_owners as unknown as Product["business_owner"],
+    category: item.categories as unknown as Product["category"],
+  }));
+  const businessIds = [...new Set(products.map((product) => product.business_id).filter(Boolean))];
+  const { data: businessRows } = businessIds.length
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- businesses 타입은 추가 마이그레이션 이후 생성 타입에 아직 반영되지 않았습니다.
+    ? await (supabase as any).from("businesses").select("id,name,logo_url,status").in("id", businessIds).eq("status", "active")
+    : { data: [] };
+  const businessMap = new Map<string, { id: string; name: string; logo_url: string | null }>(
+    (businessRows || []).map((business: { id: string; name: string; logo_url: string | null }) => [business.id, business])
+  );
   const owners = new Map<string, BusinessOwnerShowcase>();
 
   for (const product of products) {
-    const owner = product.business_owner;
+    const owner = businessMap.get(product.business_id);
     if (!owner) continue;
 
     const existing = owners.get(owner.id);
@@ -153,30 +264,53 @@ export async function getPopularBusinessOwners(limit = 8): Promise<BusinessOwner
     });
   }
 
-  return Array.from(owners.values()).slice(0, limit);
+  const allOwners = Array.from(owners.values());
+  return limit ? allOwners.slice(0, limit) : allOwners;
 }
 
-export async function getBusinessOwnerById(id: string): Promise<{
-  id: string;
-  name: string;
-  logo_url: string | null;
-  address: string | null;
-  address_detail: string | null;
-  contact_phone: string | null;
-} | null> {
+export async function getBusinessOwnerById(id: string): Promise<BusinessDetail | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("business_owners")
-    .select("id, name, logo_url, address, address_detail, contact_phone")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 사업장/스마트플레이스 테이블은 추가 마이그레이션 이후 생성 타입에 아직 반영되지 않았습니다.
+  const { data, error } = await (supabase as any)
+    .from("businesses")
+    .select("id, business_owner_id, name, logo_url, introduction, summary, parking_available, parking_notice, facilities, common_guide, common_precautions, address, address_detail, contact_phone, latitude, longitude")
     .eq("id", id)
     .eq("status", "active")
     .single();
 
   if (error) return null;
-  return data;
+
+  const [profileResult, imagesResult, hoursResult] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 생성 타입 갱신 전까지 실제 추가 테이블을 안전하게 조회합니다.
+    (supabase as any)
+      .from("business_place_profiles")
+      .select("introduction, public_phone, website_url, directions, reservation_notice")
+      .eq("business_id", id)
+      .maybeSingle(),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 생성 타입 갱신 전까지 실제 추가 테이블을 안전하게 조회합니다.
+    (supabase as any)
+      .from("business_place_images")
+      .select("id, image_url, caption, is_primary, sort_order")
+      .eq("business_id", id)
+      .order("is_primary", { ascending: false })
+      .order("sort_order", { ascending: true }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 생성 타입 갱신 전까지 실제 추가 테이블을 안전하게 조회합니다.
+    (supabase as any)
+      .from("business_hours")
+      .select("id, day_of_week, is_closed, open_time, close_time, break_start, break_end")
+      .eq("business_id", id)
+      .order("day_of_week", { ascending: true }),
+  ]);
+
+  return {
+    ...data,
+    place_profile: profileResult.data || null,
+    images: imagesResult.data || [],
+    hours: hoursResult.data || [],
+  } as BusinessDetail;
 }
 
-export async function getProductsByBusinessOwner(id: string): Promise<Product[]> {
+async function fetchProductsByBusinessOwner(id: string): Promise<Product[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
@@ -185,26 +319,68 @@ export async function getProductsByBusinessOwner(id: string): Promise<Product[]>
       business_owners!inner (id, name, logo_url, status),
       categories:category_id (id, name, parent_id)
     `)
-    .eq("business_owner_id", id)
+    .eq("business_id", id)
     .eq("is_visible", true)
+    .eq("is_sold_out", false)
     .eq("business_owners.status", "active")
+    .order("display_order", { ascending: true })
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching products by business owner:", error);
-    return [];
+    throw error;
   }
 
   const productIds = (data || []).map((item) => item.id);
-  const reviewStatsMap = await getProductsReviewStats(productIds);
+  const [reviewStatsMap, imagesResult] = await Promise.all([
+    getProductsReviewStats(productIds),
+    productIds.length
+      ? supabase
+          .from("product_images")
+          .select("id, product_id, image_url, sort_order")
+          .in("product_id", productIds)
+          .order("sort_order", { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  const business = await getBusinessOwnerById(id);
+  const imagesByProduct = new Map<string, ProductImage[]>();
+
+  for (const image of imagesResult.data || []) {
+    const current = imagesByProduct.get(image.product_id) || [];
+    current.push(image as ProductImage);
+    imagesByProduct.set(image.product_id, current);
+  }
 
   return (data || []).map((item) => ({
     ...item,
-    business_owner: item.business_owners as unknown as Product["business_owner"],
+    business_owner: business ? { id: business.id, name: business.name, logo_url: business.logo_url } : item.business_owners as unknown as Product["business_owner"],
     category: item.categories as unknown as Product["category"],
     review_count: reviewStatsMap[item.id]?.count || 0,
     average_rating: reviewStatsMap[item.id]?.average || 0,
+    images: imagesByProduct.get(item.id) || [],
   }));
+}
+
+export async function getProductsByBusinessOwner(id: string): Promise<Product[]> {
+  try {
+    return await fetchProductsByBusinessOwner(id);
+  } catch (error) {
+    console.error("Error fetching products by business owner:", error);
+    return [];
+  }
+}
+
+export async function getProductsByBusinessOwnerResult(
+  id: string
+): Promise<{ data: Product[]; error: string | null }> {
+  try {
+    return { data: await fetchProductsByBusinessOwner(id), error: null };
+  } catch (error) {
+    console.error("Error fetching products by business owner:", error);
+    return {
+      data: [],
+      error: error instanceof Error ? error.message : "상품 정보를 불러오지 못했습니다.",
+    };
+  }
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
@@ -237,9 +413,11 @@ export async function getProductById(id: string): Promise<Product | null> {
     return null;
   }
 
+  const business = data.business_id ? await getBusinessOwnerById(data.business_id) : null;
+
   return {
     ...data,
-    business_owner: data.business_owners as unknown as Product["business_owner"],
+    business_owner: business ? { id: business.id, name: business.name, logo_url: business.logo_url } : data.business_owners as unknown as Product["business_owner"],
     category: data.categories as unknown as Product["category"],
   };
 }
@@ -307,6 +485,7 @@ export async function getProducts(
       { count: "exact" }
     )
     .eq("is_visible", true)
+    .eq("is_sold_out", false)
     .eq("business_owners.status", "active");
 
   // 카테고리 필터 - 대분류 선택 시 하위 카테고리 포함
@@ -591,6 +770,45 @@ export async function getProductsByRegion(
   }));
 }
 
+/** 사업장 중심 검색. 상품 필터를 적용한 뒤 사업장 단위로 묶어 노출합니다. */
+export async function getBusinesses(
+  filter: ProductFilter = {},
+  page = 1,
+  pageSize = 9
+): Promise<PaginatedBusinesses> {
+  const productsResult = await getProducts(filter, 1, 500);
+  const supabase = await createClient();
+  const businessIds = [...new Set(productsResult.data.map((product) => product.business_id).filter(Boolean))];
+  if (!businessIds.length) return { data: [], total: 0, page, pageSize, totalPages: 0 };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- businesses 타입은 추가 마이그레이션 이후 생성 타입에 아직 반영되지 않았습니다.
+  const { data: rows, error } = await (supabase as any).from("businesses")
+    .select("id,name,logo_url,status")
+    .in("id", businessIds)
+    .eq("status", "active");
+  if (error) return { data: [], total: 0, page, pageSize, totalPages: 0 };
+  const businessMap = new Map<string, { id: string; name: string; logo_url: string | null }>(
+    (rows || []).map((business: { id: string; name: string; logo_url: string | null }) => [business.id, business])
+  );
+  const grouped = new Map<string, BusinessOwnerShowcase>();
+  for (const product of productsResult.data) {
+    const business = businessMap.get(product.business_id);
+    if (!business) continue;
+    const existing = grouped.get(business.id);
+    if (existing) {
+      existing.products.push(product); existing.product_count += 1;
+      existing.min_sale_price = Math.min(existing.min_sale_price, product.sale_price);
+      if (product.region && !existing.regions.includes(product.region)) existing.regions.push(product.region);
+    } else grouped.set(business.id, {
+      ...business, product_count: 1, min_sale_price: product.sale_price,
+      regions: product.region ? [product.region] : [], featured_product: product, products: [product],
+    });
+  }
+  const all = [...grouped.values()];
+  const from = (page - 1) * pageSize;
+  return { data: all.slice(from, from + pageSize), total: all.length, page, pageSize, totalPages: Math.ceil(all.length / pageSize) };
+}
+
 // 지역 목록 조회
 export async function getRegions(): Promise<string[]> {
   const supabase = await createClient();
@@ -695,7 +913,8 @@ export async function getProductDetail(id: string): Promise<ProductDetail | null
       .from("product_images")
       .select("*")
       .eq("product_id", id)
-      .order("sort_order", { ascending: true }),
+      .order("sort_order", { ascending: true })
+      .limit(5),
     // 상품 옵션
     supabase
       .from("product_options")
@@ -728,9 +947,11 @@ export async function getProductDetail(id: string): Promise<ProductDetail | null
     }
   })();
 
+  const business = product.business_id ? await getBusinessOwnerById(product.business_id) : null;
+
   return {
     ...product,
-    business_owner: product.business_owners as unknown as ProductDetail["business_owner"],
+    business_owner: business ? { id: business.id, name: business.name, logo_url: business.logo_url } : product.business_owners as unknown as ProductDetail["business_owner"],
     category: product.categories as unknown as ProductDetail["category"],
     images: imagesResult.data || [],
     options: optionsResult.data || [],
