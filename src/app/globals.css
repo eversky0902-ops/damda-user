@@ -306,3 +306,39 @@
 .animate-marquee {
   animation: marquee 60s linear infinite;
 }
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .document-sheet,
+  .document-sheet * {
+    visibility: visible;
+  }
+
+  .document-sheet {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+
+  body > div > header,
+  body > div > footer,
+  .document-page > :not(form) {
+    display: none !important;
+  }
+
+  .document-page {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+}

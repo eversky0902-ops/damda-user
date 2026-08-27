@@ -37,6 +37,27 @@ export interface Product {
   reservation_notice: string | null;
   refund_notice: string | null;
   other_notice: string | null;
+  experience_environment: "indoor" | "outdoor" | "mixed" | null;
+  operates_in_rain: boolean | null;
+  rain_alternative: string | null;
+  bus_accessible: boolean | null;
+  bus_parking_available: boolean | null;
+  dropoff_space_available: boolean | null;
+  meal_available: boolean | null;
+  lunchbox_allowed: boolean | null;
+  restroom_info: string | null;
+  child_restroom_available: boolean | null;
+  teacher_supplies: string | null;
+  child_supplies: string | null;
+  provided_supplies: string | null;
+  accessibility_info: string | null;
+  meeting_point: string | null;
+  field_contact: string | null;
+  teacher_notes: string | null;
+  clothing_guidance: string | null;
+  meal_guidance: string | null;
+  transportation_guidance: string | null;
+  guardian_notes: string | null;
   display_order: number;
   created_at: string;
   // 리뷰 통계 (목록 조회 시 포함)
@@ -48,6 +69,12 @@ export interface Product {
     id: string;
     name: string;
     logo_url: string | null;
+  };
+  business?: {
+    id: string;
+    name: string;
+    logo_url: string | null;
+    status?: string;
   };
   category?: {
     id: string;
@@ -208,11 +235,13 @@ export async function getPopularBusinessOwners(limit?: number): Promise<Business
     .select(`
       *,
       business_owners!inner (id, name, logo_url, status),
+      business:businesses!inner (id, name, logo_url, status, address, created_at),
       categories:category_id (id, name, parent_id)
     `)
     .eq("is_visible", true)
     .eq("is_sold_out", false)
     .eq("business_owners.status", "active")
+    .eq("business.status", "active")
     .order("view_count", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(200);
@@ -225,15 +254,20 @@ export async function getPopularBusinessOwners(limit?: number): Promise<Business
   const products: Product[] = (data || []).map((item) => ({
     ...item,
     business_owner: item.business_owners as unknown as Product["business_owner"],
+    business: item.business as unknown as Product["business"],
     category: item.categories as unknown as Product["category"],
   }));
   // 활성 사업장 전체를 조회하여 상품이 아직 없는 신규 등록 사업장도 메인에 포함합니다.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- businesses 타입은 생성 타입 갱신 전까지 직접 조회합니다.
-  const { data: businessRows } = await (supabase as any)
+  const { data: businessRows, error: businessesError } = await (supabase as any)
     .from("businesses")
     .select("id,name,logo_url,status,address,created_at")
     .eq("status", "active")
     .order("created_at", { ascending: false });
+  if (businessesError) {
+    console.error("Error fetching active businesses:", businessesError);
+    return [];
+  }
   type ActiveBusinessRow = {
     id: string;
     name: string;
@@ -246,9 +280,8 @@ export async function getPopularBusinessOwners(limit?: number): Promise<Business
   const owners = new Map<string, BusinessOwnerShowcase>();
 
   for (const product of products) {
-    // 신규 사업장 테이블 연결이 아직 없는 운영 데이터는 기존 사업주 정보로
-    // 대체하여 홈페이지에서 업체가 사라지지 않도록 호환합니다.
-    const owner = businessMap.get(product.business_id) || product.business_owner;
+    // 사용자 URL은 반드시 canonical businesses.id만 사용합니다.
+    const owner = businessMap.get(product.business_id) || product.business;
     if (!owner) continue;
 
     const existing = owners.get(owner.id);
@@ -422,6 +455,12 @@ export async function getProductById(id: string): Promise<Product | null> {
         logo_url,
         status
       ),
+      business:businesses!inner (
+        id,
+        name,
+        logo_url,
+        status
+      ),
       categories:category_id (
         id,
         name,
@@ -501,6 +540,12 @@ export async function getProducts(
         logo_url,
         status
       ),
+      business:businesses!inner (
+        id,
+        name,
+        logo_url,
+        status
+      ),
       categories:category_id (
         id,
         name,
@@ -511,7 +556,8 @@ export async function getProducts(
     )
     .eq("is_visible", true)
     .eq("is_sold_out", false)
-    .eq("business_owners.status", "active");
+    .eq("business_owners.status", "active")
+    .eq("business.status", "active");
 
   // 카테고리 필터 - 대분류 선택 시 하위 카테고리 포함
   if (categoryIds) {
@@ -643,6 +689,7 @@ export async function getProducts(
   let products = (data || []).map((item) => ({
     ...item,
     business_owner: item.business_owners as unknown as Product["business_owner"],
+    business: item.business as unknown as Product["business"],
     category: item.categories as unknown as Product["category"],
     review_count: reviewStatsMap[item.id]?.count || 0,
     average_rating: reviewStatsMap[item.id]?.average || 0,
@@ -732,11 +779,18 @@ export async function getProductsByCategory(
         name,
         logo_url,
         status
+      ),
+      business:businesses!inner (
+        id,
+        name,
+        logo_url,
+        status
       )
     `
     )
     .eq("is_visible", true)
     .eq("business_owners.status", "active")
+    .eq("business.status", "active")
     .in("category_id", categoryIds)
     .order("view_count", { ascending: false })
     .limit(limit);
@@ -749,6 +803,7 @@ export async function getProductsByCategory(
   return (data || []).map((item) => ({
     ...item,
     business_owner: item.business_owners as unknown as Product["business_owner"],
+    business: item.business as unknown as Product["business"],
   }));
 }
 
@@ -770,6 +825,12 @@ export async function getProductsByRegion(
         logo_url,
         status
       ),
+      business:businesses!inner (
+        id,
+        name,
+        logo_url,
+        status
+      ),
       categories:category_id (
         id,
         name,
@@ -779,6 +840,7 @@ export async function getProductsByRegion(
     )
     .eq("is_visible", true)
     .eq("business_owners.status", "active")
+    .eq("business.status", "active")
     .ilike("region", `${region}%`)
     .order("view_count", { ascending: false })
     .limit(limit);
@@ -791,6 +853,7 @@ export async function getProductsByRegion(
   return (data || []).map((item) => ({
     ...item,
     business_owner: item.business_owners as unknown as Product["business_owner"],
+    business: item.business as unknown as Product["business"],
     category: item.categories as unknown as Product["category"],
   }));
 }
@@ -802,23 +865,10 @@ export async function getBusinesses(
   pageSize = 9
 ): Promise<PaginatedBusinesses> {
   const productsResult = await getProducts(filter, 1, 500);
-  const supabase = await createClient();
-  const businessIds = [...new Set(productsResult.data.map((product) => product.business_id).filter(Boolean))];
-  if (!businessIds.length) return { data: [], total: 0, page, pageSize, totalPages: 0 };
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- businesses 타입은 추가 마이그레이션 이후 생성 타입에 아직 반영되지 않았습니다.
-  const { data: rows, error } = await (supabase as any).from("businesses")
-    .select("id,name,logo_url,status")
-    .in("id", businessIds)
-    .eq("status", "active");
-  if (error) return { data: [], total: 0, page, pageSize, totalPages: 0 };
-  const businessMap = new Map<string, { id: string; name: string; logo_url: string | null }>(
-    (rows || []).map((business: { id: string; name: string; logo_url: string | null }) => [business.id, business])
-  );
   const grouped = new Map<string, BusinessOwnerShowcase>();
   for (const product of productsResult.data) {
-    const business = businessMap.get(product.business_id);
-    if (!business) continue;
+    const business = product.business;
+    if (!business || business.id !== product.business_id) continue;
     const existing = grouped.get(business.id);
     if (existing) {
       existing.products.push(product); existing.product_count += 1;

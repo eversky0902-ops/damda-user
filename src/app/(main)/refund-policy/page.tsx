@@ -8,7 +8,7 @@ import {
 import { LegalDocumentViewer, type LegalDocument } from "@/components/legal/LegalDocumentViewer";
 
 export const metadata: Metadata = {
-  title: "환불정책 | 담다",
+  title: "환불정책",
   description: "담다 환불정책을 확인하세요.",
 };
 

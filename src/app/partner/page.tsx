@@ -288,7 +288,7 @@ export default function PartnerPage() {
                           <FormItem>
                             <FormLabel>이메일 *</FormLabel>
                             <FormControl>
-                              <Input type="email" placeholder="email@example.com" {...field} />
+                              <Input type="email" placeholder="name@domain.kr" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

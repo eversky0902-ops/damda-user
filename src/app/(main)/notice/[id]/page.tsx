@@ -14,11 +14,11 @@ export async function generateMetadata({ params }: NoticeDetailPageProps) {
   const notice = await getNoticeById(id);
 
   if (!notice) {
-    return { title: "공지사항을 찾을 수 없습니다 | 담다" };
+    return { title: "공지사항을 찾을 수 없습니다" };
   }
 
   return {
-    title: `${notice.title} | 담다`,
+    title: notice.title,
     description: notice.content?.slice(0, 100) || notice.title,
   };
 }

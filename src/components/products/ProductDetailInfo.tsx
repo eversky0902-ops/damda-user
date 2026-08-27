@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { getBusinessHref } from "@/lib/businessRouting";
 import {
   MapPin,
   Users,
@@ -392,9 +393,9 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
             <span>·</span>
           </>
         )}
-        {product.business_owner && (
+        {product.business_owner && product.business_id && (
           <Link
-            href={`/businesses/${product.business_owner.id}`}
+            href={getBusinessHref(product.business_id)}
             className="flex items-center gap-1 hover:text-gray-900 hover:underline"
           >
             <Building2 className="w-4 h-4" />

@@ -12,12 +12,12 @@ import {
   XCircle,
   FileText,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
 import { getReservationById } from "@/services/mypageService";
 import { format, parseISO } from "date-fns";
 import { ko } from "date-fns/locale";
 import { ReservationActions } from "./reservation-actions";
+import { DOCUMENT_TYPES } from "@/lib/documents";
 
 const STATUS_CONFIG = {
   pending: {
@@ -241,7 +241,7 @@ export default async function ReservationDetailPage({
       </section>
 
       {/* 체험 장소 */}
-      {(reservation.product as any)?.address && (
+      {reservation.product?.address && (
         <section className="bg-white border-b border-gray-200 mt-2">
           <div className="px-4 py-3 border-b border-gray-100">
             <h2 className="font-semibold text-gray-900">체험 장소</h2>
@@ -251,11 +251,11 @@ export default async function ReservationDetailPage({
               <MapPin className="w-5 h-5 text-gray-400 mt-0.5" />
               <div>
                 <p className="font-medium text-gray-900">
-                  {(reservation.product as any).address}
+                  {reservation.product.address}
                 </p>
-                {(reservation.product as any).address_detail && (
+                {reservation.product.address_detail && (
                   <p className="text-sm text-gray-500">
-                    {(reservation.product as any).address_detail}
+                    {reservation.product.address_detail}
                   </p>
                 )}
               </div>
@@ -265,7 +265,7 @@ export default async function ReservationDetailPage({
       )}
 
       {/* 사업자 연락처 */}
-      {(reservation.product?.business_owner as any)?.contact_phone && (
+      {reservation.product?.business_owner?.contact_phone && (
         <section className="bg-white border-b border-gray-200 mt-2">
           <div className="px-4 py-3 border-b border-gray-100">
             <h2 className="font-semibold text-gray-900">연락처</h2>
@@ -278,10 +278,10 @@ export default async function ReservationDetailPage({
                   {reservation.product?.business_owner?.name}
                 </p>
                 <a
-                  href={`tel:${(reservation.product?.business_owner as any).contact_phone}`}
+                  href={`tel:${reservation.product.business_owner.contact_phone}`}
                   className="font-medium text-damda-yellow-dark"
                 >
-                  {(reservation.product?.business_owner as any).contact_phone}
+                  {reservation.product.business_owner.contact_phone}
                 </a>
               </div>
             </div>
@@ -328,6 +328,24 @@ export default async function ReservationDetailPage({
           </div>
         </section>
       )}
+
+      <section className="mt-2 border-y border-gray-200 bg-white">
+        <div className="border-b border-gray-100 px-4 py-3">
+          <h2 className="font-semibold text-gray-900">예약 기반 행정 문서</h2>
+          <p className="mt-1 text-sm text-gray-500">현재 예약 정보를 불러와 수정 가능한 초안을 만듭니다.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 px-4 py-4 sm:grid-cols-3">
+          {Object.entries(DOCUMENT_TYPES).map(([type, label]) => (
+            <Link
+              key={type}
+              href={`/mypage/documents/new?reservation=${reservation.id}&type=${type}`}
+              className="rounded-lg border border-gray-200 px-3 py-3 text-center text-sm font-medium text-gray-700 transition-colors hover:border-damda-yellow hover:bg-damda-yellow-light/40"
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {/* 액션 버튼 */}
       <ReservationActions

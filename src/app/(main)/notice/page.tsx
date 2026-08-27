@@ -5,7 +5,7 @@ import { Megaphone, ChevronRight, Pin } from "lucide-react";
 import { getNotices } from "@/services/contentService";
 
 export const metadata = {
-  title: "공지사항 | 담다",
+  title: "공지사항",
   description: "담다의 공지사항을 확인하세요.",
 };
 

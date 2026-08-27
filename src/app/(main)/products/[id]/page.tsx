@@ -17,6 +17,7 @@ const getCachedProductDetail = cache(getProductDetail);
 import { ImageGallery } from "@/components/products/ImageGallery";
 import { ProductDetailInfo } from "@/components/products/ProductDetailInfo";
 import { ProductDescription } from "@/components/products/ProductDescription";
+import { TeacherPracticalInfo } from "@/components/products/TeacherPracticalInfo";
 import { ProductReviews } from "@/components/products/ProductReviews";
 import { ProductGrid } from "@/components/products/ProductGrid";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,7 +33,7 @@ export async function generateMetadata({ params }: ProductDetailPageProps) {
   const product = await getCachedProductDetail(id);
 
   if (!product) {
-    return { title: "상품을 찾을 수 없습니다 | 담다" };
+    return { title: "상품을 찾을 수 없습니다" };
   }
 
   return {
@@ -185,6 +186,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             </TabsList>
 
             <TabsContent value="description" className="mt-8">
+              <div className="mb-8">
+                <TeacherPracticalInfo product={product} />
+              </div>
               <ProductDescription
                 description={product.description}
                 address={product.address}

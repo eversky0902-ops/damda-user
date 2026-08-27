@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { getBusinessHref } from "@/lib/businessRouting";
 import { MapPin, Package } from "lucide-react";
 import type { BusinessOwnerShowcase } from "@/services/productService";
 
@@ -21,7 +22,7 @@ export function BusinessOwnerCard({
   showLogo = true,
   showProductName = true,
 }: BusinessOwnerCardProps) {
-  const destination = href ?? `/businesses/${owner.id}`;
+  const destination = href ?? getBusinessHref(owner.id);
   const image = owner.featured_product?.thumbnail || owner.logo_url || DEFAULT_IMAGE;
   const maxDiscountRate = owner.products.reduce((maximum, product) => {
     if (product.original_price <= 0 || product.sale_price >= product.original_price) return maximum;

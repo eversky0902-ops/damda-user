@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import type { Product } from "@/services/productService";
+import { TeacherPracticalInfo } from "@/components/products/TeacherPracticalInfo";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -248,6 +249,8 @@ function ProductDetailContent({ product, businessLogo }: Pick<BusinessProductCar
         {timeLabel && <DetailStat label="이용 가능 시간" value={timeLabel} />}
         {product.minimum_age != null && <DetailStat label="최소 이용 연령" value={`${product.minimum_age}세`} />}
       </div>
+
+      <TeacherPracticalInfo product={product} />
 
       {product.description ? (
         <div>

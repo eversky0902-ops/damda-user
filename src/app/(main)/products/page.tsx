@@ -29,7 +29,7 @@ interface ProductsPageProps {
 }
 
 export const metadata = {
-  title: "체험 사업장 | 담다",
+  title: "체험 사업장",
   description: "검증된 체험 사업장을 먼저 선택하고 사업장별 프로그램을 비교해보세요.",
 };
 

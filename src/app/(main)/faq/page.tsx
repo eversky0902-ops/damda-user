@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/accordion";
 
 export const metadata = {
-  title: "자주 묻는 질문 | 담다",
+  title: "자주 묻는 질문",
   description: "담다 서비스 이용에 관한 자주 묻는 질문을 확인하세요.",
 };
 
@@ -35,6 +35,18 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default async function FAQPage() {
   const faqs = await getFAQs();
   const groupedFAQs = groupFAQsByCategory(faqs);
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  };
 
   // 카테고리 정렬
   const sortedCategories = Array.from(groupedFAQs.keys()).sort((a, b) => {
@@ -48,6 +60,14 @@ export default async function FAQPage() {
 
   return (
     <div className="min-h-screen bg-white">
+      {faqs.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(faqJsonLd).replace(/</g, "\\u003c"),
+          }}
+        />
+      )}
       <div className="max-w-4xl mx-auto">
         {/* 헤더 */}
         <div className="px-4 py-6 border-b border-gray-200">

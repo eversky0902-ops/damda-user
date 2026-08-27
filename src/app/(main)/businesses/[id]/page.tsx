@@ -34,10 +34,18 @@ export async function generateMetadata({ params }: BusinessPageProps) {
 
   return business
     ? {
-        title: `${business.name} | 담다`,
+        title: business.name,
         description: introduction || `${business.name}의 체험 상품을 확인하세요.`,
+        alternates: { canonical: `/businesses/${id}` },
+        openGraph: {
+        title: business.name,
+          description: introduction || `${business.name}의 체험 상품을 확인하세요.`,
+          url: `/businesses/${id}`,
+          type: "website",
+          images: business.logo_url ? [business.logo_url] : undefined,
+        },
       }
-    : { title: "사업장을 찾을 수 없습니다 | 담다" };
+    : { title: "사업장을 찾을 수 없습니다" };
 }
 
 export default async function BusinessPage({ params }: BusinessPageProps) {
@@ -74,9 +82,42 @@ export default async function BusinessPage({ params }: BusinessPageProps) {
   );
   const averageRating = reviewCount ? Math.round((reviewScoreTotal / reviewCount) * 10) / 10 : 0;
   const minPrice = products.length ? Math.min(...products.map((product) => product.sale_price)) : null;
+  const businessJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": `https://withdamda.kr/businesses/${id}#business`,
+    name: business.name,
+    url: `https://withdamda.kr/businesses/${id}`,
+    description: summary || introduction || `${business.name}의 현장체험 프로그램`,
+    image: galleryThumbnail || undefined,
+    telephone: publicPhone || undefined,
+    address: fullAddress
+      ? {
+          "@type": "PostalAddress",
+          streetAddress: fullAddress,
+          addressCountry: "KR",
+        }
+      : undefined,
+    aggregateRating: reviewCount
+      ? {
+          "@type": "AggregateRating",
+          ratingValue: averageRating,
+          reviewCount,
+          bestRating: 5,
+        }
+      : undefined,
+    priceRange: minPrice !== null ? `${minPrice.toLocaleString("ko-KR")}원부터` : undefined,
+    mainEntityOfPage: `https://withdamda.kr/businesses/${id}`,
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(businessJsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
       <div className="border-b border-gray-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
           <nav className="flex min-w-0 items-center text-sm text-gray-500" aria-label="현재 위치">
