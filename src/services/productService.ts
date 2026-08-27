@@ -238,7 +238,9 @@ export async function getPopularBusinessOwners(limit?: number): Promise<Business
   const owners = new Map<string, BusinessOwnerShowcase>();
 
   for (const product of products) {
-    const owner = businessMap.get(product.business_id);
+    // 신규 사업장 테이블 연결이 아직 없는 운영 데이터는 기존 사업주 정보로
+    // 대체하여 홈페이지에서 업체가 사라지지 않도록 호환합니다.
+    const owner = businessMap.get(product.business_id) || product.business_owner;
     if (!owner) continue;
 
     const existing = owners.get(owner.id);
