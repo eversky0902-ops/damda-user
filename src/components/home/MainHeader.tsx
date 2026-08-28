@@ -39,6 +39,12 @@ export function MainHeader() {
               <Link href="/signup" className="hover:text-gray-900">회원가입</Link>
             </>
           )}
+          {isAuthenticated && (
+            <>
+              <span className="text-gray-300">|</span>
+              <Link href="/free-forms" className="font-semibold text-teal-700 hover:text-teal-900">무료 행정서류</Link>
+            </>
+          )}
           <span className="text-gray-300">|</span>
           <Link href="/notice" className="hover:text-gray-900">공지사항</Link>
           <span className="text-gray-300">|</span>
