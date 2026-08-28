@@ -25,7 +25,7 @@ export default function AuthLayout({
           fill
           priority
           sizes="50vw"
-          className="object-cover object-[62%_center]"
+          className="object-cover object-[78%_center]"
         />
         {/* Dark overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/70" />
