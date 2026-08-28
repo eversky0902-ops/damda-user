@@ -43,7 +43,7 @@ export default function AuthLayout({
               />
             </Link>
             <h1 className="mb-4 text-3xl font-bold leading-tight">
-              국공립 어린이집을 위한
+              어린이집, 유치원을 위한
               <br />
               현장체험 예약 플랫폼
             </h1>
