@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, FileText, HeartHandshake, MailCheck, MapPinned, ReceiptText, ShieldCheck } from "lucide-react";
+import { FileText, HeartHandshake, MailCheck, MapPinned, ReceiptText, ShieldCheck } from "lucide-react";
 import { FREE_FORM_DEFINITIONS, type FreeFormType } from "@/lib/free-forms";
-import { createClient } from "@/lib/supabase/server";
-import { CategoryGrid } from "@/components/home/CategoryGrid";
 
 export const metadata: Metadata = {
   title: "어린이집 무료 행정서류 양식",
@@ -35,28 +33,14 @@ const ACCENTS = {
 };
 
 export default async function FreeFormsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
   return (
     <div className="bg-slate-50">
       <section className="border-b bg-gradient-to-br from-amber-50 via-white to-teal-50 px-4 py-14 sm:py-20">
         <div className="mx-auto max-w-5xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white px-4 py-2 text-sm font-bold text-amber-800 shadow-sm"><Download className="h-4 w-4" />회원가입 없이 무료</span>
           <h1 className="mt-5 text-3xl font-black tracking-tight text-gray-950 sm:text-5xl">어린이집 행정서류,<br className="sm:hidden" /> 작성하고 바로 내려받으세요</h1>
-          <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-gray-600 sm:text-lg">현장체험 준비에 필요한 6종 양식을 공개합니다. 브라우저에서 내용을 작성한 뒤 Word·한글 호환 문서로 내려받거나 PDF로 저장할 수 있습니다.</p>
-          <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-gray-600"><span>✓ 로그인 불필요</span><span>✓ 서버 저장 없음</span><span>✓ 자유롭게 수정</span><span>✓ 인쇄·PDF 지원</span></div>
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-gray-600 sm:text-lg">현장체험 준비에 필요한 6종 양식을 공개합니다.<br />브라우저에서 내용을 작성한 뒤 Word·한글 호환 문서로 내려받거나 PDF로 저장할 수 있습니다.</p>
         </div>
       </section>
-
-      {user && (
-        <section className="border-b border-gray-100 bg-white" aria-label="체험 카테고리">
-          <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6">
-            <h2 className="text-lg font-black text-gray-950">체험 카테고리</h2>
-          </div>
-          <CategoryGrid />
-        </section>
-      )}
 
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
