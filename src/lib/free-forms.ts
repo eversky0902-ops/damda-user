@@ -75,7 +75,7 @@ export const FREE_FORM_DEFINITIONS: FreeFormDefinition[] = [
     type: "quotation",
     title: "체험학습 견적서",
     shortTitle: "견적서",
-    description: "결제 전 내부 품의와 예산 검토에 사용할 수 있는 단체 체험 견적서입니다.",
+    description: "결제 전 내부 품의와 예산 검토에\n사용할 수 있는 단체 체험 견적서입니다.",
     downloadName: "체험학습_견적서",
     accent: "yellow",
     sections: [
@@ -97,7 +97,7 @@ export const FREE_FORM_DEFINITIONS: FreeFormDefinition[] = [
     type: "payment-statement",
     title: "대금명세서",
     shortTitle: "대금명세서",
-    description: "결제 완료 후 실제 인원·단가·최종 결제금액을 정리하는 거래 내역 문서입니다.",
+    description: "결제 완료 후 실제 인원·단가·최종 결제금액을\n정리하는 거래 내역 문서입니다.",
     downloadName: "대금명세서",
     accent: "teal",
     sections: [
@@ -121,7 +121,7 @@ export const FREE_FORM_DEFINITIONS: FreeFormDefinition[] = [
     type: "venue-guide",
     title: "업체·견학지 안내서",
     shortTitle: "견학지 안내서",
-    description: "활동 내용, 교육적 기대 경험, 준비물과 현장 실무 정보를 한 장에 정리합니다.",
+    description: "활동 내용, 교육적 기대 경험,\n준비물과 현장 실무 정보를 한 장에 정리합니다.",
     downloadName: "업체_견학지_안내서",
     accent: "blue",
     sections: [
@@ -168,7 +168,7 @@ export const FREE_FORM_DEFINITIONS: FreeFormDefinition[] = [
     type: "safety-education",
     title: "현장체험 안전교육지",
     shortTitle: "안전교육지",
-    description: "체험 전 원아 안전교육 내용과 교사의 실시 기록을 함께 남길 수 있습니다.",
+    description: "체험 전 원아 안전교육 내용과\n교사의 실시 기록을 함께 남길 수 있습니다.",
     downloadName: "현장체험_안전교육지",
     accent: "rose",
     sections: [
@@ -217,7 +217,7 @@ export const FREE_FORM_DEFINITIONS: FreeFormDefinition[] = [
     type: "parent-education",
     title: "부모교육지",
     shortTitle: "부모교육지",
-    description: "가정에서 3분 안에 읽고 바로 실천할 수 있는 한 장 부모교육 자료입니다.",
+    description: "가정에서 3분 안에 읽고,\n바로 실천할 수 있는 한 장 부모교육 자료입니다.",
     downloadName: "부모교육지",
     accent: "violet",
     sections: [
@@ -254,7 +254,7 @@ export const FREE_FORM_DEFINITIONS: FreeFormDefinition[] = [
     type: "family-letter",
     title: "체험학습 가정통신문·참여동의서",
     shortTitle: "가정통신문",
-    description: "체험 일정과 준비사항을 안내하고 보호자 참여·촬영 동의까지 받을 수 있습니다.",
+    description: "체험 일정과 준비사항을 안내하고,\n보호자 참여·촬영·동의까지 받을 수 있습니다.",
     downloadName: "체험학습_가정통신문_참여동의서",
     accent: "green",
     sections: [

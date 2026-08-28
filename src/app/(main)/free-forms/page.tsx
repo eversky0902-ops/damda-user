@@ -53,7 +53,7 @@ export default async function FreeFormsPage() {
                   <span className="text-xs font-black text-gray-300">0{index + 1}</span>
                 </div>
                 <h2 className="mt-5 text-xl font-black text-gray-950">{definition.title}</h2>
-                <p className="mt-2 flex-1 text-sm leading-6 text-gray-600">{definition.description}</p>
+                <p className="mt-2 flex-1 whitespace-pre-line text-sm leading-6 text-gray-600">{definition.description}</p>
                 <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-bold text-gray-900">무료로 작성하기 <span aria-hidden>→</span></span>
               </Link>
             );
