@@ -32,7 +32,7 @@ export const metadata: Metadata = {
       "검증된 현장체험 업체와 어린이집·유치원 맞춤 프로그램을 한 곳에서 비교하고 예약하세요.",
     images: [
       {
-        url: "/og-image.png",
+        url: "/og-image.png?v=20260828-2",
         width: 1200,
         height: 630,
         alt: "담다 - 어린이집, 유치원 현장체험학습 예약 플랫폼",
