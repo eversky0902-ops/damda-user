@@ -79,7 +79,11 @@ export function BusinessOwnerCard({
         {image ? (
           <Image
             src={image}
-            alt={owner.featured_product ? `${owner.name} ${owner.featured_product.name} 대표 이미지` : `${owner.name} 대표 이미지`}
+            alt={
+              showProductName && owner.featured_product
+                ? `${owner.name} ${owner.featured_product.name} 대표 이미지`
+                : `${owner.name} 대표 이미지`
+            }
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105"
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -149,7 +153,9 @@ export function BusinessOwnerCard({
               ? "신규 등록"
               : showPrice
                 ? `${owner.min_sale_price.toLocaleString()}원부터`
-                : `최대 ${maxDiscountRate}% 할인`}
+                : maxDiscountRate > 0
+                  ? `최대 ${maxDiscountRate}% 할인`
+                  : "할인 혜택 확인"}
           </strong>
         </div>
       </div>

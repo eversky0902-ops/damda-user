@@ -31,9 +31,9 @@ export function PopularProducts({ businesses }: PopularProductsProps) {
       <div className="mx-auto max-w-6xl px-4">
         <div className="mb-12 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <h2 className="mb-2 text-3xl font-bold tracking-tight md:text-4xl">인기 체험 업체와 프로그램</h2>
+            <h2 className="mb-2 text-3xl font-bold tracking-tight md:text-4xl">인기 체험 업체</h2>
             <p className="text-lg text-muted-foreground">
-              실제 등록된 어린이집 단체체험학습 프로그램의 조건을 비교해 보세요.
+              실제 등록된 다양한 체험 사업장을 한눈에 확인해 보세요.
             </p>
           </div>
           <Button variant="outline" asChild className="hidden md:flex">
@@ -57,10 +57,10 @@ export function PopularProducts({ businesses }: PopularProductsProps) {
               <BusinessOwnerCard
                 key={business.id}
                 owner={business}
-                showPrice
+                showPrice={false}
                 showLogo={false}
-                showProductName
-                showPublicDetails
+                showProductName={false}
+                showPublicDetails={false}
               />
             ))}
           </HorizontalCarousel>

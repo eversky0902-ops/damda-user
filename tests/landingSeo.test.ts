@@ -24,12 +24,14 @@ test("landing reviews do not contain generated samples", () => {
   assert.match(reviewsSource, /등록된 이용 후기가 없습니다/);
 });
 
-test("popular businesses expose real comparison details", () => {
-  assert.match(popularSource, /showPrice/);
-  assert.match(popularSource, /showProductName/);
-  assert.match(popularSource, /showPublicDetails/);
+test("popular businesses show business-only cards with discount rates", () => {
+  assert.match(popularSource, /인기 체험 업체/);
+  assert.match(popularSource, /showPrice=\{false\}/);
+  assert.match(popularSource, /showProductName=\{false\}/);
+  assert.match(popularSource, /showPublicDetails=\{false\}/);
   assert.match(businessCardSource, /showPublicDetails \? null : DEFAULT_IMAGE/);
-  assert.match(businessCardSource, /등록된 대표 이미지가 없습니다/);
+  assert.match(businessCardSource, /text-red-500/);
+  assert.match(businessCardSource, /최대 \$\{maxDiscountRate\}% 할인/);
 });
 
 test("homepage keeps existing structured data and adds visible FAQ data", () => {
