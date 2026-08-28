@@ -9,13 +9,14 @@ import {
   getFreeFormInitialValues,
   type FreeFormField,
   type FreeFormType,
+  formatNumber,
 } from "@/lib/free-forms";
 import { FreeFormPreview } from "./FreeFormPreview";
 
 const inputClass = "mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-damda-yellow focus:ring-2 focus:ring-damda-yellow/20";
 
 function EditorField({ field, value, onChange }: { field: FreeFormField; value: string; onChange: (value: string) => void }) {
-  const common = { id: field.name, name: field.name, value, onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => onChange(event.target.value), className: inputClass };
+  const common = { id: field.name, name: field.name, value: field.kind === "number" ? formatNumber(value) : value, onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => onChange(field.kind === "number" ? event.target.value.replace(/[^0-9]/g, "") : event.target.value), className: inputClass };
   return (
     <label htmlFor={field.name} className={`block text-sm font-semibold text-gray-700 ${field.fullWidth ? "sm:col-span-2" : ""}`}>
       {field.label}
@@ -27,7 +28,7 @@ function EditorField({ field, value, onChange }: { field: FreeFormField; value: 
           {field.options?.map((option) => <option key={option} value={option}>{option}</option>)}
         </select>
       ) : (
-        <input {...common} type={field.kind || "text"} min={field.kind === "number" ? 0 : undefined} step={field.kind === "number" ? 1 : undefined} placeholder={field.placeholder} inputMode={field.kind === "number" ? "numeric" : undefined} />
+        <input {...common} type={field.kind === "number" ? "text" : (field.kind || "text")} min={field.kind === "number" ? 0 : undefined} step={field.kind === "number" ? 1 : undefined} placeholder={field.placeholder} inputMode={field.kind === "number" ? "numeric" : undefined} />
       )}
       {field.help && <span className="mt-1 block text-xs font-normal leading-5 text-gray-500">{field.help}</span>}
     </label>
@@ -78,7 +79,7 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <button type="button" onClick={() => setValues(getFreeFormExampleValues(type))} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-800 hover:bg-violet-100"><Sparkles className="h-4 w-4" />예시 불러오기</button>
               <button type="button" onClick={clearForm} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"><RotateCcw className="h-4 w-4" />전체 비우기</button>
-              <button type="button" onClick={downloadWord} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-damda-yellow px-3 py-2 text-sm font-bold text-gray-950 hover:bg-damda-yellow-dark"><Download className="h-4 w-4" />Word 다운로드</button>
+              <button type="button" onClick={downloadWord} className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-damda-yellow px-3 py-2 text-sm font-bold text-gray-950 hover:bg-damda-yellow-dark"><Download className="h-4 w-4" />Word 다운로드</button>
               <button type="button" onClick={() => window.print()} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-gray-900 px-3 py-2 text-sm font-bold text-white hover:bg-gray-800"><Printer className="h-4 w-4" />인쇄·PDF</button>
             </div>
           </div>
@@ -88,7 +89,7 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
               <h3 className="text-base font-bold text-gray-950">{section.title}</h3>
               {section.description && <p className="mt-1 text-xs leading-5 text-gray-500">{section.description}</p>}
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                {section.fields.map((field) => <EditorField key={field.name} field={field} value={values[field.name] || ""} onChange={(value) => updateValue(field.name, value)} />)}
+                {section.fields.filter((field) => !(type === "quotation" && field.name === "discountAmount")).map((field) => <EditorField key={field.name} field={field} value={values[field.name] || ""} onChange={(value) => updateValue(field.name, value)} />)}
               </div>
             </section>
           ))}

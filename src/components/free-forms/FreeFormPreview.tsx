@@ -1,6 +1,7 @@
 import {
   calculateFreeFormAmounts,
   formatWon,
+  formatNumber,
   type FreeFormDefinition,
   type FreeFormType,
   type FreeFormValues,
@@ -11,7 +12,7 @@ function PreviewValue({ value }: { value?: string }) {
 }
 
 function AmountSummary({ type, values }: { type: FreeFormType; values: FreeFormValues }) {
-  const amount = calculateFreeFormAmounts(values);
+  const amount = calculateFreeFormAmounts(values, { includeDiscount: type !== "quotation" });
   return (
     <section className="mt-6 break-inside-avoid">
       <h2 className="border-l-4 border-damda-yellow pl-2 text-sm font-bold text-gray-950">금액 합계</h2>
@@ -20,7 +21,7 @@ function AmountSummary({ type, values }: { type: FreeFormType; values: FreeFormV
           <tbody className="divide-y divide-gray-200">
             <PreviewRow label="인원별 금액" value={`${amount.participantCount.toLocaleString("ko-KR")}명 × ${formatWon(amount.unitPrice)} = ${formatWon(amount.subtotal)}`} />
             <PreviewRow label="옵션·추가금액" value={formatWon(amount.optionAmount)} />
-            <PreviewRow label="할인금액" value={`-${formatWon(amount.discountAmount)}`} />
+            {type === "payment-statement" && <PreviewRow label="할인금액" value={`-${formatWon(amount.discountAmount)}`} />}
             {type === "payment-statement" && amount.refundAmount > 0 && <PreviewRow label="취소·환불금액" value={`-${formatWon(amount.refundAmount)}`} />}
             <tr className="bg-amber-50">
               <th className="w-36 bg-amber-100/70 px-3 py-3 text-left font-bold text-gray-800">{type === "quotation" ? "최종 견적금액" : "최종 결제금액"}</th>
@@ -81,10 +82,10 @@ export function FreeFormPreview({ definition, values }: { definition: FreeFormDe
           <h2 className="border-l-4 border-damda-yellow pl-2 text-sm font-bold text-gray-950">{section.title}</h2>
           <div className="mt-2 overflow-hidden rounded-lg border border-gray-300">
             <table className="w-full text-xs sm:text-sm"><tbody className="divide-y divide-gray-200">
-              {section.fields.map((field) => (
+              {section.fields.filter((field) => !(definition.type === "quotation" && field.name === "discountAmount")).map((field) => (
                 <tr key={field.name}>
                   <th className="w-36 bg-gray-50 px-3 py-2.5 text-left align-top font-semibold text-gray-600">{field.label}</th>
-                  <td className="px-3 py-2.5 align-top"><PreviewValue value={values[field.name]} /></td>
+                  <td className="px-3 py-2.5 align-top"><PreviewValue value={field.kind === "number" ? formatNumber(values[field.name]) : values[field.name]} /></td>
                 </tr>
               ))}
             </tbody></table>

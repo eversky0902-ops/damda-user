@@ -353,19 +353,24 @@ function numeric(value: string | undefined) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export function calculateFreeFormAmounts(values: FreeFormValues) {
+export function calculateFreeFormAmounts(values: FreeFormValues, options: { includeDiscount?: boolean } = {}) {
   const participantCount = numeric(values.participantCount);
   const unitPrice = numeric(values.unitPrice);
   const optionAmount = numeric(values.optionAmount);
   const discountAmount = numeric(values.discountAmount);
   const subtotal = participantCount * unitPrice;
-  const total = Math.max(0, subtotal + optionAmount - discountAmount);
+  const total = Math.max(0, subtotal + optionAmount - (options.includeDiscount === false ? 0 : discountAmount));
   const refundAmount = numeric(values.refundAmount);
   return { participantCount, unitPrice, optionAmount, discountAmount, subtotal, total, refundAmount, paidTotal: Math.max(0, total - refundAmount) };
 }
 
 export function formatWon(value: number) {
   return `${Math.round(value).toLocaleString("ko-KR")}원`;
+}
+
+export function formatNumber(value: string | number | undefined) {
+  const digits = String(value ?? "").replace(/[^0-9]/g, "");
+  return digits ? Number(digits).toLocaleString("ko-KR") : "";
 }
 
 function escapeHtml(value: string | undefined) {
@@ -402,13 +407,15 @@ function consentHtml(type: FreeFormType) {
 
 export function buildFreeFormDocumentHtml(type: FreeFormType, values: FreeFormValues) {
   const definition = FREE_FORM_DEFINITION_BY_TYPE[type];
-  const amount = calculateFreeFormAmounts(values);
-  const sections = definition.sections.map((section) => `<section><h2>${escapeHtml(section.title)}</h2><table>${section.fields.map((field) => `
-    <tr><th>${escapeHtml(field.label)}</th><td>${htmlValue(values[field.name])}</td></tr>`).join("")}</table></section>`).join("");
+  const amount = calculateFreeFormAmounts(values, { includeDiscount: type !== "quotation" });
+  const sections = definition.sections.map((section) => `<section><h2>${escapeHtml(section.title)}</h2><table>${section.fields
+    .filter((field) => !(type === "quotation" && field.name === "discountAmount"))
+    .map((field) => `
+    <tr><th>${escapeHtml(field.label)}</th><td>${htmlValue(field.kind === "number" ? formatNumber(values[field.name]) : values[field.name])}</td></tr>`).join("")}</table></section>`).join("");
   const amountHtml = type === "quotation" || type === "payment-statement" ? `<section><h2>금액 합계</h2><table>
     <tr><th>인원별 금액</th><td>${amount.participantCount.toLocaleString("ko-KR")}명 × ${formatWon(amount.unitPrice)} = ${formatWon(amount.subtotal)}</td></tr>
     <tr><th>옵션·추가금액</th><td>${formatWon(amount.optionAmount)}</td></tr>
-    <tr><th>할인금액</th><td>-${formatWon(amount.discountAmount)}</td></tr>
+    ${type === "payment-statement" ? `<tr><th>할인금액</th><td>-${formatWon(amount.discountAmount)}</td></tr>` : ""}
     <tr class="total"><th>${type === "quotation" ? "최종 견적금액" : "최종 결제금액"}</th><td>${formatWon(type === "payment-statement" ? amount.paidTotal : amount.total)}</td></tr>
   </table></section>` : "";
 
