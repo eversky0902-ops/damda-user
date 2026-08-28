@@ -121,7 +121,7 @@ export const FREE_FORM_DEFINITIONS: FreeFormDefinition[] = [
     type: "venue-guide",
     title: "업체·견학지 안내서",
     shortTitle: "견학지 안내서",
-    description: "활동 내용, 교육적 기대 경험,\n준비물과 현장 실무 정보를 한 장에 정리합니다.",
+    description: "활동 내용, 교육적 기대 경험, 준비물과 현장 실무 정보를\n한 장에 정리합니다.",
     downloadName: "업체_견학지_안내서",
     accent: "blue",
     sections: [

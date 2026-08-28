@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, FileCheck2, Info, Printer, RotateCcw, Sparkles } from "lucide-react";
 import {
   buildFreeFormDocumentHtml,
@@ -57,7 +57,10 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
       setLoadMessage("등록된 기관 정보를 찾지 못했습니다.");
       return;
     }
-    setValues((current) => ({
+    setValues((current) => type === "venue-guide" ? ({
+      ...current,
+      daycareName: data.name || "",
+    }) : ({
       ...current,
       recipientName: data.name || "",
       recipientRepresentative: data.contact_name || data.representative || "",
@@ -109,6 +112,15 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
     setLoadMessage("장바구니 내역이 입력되었습니다.");
   };
 
+  useEffect(() => {
+    if (type === "venue-guide" && user && isAuthenticated) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void loadLoginInfo();
+    }
+    // 로그인 정보는 인증 상태가 준비된 뒤 자동으로 반영합니다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, user?.id, isAuthenticated]);
+
   const downloadWord = () => {
     const html = buildFreeFormDocumentHtml(type, values);
     const blob = new Blob(["\ufeff", html], { type: "application/msword;charset=utf-8" });
@@ -155,7 +167,7 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
 
           {definition.sections.map((section) => (
             <section key={section.title} className="rounded-2xl border bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3"><h3 className="text-base font-bold text-gray-950">{section.title}</h3>{(["quotation", "payment-statement"].includes(type) && section.title === "수신 기관") && <button type="button" onClick={loadLoginInfo} className="whitespace-nowrap rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "quotation" && section.title === "견적 내역" && <button type="button" onClick={loadCart} className="whitespace-nowrap rounded-md border border-damda-yellow px-2.5 py-1.5 text-xs font-bold text-gray-900 hover:bg-amber-50">장바구니 내역 불러오기</button>}{type === "payment-statement" && section.title === "결제 금액" && <button type="button" onClick={loadLatestReservation} className="whitespace-nowrap rounded-md border border-damda-yellow px-2.5 py-1.5 text-xs font-bold text-gray-900 hover:bg-amber-50">예약 내역 불러오기</button>}</div>
+              <div className="flex items-center justify-between gap-3"><h3 className="text-base font-bold text-gray-950">{section.title}</h3>{(["quotation", "payment-statement"].includes(type) && section.title === "수신 기관") && <button type="button" onClick={loadLoginInfo} className="whitespace-nowrap rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "venue-guide" && section.title === "기본 정보" && <button type="button" onClick={loadLoginInfo} className="whitespace-nowrap rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "quotation" && section.title === "견적 내역" && <button type="button" onClick={loadCart} className="whitespace-nowrap rounded-md border border-damda-yellow px-2.5 py-1.5 text-xs font-bold text-gray-900 hover:bg-amber-50">장바구니 내역 불러오기</button>}{type === "payment-statement" && section.title === "결제 금액" && <button type="button" onClick={loadLatestReservation} className="whitespace-nowrap rounded-md border border-damda-yellow px-2.5 py-1.5 text-xs font-bold text-gray-900 hover:bg-amber-50">예약 내역 불러오기</button>}</div>
               {section.description && <p className="mt-1 text-xs leading-5 text-gray-500">{section.description}</p>}
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 {section.fields.filter((field) => (!(["quotation", "payment-statement"].includes(type)) || field.name !== "discountAmount")).map((field) => <EditorField key={field.name} field={field} value={values[field.name] || ""} onChange={(value) => updateValue(field.name, value)} />)}
