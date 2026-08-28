@@ -101,7 +101,7 @@ export function HorizontalCarousel({
     ));
 
   return (
-    <div className="relative" aria-label={ariaLabel}>
+    <div className="relative min-w-0 overflow-hidden" aria-label={ariaLabel}>
       <div
         ref={viewportRef}
         className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -122,7 +122,7 @@ export function HorizontalCarousel({
           <div ref={firstGroupRef} className="flex shrink-0">
             {renderItems("original")}
           </div>
-          <div className="flex shrink-0">{renderItems("duplicate")}</div>
+          {children.length > 1 && <div className="flex shrink-0">{renderItems("duplicate")}</div>}
         </div>
       </div>
 

@@ -1,0 +1,40 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+const pageSource = readFileSync(new URL("../src/app/page.tsx", import.meta.url), "utf8");
+const heroSource = readFileSync(new URL("../src/components/landing/Hero.tsx", import.meta.url), "utf8");
+const reviewsSource = readFileSync(new URL("../src/components/landing/Reviews.tsx", import.meta.url), "utf8");
+const popularSource = readFileSync(new URL("../src/components/landing/PopularProducts.tsx", import.meta.url), "utf8");
+const businessCardSource = readFileSync(new URL("../src/components/businesses/BusinessOwnerCard.tsx", import.meta.url), "utf8");
+
+test("homepage uses the requested SEO title and description", () => {
+  assert.match(pageSource, /어린이집 단체체험학습·현장체험 예약 \| 담다/);
+  assert.match(pageSource, /지역·연령·참여 인원에 맞는 어린이집 단체체험학습 프로그램/);
+});
+
+test("landing hero contains exactly one h1 with the primary phrase", () => {
+  assert.equal((heroSource.match(/<h1\b/g) || []).length, 1);
+  assert.match(heroSource, /어린이집 단체체험학습,/);
+  assert.match(heroSource, /비교하고 한 번에 예약하세요/);
+});
+
+test("landing reviews do not contain generated samples", () => {
+  assert.doesNotMatch(reviewsSource, /reviewPool|reviewContents|daycareNames|source=\"sample\"/);
+  assert.match(reviewsSource, /등록된 이용 후기가 없습니다/);
+});
+
+test("popular businesses expose real comparison details", () => {
+  assert.match(popularSource, /showPrice/);
+  assert.match(popularSource, /showProductName/);
+  assert.match(popularSource, /showPublicDetails/);
+  assert.match(businessCardSource, /showPublicDetails \? null : DEFAULT_IMAGE/);
+  assert.match(businessCardSource, /등록된 대표 이미지가 없습니다/);
+});
+
+test("homepage keeps existing structured data and adds visible FAQ data", () => {
+  assert.match(pageSource, /organizationJsonLd/);
+  assert.match(pageSource, /websiteJsonLd/);
+  assert.match(pageSource, /FAQPage/);
+  assert.match(pageSource, /landingFaqItems/);
+});

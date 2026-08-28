@@ -7,13 +7,13 @@ const features = [
     icon: Search,
     title: "카테고리 · 지역별 검색",
     description:
-      "원하는 체험 종류와 지역을 선택해 우리 어린이집에 딱 맞는 프로그램을 찾아보세요.",
+      "원하는 체험 종류와 지역을 선택해,\n우리 어린이집에 딱 맞는 프로그램을 찾아보세요.",
   },
   {
     icon: CalendarCheck,
     title: "날짜 · 인원 맞춤 예약",
     description:
-      "원하는 날짜와 참여 인원을 선택하고, 장바구니에 담아 한 번에 예약하세요.",
+      "원하는 날짜와 참여 인원을 선택하고,\n장바구니에 담아 한 번에 예약하세요.",
   },
   {
     icon: CreditCard,
@@ -25,19 +25,19 @@ const features = [
     icon: Heart,
     title: "찜하기 · 리뷰",
     description:
-      "마음에 드는 프로그램은 찜해두고, 다른 어린이집의 실제 후기를 확인하세요.",
+      "마음에 드는 프로그램은 찜해두고,\n다른 어린이집의 실제 후기를 확인하세요.",
   },
   {
     icon: MessageSquare,
     title: "1:1 문의 · 카카오톡 상담",
     description:
-      "궁금한 점은 1:1 문의나 카카오톡 채널로 빠르게 상담받으세요.",
+      "궁금한 점은 1:1 문의나 카카오톡 채널로\n빠르게 상담받으세요.",
   },
   {
     icon: Printer,
     title: "인쇄서비스",
     description:
-      "가정통신문, 안내문 등 어린이집 행정에 필요한 인쇄물도 인쇄할 수 있어요.",
+      "가정통신문, 안내문 등 어린이집 행정에\n필요한 인쇄물도 인쇄할 수 있어요.",
   },
 ];
 
@@ -66,7 +66,7 @@ export function Features() {
                 <feature.icon className="h-6 w-6" />
               </div>
               <h3 className="mb-2 text-lg font-semibold">{feature.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
                 {feature.description}
               </p>
             </div>

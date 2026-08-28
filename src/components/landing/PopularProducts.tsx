@@ -10,18 +10,30 @@ interface PopularProductsProps {
 }
 
 export function PopularProducts({ businesses }: PopularProductsProps) {
-  const publicBusinesses = businesses.filter(
-    (business) => !/테스트|test/i.test(business.name)
-  );
+  const publicBusinesses = businesses
+    .filter((business) => !/테스트|test/i.test(business.name))
+    .map((business) => {
+      const publicProducts = business.products.filter((product) => !/테스트|test/i.test(product.name));
+      return {
+        ...business,
+        products: publicProducts,
+        product_count: publicProducts.length,
+        featured_product: publicProducts[0],
+        min_sale_price: publicProducts.length
+          ? Math.min(...publicProducts.map((product) => product.sale_price))
+          : 0,
+      };
+    })
+    .filter((business) => Boolean(business.featured_product));
 
   return (
     <section id="products" className="bg-secondary/30 py-20 md:py-28">
       <div className="mx-auto max-w-6xl px-4">
         <div className="mb-12 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <h2 className="mb-2 text-3xl font-bold tracking-tight md:text-4xl">인기 체험 업체</h2>
+            <h2 className="mb-2 text-3xl font-bold tracking-tight md:text-4xl">인기 체험 업체와 프로그램</h2>
             <p className="text-lg text-muted-foreground">
-              한 업체에서 운영하는 다양한 체험 상품을 비교해 보세요.
+              실제 등록된 어린이집 단체체험학습 프로그램의 조건을 비교해 보세요.
             </p>
           </div>
           <Button variant="outline" asChild className="hidden md:flex">
@@ -45,9 +57,10 @@ export function PopularProducts({ businesses }: PopularProductsProps) {
               <BusinessOwnerCard
                 key={business.id}
                 owner={business}
-                showPrice={false}
+                showPrice
                 showLogo={false}
-                showProductName={false}
+                showProductName
+                showPublicDetails
               />
             ))}
           </HorizontalCarousel>

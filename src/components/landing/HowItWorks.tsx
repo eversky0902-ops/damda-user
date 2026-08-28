@@ -7,13 +7,13 @@ const steps = [
     icon: UserCheck,
     step: "01",
     title: "어린이집 인증",
-    description: "국공립 어린이집 인증 서류를 제출하고 승인을 받으세요.",
+    description: "보육기관 인증 서류를 제출하고\n최초 1회 승인을 받으세요.",
   },
   {
     icon: Search,
     step: "02",
     title: "프로그램 검색",
-    description: "카테고리, 지역, 날짜별로 원하는 프로그램을 검색하세요.",
+    description: "카테고리, 지역, 날짜별로 원하는\n프로그램을 검색하세요.",
   },
   {
     icon: ShoppingCart,
@@ -72,7 +72,7 @@ export function HowItWorks() {
 
               {/* Content */}
               <h3 className="mb-2 text-lg font-semibold">{item.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
                 {item.description}
               </p>
 

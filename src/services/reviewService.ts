@@ -21,6 +21,10 @@ export interface LandingReview {
   rating: number;
   content: string;
   daycare_label: string;
+  product_name: string | null;
+  product_region: string | null;
+  created_at: string;
+  reservation_linked: boolean;
 }
 
 const REVIEW_SELECT = `
@@ -141,7 +145,9 @@ export async function getLandingReviews(limit = 30): Promise<LandingReview[]> {
       rating,
       content,
       created_at,
-      daycares:daycare_id (name, address)
+      reservation_id,
+      daycares:daycare_id (name, address),
+      products:product_id (name, region)
     `)
     .eq("is_visible", true)
     .order("created_at", { ascending: false })
@@ -154,6 +160,7 @@ export async function getLandingReviews(limit = 30): Promise<LandingReview[]> {
 
   return (data || []).map((item) => {
     const daycare = item.daycares as unknown as { name: string; address: string | null } | null;
+    const product = item.products as unknown as { name: string; region: string | null } | null;
     return {
       id: item.id,
       rating: item.rating,
@@ -161,6 +168,10 @@ export async function getLandingReviews(limit = 30): Promise<LandingReview[]> {
       daycare_label: daycare
         ? formatDaycareLabel(daycare.name, daycare.address)
         : "이용 어린이집",
+      product_name: product?.name || null,
+      product_region: product?.region || null,
+      created_at: item.created_at,
+      reservation_linked: Boolean(item.reservation_id),
     };
   });
 }

@@ -1,24 +1,38 @@
 import {
   Header,
   Hero,
+  ExperienceExplorer,
   Features,
   HowItWorks,
   PopularProducts,
+  GroupBookingChecklist,
   Reviews,
+  LandingFAQ,
   CTASection,
   Footer,
 } from "@/components/landing";
 import type { Metadata } from "next";
 import { getPopularBusinessOwners } from "@/services/productService";
 import { getLandingReviews } from "@/services/reviewService";
+import { landingFaqItems } from "@/components/landing/LandingFAQ";
 
 // 사업주 콘솔의 상품 노출 변경을 메인 화면에 즉시 반영합니다.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export const metadata: Metadata = {
+  title: {
+    absolute: "어린이집 단체체험학습·현장체험 예약 | 담다",
+  },
+  description:
+    "지역·연령·참여 인원에 맞는 어린이집 단체체험학습 프로그램을 비교하고 일정 확인부터 예약·결제까지 한 번에 진행하세요.",
   alternates: { canonical: "/" },
-  openGraph: { url: "/" },
+  openGraph: {
+    url: "/",
+    title: "어린이집 단체체험학습·현장체험 예약 | 담다",
+    description:
+      "지역·연령·참여 인원에 맞는 어린이집 단체체험학습 프로그램을 비교하고 일정 확인부터 예약·결제까지 한 번에 진행하세요.",
+  },
 };
 
 const organizationJsonLd = {
@@ -52,6 +66,19 @@ const websiteJsonLd = {
   publisher: { "@id": "https://withdamda.kr/#organization" },
 };
 
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: landingFaqItems.map((item) => ({
+    "@type": "Question",
+    name: item.question,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.answer,
+    },
+  })),
+};
+
 export default async function Home() {
   const [businesses, landingReviews] = await Promise.all([
     getPopularBusinessOwners(),
@@ -63,16 +90,19 @@ export default async function Home() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([organizationJsonLd, websiteJsonLd]).replace(/</g, "\\u003c"),
+          __html: JSON.stringify([organizationJsonLd, websiteJsonLd, faqJsonLd]).replace(/</g, "\\u003c"),
         }}
       />
       <Header />
       <main className="flex-1">
         <Hero />
-        <Features />
+        <ExperienceExplorer />
         <PopularProducts businesses={businesses} />
+        <GroupBookingChecklist />
+        <Features />
         <HowItWorks />
         <Reviews actualReviews={landingReviews} />
+        <LandingFAQ />
         <CTASection />
       </main>
       <Footer />
