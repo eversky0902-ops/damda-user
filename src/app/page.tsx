@@ -22,16 +22,29 @@ export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: {
-    absolute: "어린이집 단체체험학습·현장체험 예약 | 담다",
+    absolute: "담다 | 어린이집·유치원 현장체험학습 예약 플랫폼",
   },
   description:
-    "지역·연령·참여 인원에 맞는 어린이집 단체체험학습 프로그램을 비교하고 일정 확인부터 예약·결제까지 한 번에 진행하세요.",
+    "검증된 체험학습 프로그램을 간편하게 예약하고, 아이들에게 잊지 못할 추억을 선물하세요.",
   alternates: { canonical: "/" },
   openGraph: {
     url: "/",
-    title: "어린이집 단체체험학습·현장체험 예약 | 담다",
-    description:
-      "지역·연령·참여 인원에 맞는 어린이집 단체체험학습 프로그램을 비교하고 일정 확인부터 예약·결제까지 한 번에 진행하세요.",
+    title: "담다 | 어린이집·유치원 현장체험학습 예약 플랫폼",
+    description: "검증된 체험학습 프로그램을 간편하게 예약하고, 아이들에게 잊지 못할 추억을 선물하세요.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "담다 - 어린이집, 유치원 현장체험학습 예약 플랫폼",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "담다 | 어린이집·유치원 현장체험학습 예약 플랫폼",
+    description: "검증된 체험학습 프로그램을 간편하게 예약하고, 아이들에게 잊지 못할 추억을 선물하세요.",
+    images: ["/og-image.png"],
   },
 };
 
