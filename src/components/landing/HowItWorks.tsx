@@ -52,12 +52,13 @@ export function HowItWorks() {
         {/* Steps */}
         <div className="relative grid gap-8 md:grid-cols-2 lg:grid-cols-5 lg:gap-6">
           {/* Connector line (desktop) */}
-          <div className="absolute left-0 right-0 top-10 hidden h-0.5 bg-gradient-to-r from-transparent via-border to-transparent lg:block" />
+          {/* 아이콘 사이를 모두 연결하는 선 (첫·마지막 구간도 끊기지 않도록 단색으로 표시) */}
+          <div className="absolute left-0 right-0 top-10 z-0 hidden h-0.5 bg-border lg:block" />
 
           {steps.map((item, index) => (
             <div
               key={item.step}
-              className="relative flex flex-col items-center text-center"
+              className="relative z-10 flex flex-col items-center text-center"
             >
               {/* Icon with step number */}
               <div className="relative mb-6">

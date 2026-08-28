@@ -18,12 +18,14 @@ export default function AuthLayout({
     <div className="flex min-h-screen">
       {/* Left side - Branding (Fixed) */}
       <div className="fixed left-0 top-0 hidden h-screen w-1/2 overflow-hidden lg:block">
-        {/* Background image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1587654780291-39c9404d746b?q=80&w=1920&auto=format&fit=crop')`,
-          }}
+        {/* 로그인 화면 옆 이미지 영역. 실제 블럭 이미지는 이 경로의 파일만 교체하면 됩니다. */}
+        <Image
+          src="/login-blocks.png"
+          alt="어린이 블럭 체험 활동 이미지"
+          fill
+          priority
+          sizes="50vw"
+          className="object-cover object-center"
         />
         {/* Dark overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/70" />
