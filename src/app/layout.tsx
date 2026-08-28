@@ -8,11 +8,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://withdamda.kr"),
   title: {
-    default: "담다 | 어린이집·유치원 현장체험 예약 플랫폼",
+    default: "담다 | 어린이집·유치원 현장체험학습 예약 플랫폼",
     template: "%s | 담다",
   },
   description:
-    "담다는 어린이집·유치원을 위한 현장체험 예약 플랫폼입니다. 검증된 체험학습 업체와 프로그램을 지역별로 비교하고 간편하게 예약하세요.",
+    "담다는 어린이집·유치원을 위한 현장체험학습 예약 플랫폼입니다. 검증된 체험학습 업체와 프로그램을 지역별로 비교하고 간편하게 예약하세요.",
   keywords: [
     "어린이집",
     "현장체험",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ko_KR",
     siteName: "담다",
-    title: "담다 | 어린이집·유치원 현장체험 예약 플랫폼",
+    title: "담다 | 어린이집·유치원 현장체험학습 예약 플랫폼",
     description:
       "검증된 현장체험 업체와 어린이집·유치원 맞춤 프로그램을 한 곳에서 비교하고 예약하세요.",
     images: [
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "담다 - 어린이집 현장체험 예약 플랫폼",
+        alt: "담다 - 어린이집, 유치원 현장체험학습 예약 플랫폼",
       },
     ],
   },

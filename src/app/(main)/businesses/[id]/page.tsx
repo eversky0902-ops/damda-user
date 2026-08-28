@@ -26,6 +26,14 @@ interface BusinessPageProps {
 }
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+const SHARED_OG_TITLE = "담다 | 어린이집·유치원 현장체험학습 예약 플랫폼";
+const SHARED_OG_DESCRIPTION = "검증된 체험학습 프로그램을 간편하게 예약하고, 아이들에게 잊지 못할 추억을 선물하세요.";
+const SHARED_OG_IMAGE = {
+  url: "/og-image.png",
+  width: 1200,
+  height: 630,
+  alt: "담다 - 어린이집, 유치원 현장체험학습 예약 플랫폼",
+};
 
 export async function generateMetadata({ params }: BusinessPageProps) {
   const { id } = await params;
@@ -38,11 +46,11 @@ export async function generateMetadata({ params }: BusinessPageProps) {
         description: introduction || `${business.name}의 체험 상품을 확인하세요.`,
         alternates: { canonical: `/businesses/${id}` },
         openGraph: {
-        title: business.name,
-          description: introduction || `${business.name}의 체험 상품을 확인하세요.`,
+          title: SHARED_OG_TITLE,
+          description: SHARED_OG_DESCRIPTION,
           url: `/businesses/${id}`,
           type: "website",
-          images: business.logo_url ? [business.logo_url] : undefined,
+          images: [SHARED_OG_IMAGE],
         },
       }
     : { title: "사업장을 찾을 수 없습니다" };

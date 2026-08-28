@@ -28,6 +28,15 @@ interface ProductDetailPageProps {
   searchParams: Promise<{ preview_token?: string }>;
 }
 
+const SHARED_OG_TITLE = "담다 | 어린이집·유치원 현장체험학습 예약 플랫폼";
+const SHARED_OG_DESCRIPTION = "검증된 체험학습 프로그램을 간편하게 예약하고, 아이들에게 잊지 못할 추억을 선물하세요.";
+const SHARED_OG_IMAGE = {
+  url: "/og-image.png",
+  width: 1200,
+  height: 630,
+  alt: "담다 - 어린이집, 유치원 현장체험학습 예약 플랫폼",
+};
+
 export async function generateMetadata({ params }: ProductDetailPageProps) {
   const { id } = await params;
   const product = await getCachedProductDetail(id);
@@ -40,12 +49,12 @@ export async function generateMetadata({ params }: ProductDetailPageProps) {
     title: product.name,
     description: product.summary || product.name,
     openGraph: {
-      title: product.name,
-      description: product.summary || product.name,
+      title: SHARED_OG_TITLE,
+      description: SHARED_OG_DESCRIPTION,
       siteName: "담다",
       locale: "ko_KR",
       type: "article",
-      images: [product.thumbnail],
+      images: [SHARED_OG_IMAGE],
     },
   };
 }
