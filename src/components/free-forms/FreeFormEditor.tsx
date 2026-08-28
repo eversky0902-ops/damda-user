@@ -14,6 +14,7 @@ import {
 import { FreeFormPreview } from "./FreeFormPreview";
 import { useAuth } from "@/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
+import { useCartStore } from "@/stores/cart-store";
 
 const inputClass = "mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-damda-yellow focus:ring-2 focus:ring-damda-yellow/20";
 
@@ -42,6 +43,7 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
   const [values, setValues] = useState(() => getFreeFormInitialValues(type));
   const [loadMessage, setLoadMessage] = useState("");
   const { user, isAuthenticated } = useAuth();
+  const cartItems = useCartStore((state) => state.items);
 
   const updateValue = (name: string, value: string) => setValues((current) => ({ ...current, [name]: value }));
 
@@ -87,6 +89,24 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
       ...(type === "payment-statement" ? { paymentStatus: "결제 완료", paymentDate: new Date().toISOString().slice(0, 10) } : {}),
     }));
     setLoadMessage("최근 예약 내역이 입력되었습니다.");
+  };
+
+  const loadCart = () => {
+    const item = cartItems[0];
+    if (!item) {
+      setLoadMessage("장바구니에 담긴 상품이 없습니다.");
+      return;
+    }
+    const optionAmount = (item.options || []).reduce((sum, option) => sum + option.price * option.quantity, 0);
+    setValues((current) => ({
+      ...current,
+      experienceName: item.product.name,
+      experienceDate: item.reservationDate?.slice(0, 10) || current.experienceDate,
+      participantCount: String(item.participants || ""),
+      unitPrice: String(item.product.sale_price || ""),
+      optionAmount: String(optionAmount),
+    }));
+    setLoadMessage("장바구니 내역이 입력되었습니다.");
   };
 
   const downloadWord = () => {
@@ -135,7 +155,7 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
 
           {definition.sections.map((section) => (
             <section key={section.title} className="rounded-2xl border bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3"><h3 className="text-base font-bold text-gray-950">{section.title}</h3>{type === "payment-statement" && section.title === "수신 기관" && <button type="button" onClick={loadLoginInfo} className="rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "payment-statement" && section.title === "결제 금액" && <button type="button" onClick={loadLatestReservation} className="rounded-md border border-damda-yellow px-2.5 py-1.5 text-xs font-bold text-gray-900 hover:bg-amber-50">예약 내역 불러오기</button>}</div>
+              <div className="flex items-center justify-between gap-3"><h3 className="text-base font-bold text-gray-950">{section.title}</h3>{(["quotation", "payment-statement"].includes(type) && section.title === "수신 기관") && <button type="button" onClick={loadLoginInfo} className="whitespace-nowrap rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "quotation" && section.title === "견적 내역" && <button type="button" onClick={loadCart} className="whitespace-nowrap rounded-md border border-damda-yellow px-2.5 py-1.5 text-xs font-bold text-gray-900 hover:bg-amber-50">장바구니 내역 불러오기</button>}{type === "payment-statement" && section.title === "결제 금액" && <button type="button" onClick={loadLatestReservation} className="whitespace-nowrap rounded-md border border-damda-yellow px-2.5 py-1.5 text-xs font-bold text-gray-900 hover:bg-amber-50">예약 내역 불러오기</button>}</div>
               {section.description && <p className="mt-1 text-xs leading-5 text-gray-500">{section.description}</p>}
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 {section.fields.filter((field) => (!(["quotation", "payment-statement"].includes(type)) || field.name !== "discountAmount")).map((field) => <EditorField key={field.name} field={field} value={values[field.name] || ""} onChange={(value) => updateValue(field.name, value)} />)}
