@@ -19,9 +19,10 @@ test("landing hero contains exactly one h1 with the primary phrase", () => {
   assert.match(heroSource, /비교하고 한 번에 예약하세요/);
 });
 
-test("landing reviews do not contain generated samples", () => {
-  assert.doesNotMatch(reviewsSource, /reviewPool|reviewContents|daycareNames|source=\"sample\"/);
-  assert.match(reviewsSource, /등록된 이용 후기가 없습니다/);
+test("landing reviews combine actual reviews with the sample rotation", () => {
+  assert.match(reviewsSource, /SAMPLE_REVIEWS/);
+  assert.match(reviewsSource, /\[\.\.\.actualReviews, \.\.\.SAMPLE_REVIEWS\]/);
+  assert.match(reviewsSource, /review\.id\.startsWith\("sample-review-"\) \? "sample" : "actual"/);
 });
 
 test("popular businesses show business-only cards with discount rates", () => {
