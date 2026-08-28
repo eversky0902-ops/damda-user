@@ -97,7 +97,7 @@ export const FREE_FORM_DEFINITIONS: FreeFormDefinition[] = [
     type: "payment-statement",
     title: "대금명세서",
     shortTitle: "대금명세서",
-    description: "결제 완료 후 실제 인원·단가·최종 결제금액을\n정리하는 거래 내역 문서입니다.",
+    description: "결제 완료 후 실제 인원·단가·최종 결제 금액을\n정리하는 거래 내역 문서입니다.",
     downloadName: "대금명세서",
     accent: "teal",
     sections: [
@@ -407,15 +407,14 @@ function consentHtml(type: FreeFormType) {
 
 export function buildFreeFormDocumentHtml(type: FreeFormType, values: FreeFormValues) {
   const definition = FREE_FORM_DEFINITION_BY_TYPE[type];
-  const amount = calculateFreeFormAmounts(values, { includeDiscount: type !== "quotation" });
+  const amount = calculateFreeFormAmounts(values, { includeDiscount: false });
   const sections = definition.sections.map((section) => `<section><h2>${escapeHtml(section.title)}</h2><table>${section.fields
-    .filter((field) => !(type === "quotation" && field.name === "discountAmount"))
+    .filter((field) => !(["quotation", "payment-statement"].includes(type) && field.name === "discountAmount"))
     .map((field) => `
     <tr><th>${escapeHtml(field.label)}</th><td>${htmlValue(field.kind === "number" ? formatNumber(values[field.name]) : values[field.name])}</td></tr>`).join("")}</table></section>`).join("");
   const amountHtml = type === "quotation" || type === "payment-statement" ? `<section><h2>금액 합계</h2><table>
     <tr><th>인원별 금액</th><td>${amount.participantCount.toLocaleString("ko-KR")}명 × ${formatWon(amount.unitPrice)} = ${formatWon(amount.subtotal)}</td></tr>
     <tr><th>옵션·추가금액</th><td>${formatWon(amount.optionAmount)}</td></tr>
-    ${type === "payment-statement" ? `<tr><th>할인금액</th><td>-${formatWon(amount.discountAmount)}</td></tr>` : ""}
     <tr class="total"><th>${type === "quotation" ? "최종 견적금액" : "최종 결제금액"}</th><td>${formatWon(type === "payment-statement" ? amount.paidTotal : amount.total)}</td></tr>
   </table></section>` : "";
 
