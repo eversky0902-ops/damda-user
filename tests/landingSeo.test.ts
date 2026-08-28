@@ -7,6 +7,8 @@ const heroSource = readFileSync(new URL("../src/components/landing/Hero.tsx", im
 const reviewsSource = readFileSync(new URL("../src/components/landing/Reviews.tsx", import.meta.url), "utf8");
 const popularSource = readFileSync(new URL("../src/components/landing/PopularProducts.tsx", import.meta.url), "utf8");
 const businessCardSource = readFileSync(new URL("../src/components/businesses/BusinessOwnerCard.tsx", import.meta.url), "utf8");
+const footerSource = readFileSync(new URL("../src/components/home/MainFooter.tsx", import.meta.url), "utf8");
+const emailRejectionSource = readFileSync(new URL("../src/app/(main)/email-rejection/page.tsx", import.meta.url), "utf8");
 
 test("homepage uses the requested SEO title and description", () => {
   assert.match(pageSource, /어린이집 단체체험학습·현장체험 예약 \| 담다/);
@@ -40,4 +42,11 @@ test("homepage keeps existing structured data and adds visible FAQ data", () => 
   assert.match(pageSource, /websiteJsonLd/);
   assert.match(pageSource, /FAQPage/);
   assert.match(pageSource, /landingFaqItems/);
+});
+
+test("footer links to the email collection rejection notice", () => {
+  assert.match(footerSource, /href="\/email-rejection"/);
+  assert.match(footerSource, /이메일 무단 수집거부/);
+  assert.match(emailRejectionSource, /본 웹사이트에 게시된 이메일 주소/);
+  assert.match(emailRejectionSource, /게시일자: 2026년 7월 16일/);
 });
