@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const pageSource = readFileSync(new URL("../src/app/page.tsx", import.meta.url), "utf8");
+const layoutSource = readFileSync(new URL("../src/app/layout.tsx", import.meta.url), "utf8");
 const heroSource = readFileSync(new URL("../src/components/landing/Hero.tsx", import.meta.url), "utf8");
 const reviewsSource = readFileSync(new URL("../src/components/landing/Reviews.tsx", import.meta.url), "utf8");
 const popularSource = readFileSync(new URL("../src/components/landing/PopularProducts.tsx", import.meta.url), "utf8");
@@ -11,8 +12,8 @@ const footerSource = readFileSync(new URL("../src/components/home/MainFooter.tsx
 const emailRejectionSource = readFileSync(new URL("../src/app/(main)/email-rejection/page.tsx", import.meta.url), "utf8");
 
 test("homepage uses the requested SEO title and description", () => {
-  assert.match(pageSource, /어린이집 단체체험학습·현장체험 예약 \| 담다/);
-  assert.match(pageSource, /지역·연령·참여 인원에 맞는 어린이집 단체체험학습 프로그램/);
+  assert.match(pageSource, /담다 \| 어린이집·유치원 현장체험학습 예약 플랫폼/);
+  assert.match(pageSource, /검증된 체험학습 프로그램을 간편하게 예약하고, 아이들에게 잊지 못할 추억을 선물하세요/);
 });
 
 test("landing hero contains exactly one h1 with the primary phrase", () => {
@@ -38,10 +39,11 @@ test("popular businesses show business-only cards with discount rates", () => {
 });
 
 test("homepage keeps existing structured data and adds visible FAQ data", () => {
-  assert.match(pageSource, /organizationJsonLd/);
-  assert.match(pageSource, /websiteJsonLd/);
-  assert.match(pageSource, /FAQPage/);
-  assert.match(pageSource, /landingFaqItems/);
+  assert.match(layoutSource, /homeStructuredData/);
+  assert.match(layoutSource, /Organization/);
+  assert.match(layoutSource, /WebSite/);
+  assert.match(layoutSource, /FAQPage/);
+  assert.match(layoutSource, /landingFaqItems/);
 });
 
 test("footer links to the email collection rejection notice", () => {

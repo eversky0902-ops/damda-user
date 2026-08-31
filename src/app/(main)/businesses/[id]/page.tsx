@@ -287,19 +287,19 @@ export default async function BusinessPage({ params }: BusinessPageProps) {
                 {business.hours.map((hour) => <BusinessHourRow key={hour.id} hour={hour} />)}
               </div>
             )}
-            {business.place_profile?.reservation_notice && (
-              <p className="whitespace-pre-line text-sm leading-7 text-gray-700">{business.place_profile.reservation_notice}</p>
-            )}
             {business.common_guide && <p className="mt-4 whitespace-pre-line text-sm leading-7 text-gray-700">{business.common_guide}</p>}
             {business.common_precautions && <p className="mt-4 whitespace-pre-line rounded-xl bg-amber-50 p-4 text-sm leading-7 text-gray-700">{business.common_precautions}</p>}
-            {!business.hours.length && !business.place_profile?.reservation_notice && !business.common_guide && !business.common_precautions && (
+            {!business.hours.length && !business.common_guide && !business.common_precautions && (
               <EmptySectionText>상세 이용안내를 준비하고 있습니다.</EmptySectionText>
             )}
           </InfoSection>
 
           <InfoSection id="reservation-notice" title="예약공지" icon={<ShieldCheck />}>
-            {refundPolicy?.content ? (
-              <details className="group">
+            {business.place_profile?.reservation_notice && (
+              <p className="whitespace-pre-line text-sm leading-7 text-gray-700">{business.place_profile.reservation_notice}</p>
+            )}
+            {refundPolicy?.content && (
+              <details className={`group ${business.place_profile?.reservation_notice ? "mt-5" : ""}`}>
                 <summary className="cursor-pointer list-none font-semibold text-gray-900 marker:hidden">
                   예약 및 취소·환불 정책 자세히 보기 <span className="ml-1 text-damda-teal-dark group-open:hidden">+</span><span className="ml-1 hidden text-damda-teal-dark group-open:inline">−</span>
                 </summary>
@@ -308,7 +308,8 @@ export default async function BusinessPage({ params }: BusinessPageProps) {
                   dangerouslySetInnerHTML={{ __html: refundPolicy.content }}
                 />
               </details>
-            ) : (
+            )}
+            {!business.place_profile?.reservation_notice && !refundPolicy?.content && (
               <EmptySectionText>예약 전 확인사항을 준비하고 있습니다.</EmptySectionText>
             )}
           </InfoSection>

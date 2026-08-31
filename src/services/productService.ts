@@ -45,6 +45,7 @@ export interface Product {
   dropoff_space_available: boolean | null;
   meal_available: boolean | null;
   lunchbox_allowed: boolean | null;
+  facility_services: Record<string, boolean> | null;
   restroom_info: string | null;
   child_restroom_available: boolean | null;
   teacher_supplies: string | null;
