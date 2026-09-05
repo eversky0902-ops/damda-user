@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { createCacheClient } from "@/lib/supabase/cache-client";
+import { createClient } from "@/lib/supabase/server";
 
 export interface Review {
   id: string;
@@ -107,7 +108,24 @@ const getRecentReviewsCached = unstable_cache(
 );
 
 export async function getFeaturedReviews(limit = 6): Promise<Review[]> {
-  return getFeaturedReviewsCached(limit);
+  // Featured reviews are shown only after login. The request-bound client is
+  // required because anonymous access to daycare identities is intentionally
+  // blocked by RLS.
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("reviews")
+    .select(REVIEW_SELECT)
+    .eq("is_visible", true)
+    .eq("is_featured", true)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("Error fetching featured reviews:", error);
+    return [];
+  }
+
+  return (data || []).map((item) => mapReview(item as RawReview));
 }
 
 export async function getRecentReviews(limit = 6): Promise<Review[]> {

@@ -7,9 +7,26 @@ import { HorizontalCarousel } from "./HorizontalCarousel";
 
 interface PopularProductsProps {
   businesses: BusinessOwnerShowcase[];
+  isAuthenticated: boolean;
 }
 
-export function PopularProducts({ businesses }: PopularProductsProps) {
+export function PopularProducts({ businesses, isAuthenticated }: PopularProductsProps) {
+  if (!isAuthenticated) {
+    return (
+      <section id="products" className="bg-secondary/30 py-20 md:py-28">
+        <div className="mx-auto max-w-6xl px-4 text-center">
+          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">검증된 체험 사업장</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+            담다는 승인된 회원만 체험 사업장과 프로그램 정보를 확인할 수 있는 폐쇄형 예약 플랫폼입니다.
+          </p>
+          <Button asChild className="mt-7">
+            <Link href="/login">로그인하고 체험 상품 보기</Link>
+          </Button>
+        </div>
+      </section>
+    );
+  }
+
   const publicBusinesses = businesses
     .filter((business) => !/테스트|test/i.test(business.name))
     .map((business) => {

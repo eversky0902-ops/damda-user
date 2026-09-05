@@ -3,48 +3,7 @@ import NextTopLoader from "nextjs-toploader";
 import { Providers } from "@/providers";
 import { FloatingChatButton } from "@/components/common/FloatingChatButton";
 import { NaverAnalytics } from "@/components/common/NaverAnalytics";
-import { landingFaqItems } from "@/components/landing/LandingFAQ";
 import "./globals.css";
-
-const homeStructuredData = [
-  {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "@id": "https://withdamda.kr/#organization",
-    name: "담다",
-    url: "https://withdamda.kr/",
-    logo: "https://withdamda.kr/logo.svg",
-    description: "어린이집·유치원을 위한 현장체험 프로그램 검색 및 예약 플랫폼",
-    email: "damda_0001@naver.com",
-    telephone: "+82-10-7625-3711",
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: "컨벤시아대로 81, 5층 509호-175A호",
-      addressLocality: "연수구",
-      addressRegion: "인천광역시",
-      addressCountry: "KR",
-    },
-  },
-  {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "@id": "https://withdamda.kr/#website",
-    url: "https://withdamda.kr/",
-    name: "담다",
-    alternateName: "담다 현장체험 예약",
-    inLanguage: "ko-KR",
-    publisher: { "@id": "https://withdamda.kr/#organization" },
-  },
-  {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: landingFaqItems.map((item) => ({
-      "@type": "Question",
-      name: item.question,
-      acceptedAnswer: { "@type": "Answer", text: item.answer },
-    })),
-  },
-];
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://withdamda.kr"),
@@ -86,11 +45,14 @@ export const metadata: Metadata = {
     },
   },
   robots: {
-    index: true,
-    follow: true,
+    // 폐쇄형 서비스이므로 랜딩 페이지가 아닌 모든 경로는 기본적으로 색인을 막습니다.
+    index: false,
+    follow: false,
     googleBot: {
-      index: true,
-      follow: true,
+      index: false,
+      follow: false,
+      noimageindex: true,
+      nosnippet: true,
     },
   },
   category: "어린이집·유치원 현장체험 예약",
@@ -109,12 +71,6 @@ export default function RootLayout({
           as="style"
           crossOrigin="anonymous"
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(homeStructuredData).replace(/</g, "\\u003c"),
-          }}
         />
       </head>
       <body className="font-pretendard antialiased bg-white">

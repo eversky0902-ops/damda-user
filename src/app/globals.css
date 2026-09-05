@@ -314,6 +314,8 @@
 
   body {
     background: #fff !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   body * {
@@ -326,19 +328,37 @@
   }
 
   .document-sheet {
-    position: absolute;
-    inset: 0;
-    width: 100%;
+    position: static !important;
+    width: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
   }
 
   body > div > header,
-  body > div > footer,
-  .document-page > :not(form) {
+  body > div > footer {
     display: none !important;
   }
 
   .document-page {
     max-width: none !important;
     padding: 0 !important;
+  }
+
+  .document-page > .mx-auto.grid {
+    display: block !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .document-sheet section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .document-sheet table,
+  .document-sheet tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }

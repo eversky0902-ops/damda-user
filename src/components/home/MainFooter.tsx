@@ -73,6 +73,12 @@ export async function MainFooter() {
             <Link href="/email-rejection" className="hover:text-white">이메일 무단 수집거부</Link>
           </div>
           <div className="flex gap-4">
+            <a
+              href="https://santarally.net/c/c_HZJwVaOY0lJ83oobzylP1MHDe7eFPYbP/article-index-c_HZJwVaOY0lJ83oobzylP1MHDe7eFPYbP"
+              className="hover:text-white"
+            >
+              블로그
+            </a>
             <Link href="/partner" className="hover:text-white">입점문의</Link>
             <Link href="/notice" className="hover:text-white">공지사항</Link>
           </div>

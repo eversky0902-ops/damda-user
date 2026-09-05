@@ -167,6 +167,11 @@ export interface BusinessOwnerShowcase {
   products: Product[];
 }
 
+export interface BusinessProductPreviewBundle {
+  business: BusinessDetail;
+  products: Product[];
+}
+
 export interface PaginatedBusinesses {
   data: BusinessOwnerShowcase[];
   total: number;
@@ -228,9 +233,9 @@ export async function getPopularProducts(limit = 8): Promise<Product[]> {
  * 조회수 순 상품을 사업주별로 묶어 대표 상품과 등록 상품 수를 계산합니다.
  */
 export async function getPopularBusinessOwners(limit?: number): Promise<BusinessOwnerShowcase[]> {
-  // 사업주 콘솔에서 노출 상품을 등록한 직후 홈페이지에 반영되어야 하므로
-  // 이 목록은 5분 상품 캐시를 사용하지 않고 공개 데이터를 직접 조회합니다.
-  const supabase = createCacheClient();
+  // The catalogue is a member-only resource. Use the request-bound client so
+  // the query carries the approved daycare session instead of the anon key.
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
     .select(`
@@ -1034,6 +1039,44 @@ export async function getProductDetail(id: string): Promise<ProductDetail | null
     unavailable_dates: unavailableDatesResult.data || [],
     available_time_slots: product.available_time_slots as ProductTimeSlot[] | null,
   };
+}
+
+export async function getProductPreview(
+  id: string,
+  token: string
+): Promise<ProductDetail | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_product_preview", {
+    p_product_id: id,
+    p_token: token,
+  });
+
+  if (error || !data) {
+    console.error("Error fetching product preview:", error);
+    return null;
+  }
+
+  return data as unknown as ProductDetail;
+}
+
+export async function getBusinessProductPreview(
+  businessId: string,
+  productId: string,
+  token: string
+): Promise<BusinessProductPreviewBundle | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_business_product_preview", {
+    p_business_id: businessId,
+    p_product_id: productId,
+    p_token: token,
+  });
+
+  if (error || !data) {
+    console.error("Error fetching business product preview:", error);
+    return null;
+  }
+
+  return data as unknown as BusinessProductPreviewBundle;
 }
 
 // 상품 리뷰 조회

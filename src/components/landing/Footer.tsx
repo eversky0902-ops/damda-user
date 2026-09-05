@@ -14,10 +14,17 @@ export function Footer() {
             <Link href="/privacy" className="hover:text-white">개인정보처리방침</Link>
             <Link href="/refund-policy" className="hover:text-white">환불정책</Link>
             <Link href="/reservation-guide" className="hover:text-white">예약안내</Link>
+            <Link href="/free-forms" className="font-semibold text-white hover:text-damda-yellow">무료 행정서류</Link>
           </div>
           <div className="flex gap-4">
-            <Link href="/support" className="hover:text-white">제휴문의</Link>
+            <Link href="/partner" className="hover:text-white">입점문의</Link>
             <Link href="/notice" className="hover:text-white">공지사항</Link>
+            <a
+              href="https://santarally.net/c/c_HZJwVaOY0lJ83oobzylP1MHDe7eFPYbP/article-index-c_HZJwVaOY0lJ83oobzylP1MHDe7eFPYbP"
+              className="hover:text-white"
+            >
+              블로그
+            </a>
           </div>
         </div>
       </div>

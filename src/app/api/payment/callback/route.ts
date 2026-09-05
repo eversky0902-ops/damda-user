@@ -10,18 +10,6 @@ export async function POST(request: NextRequest) {
     const tid = formData.get("tid") as string;
     const orderId = formData.get("orderId") as string;
     const amount = formData.get("amt") as string; // NICE Pay는 'amt'로 전달
-    const signature = formData.get("signature") as string;
-    const authToken = formData.get("authToken") as string;
-
-    console.log("NICE Pay callback received:", {
-      authResultCode,
-      authResultMsg,
-      tid,
-      orderId,
-      amount,
-      signature,
-      authToken,
-    });
 
     // 쿼리 파라미터로 변환하여 콜백 페이지로 리다이렉트
     const params = new URLSearchParams();
@@ -30,8 +18,7 @@ export async function POST(request: NextRequest) {
     if (tid) params.set("tid", tid);
     if (orderId) params.set("orderId", orderId);
     if (amount) params.set("amount", amount);
-    if (signature) params.set("signature", signature);
-    if (authToken) params.set("authToken", authToken);
+    // 인증 토큰·서명은 URL이나 애플리케이션 로그로 전달하지 않는다.
 
     const redirectUrl = `/checkout/callback?${params.toString()}`;
 

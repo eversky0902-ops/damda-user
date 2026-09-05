@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/stores/cart-store";
-import { createReservations, clearCart as clearCartDB } from "@/services/cartService";
+import { clearCart as clearCartDB } from "@/services/cartService";
 import { releaseAllUserHolds } from "@/services/holdService";
 
 type PaymentStatus = "processing" | "success" | "error";
@@ -14,10 +14,9 @@ type PaymentStatus = "processing" | "success" | "error";
 function PaymentCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { items, clearCart, clearDirectItem, setSelectedItemIds } = useCartStore();
+  const { clearCart, clearDirectItem, setSelectedItemIds } = useCartStore();
   const [status, setStatus] = useState<PaymentStatus>("processing");
   const [message, setMessage] = useState("결제를 처리하고 있습니다...");
-  const [orderId, setOrderId] = useState<string | null>(null);
   const [reservationId, setReservationId] = useState<string | null>(null);
   const processedRef = useRef(false);
 
@@ -30,6 +29,7 @@ function PaymentCallbackContent() {
       const authResultCode = searchParams.get("authResultCode");
       const authResultMsg = searchParams.get("authResultMsg");
       const tid = searchParams.get("tid");
+      const orderId = searchParams.get("orderId");
 
       // 인증 실패 체크
       if (authResultCode !== "0000") {
@@ -41,36 +41,14 @@ function PaymentCallbackContent() {
         return;
       }
 
-      if (!tid) {
+      if (!tid || !orderId) {
         // 홀드 해제
         await releaseAllUserHolds();
         localStorage.removeItem("damda_payment_holds");
         setStatus("error");
-        setMessage("결제 정보가 올바르지 않습니다. (tid 없음)");
+        setMessage("결제 정보가 올바르지 않습니다.");
         return;
       }
-
-      // localStorage에서 결제 금액 계산
-      const storedCartItems = localStorage.getItem("damda_checkout_items");
-      if (!storedCartItems) {
-        // 홀드 해제
-        await releaseAllUserHolds();
-        localStorage.removeItem("damda_payment_holds");
-        setStatus("error");
-        setMessage("장바구니 정보를 찾을 수 없습니다.");
-        return;
-      }
-
-      const cartItems = JSON.parse(storedCartItems);
-      const amount = cartItems.reduce((total: number, item: typeof items[0]) => {
-        let itemTotal = item.product.sale_price * item.participants;
-        if (item.options) {
-          item.options.forEach((opt: { price: number; quantity: number }) => {
-            itemTotal += opt.price * opt.quantity;
-          });
-        }
-        return total + itemTotal;
-      }, 0);
 
       try {
         setMessage("결제를 승인하고 있습니다...");
@@ -83,69 +61,21 @@ function PaymentCallbackContent() {
           },
           body: JSON.stringify({
             tid,
-            amount: amount,
+            orderId,
           }),
         });
 
         const approveResult = await approveResponse.json();
 
         if (!approveResult.success) {
-          // 홀드 해제
-          await releaseAllUserHolds();
-          localStorage.removeItem("damda_payment_holds");
+          // PG 승인 이후 예약 확정에 실패한 경우에는 홀드를 풀지 않는다.
+          // 결제 상태를 재조정하기 전 다른 사용자가 같은 재고를 예약하는 것을 방지한다.
+          if (!approveResult.paymentApproved) {
+            await releaseAllUserHolds();
+            localStorage.removeItem("damda_payment_holds");
+          }
           setStatus("error");
           setMessage(approveResult.error || "결제 승인에 실패했습니다.");
-          return;
-        }
-
-        setMessage("예약을 생성하고 있습니다...");
-
-        // localStorage에서 예약 정보 가져오기
-        const storedReserverInfo = localStorage.getItem("damda_reserver_info");
-        const storedPaymentMethod = localStorage.getItem("damda_payment_method");
-
-        const reserverInfo = storedReserverInfo
-          ? JSON.parse(storedReserverInfo)
-          : { name: "", phone: "", email: "" };
-        const paymentMethod = storedPaymentMethod || "card";
-
-        // 예약 생성
-        const reservationItems = cartItems.map((item: typeof items[0]) => {
-          let itemTotal = item.product.sale_price * item.participants;
-          if (item.options) {
-            item.options.forEach((opt: { price: number; quantity: number }) => {
-              itemTotal += opt.price * opt.quantity;
-            });
-          }
-          return {
-            productId: item.product.id,
-            reservedDate: item.reservationDate,
-            reservedTime: item.reservationTime,
-            participants: item.participants,
-            options: item.options,
-            totalAmount: itemTotal,
-          };
-        });
-
-        const result = await createReservations({
-          items: reservationItems,
-          reserverInfo: {
-            name: reserverInfo.name,
-            phone: reserverInfo.phone,
-            email: reserverInfo.email || undefined,
-            daycareName: reserverInfo.daycareName || undefined,
-          },
-          paymentMethod,
-          paymentTid: tid,
-        });
-
-        if (!result.success) {
-          // 홀드 해제
-          await releaseAllUserHolds();
-          localStorage.removeItem("damda_payment_holds");
-          setStatus("error");
-          setMessage(result.error || "예약 생성에 실패했습니다.");
-          // TODO: 결제 취소 API 호출 필요
           return;
         }
 
@@ -159,13 +89,10 @@ function PaymentCallbackContent() {
         await releaseAllUserHolds();
 
         // localStorage 정리
-        localStorage.removeItem("damda_reserver_info");
-        localStorage.removeItem("damda_payment_method");
-        localStorage.removeItem("damda_checkout_items");
         localStorage.removeItem("damda_payment_holds");
 
-        setOrderId(result.orderId || null);
-        setReservationId(result.reservationId || null);
+        const reservationIds = approveResult.data?.reservationIds as string[] | undefined;
+        setReservationId(reservationIds?.[0] || null);
         setStatus("success");
         setMessage("결제 및 예약이 완료되었습니다!");
       } catch (error) {
@@ -179,7 +106,7 @@ function PaymentCallbackContent() {
     };
 
     processPayment();
-  }, [searchParams, items, clearCart, clearDirectItem, setSelectedItemIds]);
+  }, [searchParams, clearCart, clearDirectItem, setSelectedItemIds]);
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center">

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getBusinessHref } from "@/lib/businessRouting";
 import { Baby, Clock3, ImageOff, MapPin, Package, Users } from "lucide-react";
 import type { BusinessOwnerShowcase } from "@/services/productService";
+import { BusinessOwnerWishlistButton } from "./BusinessOwnerWishlistButton";
 
 const DEFAULT_IMAGE =
   "https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=800&q=80";
@@ -94,6 +95,11 @@ export function BusinessOwnerCard({
             <span>등록된 대표 이미지가 없습니다.</span>
           </div>
         )}
+
+        <BusinessOwnerWishlistButton
+          productId={owner.featured_product?.id}
+          businessName={owner.name}
+        />
       </div>
 
       <div className="p-4">

@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import type { Product } from "@/services/productService";
+import { ProductWishlistButton } from "@/components/products/ProductWishlistButton";
 import { TeacherPracticalInfo } from "@/components/products/TeacherPracticalInfo";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,7 +37,9 @@ interface BusinessProductCardProps {
   selected?: boolean;
   onSelect?: () => void;
   onReserve?: () => void;
+  onAddToCart?: () => void;
   selectionMode?: boolean;
+  isPreview?: boolean;
 }
 
 function formatPrice(value: number) {
@@ -66,7 +69,9 @@ export function BusinessProductCard({
   selected = false,
   onSelect,
   onReserve,
+  onAddToCart,
   selectionMode = false,
+  isPreview = false,
 }: BusinessProductCardProps) {
   const image = getProductImage(product, businessLogo);
   const summary = product.summary || plainText(product.description);
@@ -109,6 +114,10 @@ export function BusinessProductCard({
           <span className={`absolute left-4 top-4 rounded-full px-3 py-1 text-xs font-semibold ${reservable ? "bg-white text-damda-teal-dark" : "bg-gray-900/75 text-white"}`}>
             {reservable ? "예약 가능" : product.is_sold_out ? "예약 마감" : "판매 중지"}
           </span>
+          <ProductWishlistButton
+            productId={product.id}
+            label={product.name}
+          />
         </div>
 
         <div className="flex min-w-0 flex-col">
@@ -177,7 +186,7 @@ export function BusinessProductCard({
                         <SheetTitle className="pr-8 text-xl">{product.name}</SheetTitle>
                         <SheetDescription>상품별 이용 조건과 상세정보입니다.</SheetDescription>
                       </SheetHeader>
-                      <ProductDetailContent product={product} businessLogo={businessLogo} />
+                      <ProductDetailContent product={product} businessLogo={businessLogo} isPreview={isPreview} />
                     </SheetContent>
                   </Sheet>
                 </div>
@@ -191,22 +200,48 @@ export function BusinessProductCard({
                         <DialogTitle className="pr-8 text-2xl">{product.name}</DialogTitle>
                         <DialogDescription>상품별 이용 조건과 상세정보입니다.</DialogDescription>
                       </DialogHeader>
-                      <ProductDetailContent product={product} businessLogo={businessLogo} />
+                      <ProductDetailContent product={product} businessLogo={businessLogo} isPreview={isPreview} />
                     </DialogContent>
                   </Dialog>
                 </div>
                 {reservable && selectionMode ? (
-                  <Button
-                    type="button"
-                    onClick={selected ? onReserve : onSelect}
-                    className={`h-12 flex-1 px-6 text-gray-950 ${selected ? "bg-damda-yellow-dark" : "bg-damda-yellow hover:bg-damda-yellow-dark"}`}
-                  >
-                    {selected ? "예약하기" : "상품 선택"}
-                  </Button>
+                  selected ? (
+                    <div className="flex flex-1 gap-2">
+                      {onAddToCart && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={onAddToCart}
+                          className="h-12 flex-1 px-3"
+                        >
+                          장바구니 담기
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        onClick={onReserve}
+                        className="h-12 flex-1 bg-damda-yellow-dark px-3 text-gray-950 hover:bg-damda-yellow"
+                      >
+                        {isPreview ? "미리보기" : "예약하기"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      onClick={onSelect}
+                      className="h-12 flex-1 bg-damda-yellow px-6 text-gray-950 hover:bg-damda-yellow-dark"
+                    >
+                      {isPreview ? "미리보기 선택" : "상품 선택"}
+                    </Button>
+                  )
                 ) : reservable ? (
-                  <Button asChild className="h-12 flex-1 bg-damda-yellow px-6 text-gray-950 hover:bg-damda-yellow-dark">
-                    <Link href={`/products/${product.id}`}>예약하기</Link>
-                  </Button>
+                  isPreview ? (
+                    <Button disabled className="h-12 flex-1">미리보기</Button>
+                  ) : (
+                    <Button asChild className="h-12 flex-1 bg-damda-yellow px-6 text-gray-950 hover:bg-damda-yellow-dark">
+                      <Link href={`/products/${product.id}`}>예약하기</Link>
+                    </Button>
+                  )
                 ) : (
                   <Button disabled className="h-12 flex-1">{product.is_sold_out ? "예약마감" : "판매중지"}</Button>
                 )}
@@ -219,7 +254,7 @@ export function BusinessProductCard({
   );
 }
 
-function ProductDetailContent({ product, businessLogo }: Pick<BusinessProductCardProps, "product" | "businessLogo">) {
+function ProductDetailContent({ product, businessLogo, isPreview }: Pick<BusinessProductCardProps, "product" | "businessLogo" | "isPreview">) {
   const allImages = [
     ...(product.thumbnail ? [product.thumbnail] : []),
     ...(product.images || []).map((image) => image.image_url),
@@ -282,9 +317,13 @@ function ProductDetailContent({ product, businessLogo }: Pick<BusinessProductCar
         <p className="mt-2 leading-6">예약 페이지에서 방문일, 이용시간, 인원과 추가 옵션을 선택할 수 있습니다.</p>
       </div>
 
-      <Button asChild className="h-12 w-full bg-damda-yellow text-gray-950 hover:bg-damda-yellow-dark">
-        <Link href={`/products/${product.id}`}>{product.is_sold_out ? "상품 페이지 보기" : "이 상품 예약하기"}</Link>
-      </Button>
+      {isPreview ? (
+        <Button disabled className="h-12 w-full">미리보기에서는 예약할 수 없습니다</Button>
+      ) : (
+        <Button asChild className="h-12 w-full bg-damda-yellow text-gray-950 hover:bg-damda-yellow-dark">
+          <Link href={`/products/${product.id}`}>{product.is_sold_out ? "상품 페이지 보기" : "이 상품 예약하기"}</Link>
+        </Button>
+      )}
     </div>
   );
 }

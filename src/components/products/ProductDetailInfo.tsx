@@ -31,6 +31,7 @@ import type { ProductDetail } from "@/services/productService";
 import { addRecentView } from "@/services/recentViewService";
 import { getUnavailableDates } from "@/services/holdService";
 import { useReservationSettings } from "@/hooks/use-reservation-settings";
+import { useWishlist } from "@/hooks/use-wishlist";
 
 interface ProductDetailInfoProps {
   product: ProductDetail;
@@ -41,6 +42,8 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addItem, setDirectItem } = useCart();
+  const wishlistProductIds = useMemo(() => [product.id], [product.id]);
+  const { wishlistedIds, toggleWishlist } = useWishlist(wishlistProductIds);
 
   // URL 파라미터에서 날짜 읽기
   const initialDate = useMemo(() => {
@@ -74,7 +77,7 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
   }, [searchParams, product.min_participants, product.max_participants]);
   const [participants, setParticipants] = useState(initialParticipants);
   const [participantsInput, setParticipantsInput] = useState(String(initialParticipants));
-  const [isWishlisted, setIsWishlisted] = useState(false);
+  const isWishlisted = wishlistedIds.has(product.id);
   const [reservedDates, setReservedDates] = useState<Set<string>>(new Set());
 
   // 예약된 날짜 목록 조회 (1일 1예약 체크용)
@@ -379,8 +382,7 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
 
   // 찜하기 토글
   const handleWishlistToggle = () => {
-    setIsWishlisted(!isWishlisted);
-    toast.success(isWishlisted ? "찜 목록에서 제거했습니다." : "찜 목록에 추가했습니다.");
+    void toggleWishlist(product.id);
   };
 
   return (

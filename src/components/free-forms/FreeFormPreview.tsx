@@ -1,5 +1,7 @@
 import {
   calculateFreeFormAmounts,
+  DAMDA_BUSINESS_SEAL_SRC,
+  DAMDA_DOCUMENT_WATERMARK_SRC,
   formatWon,
   formatNumber,
   type FreeFormDefinition,
@@ -70,7 +72,13 @@ function SafetySignoff() {
 
 export function FreeFormPreview({ definition, values }: { definition: FreeFormDefinition; values: FreeFormValues }) {
   return (
-    <article className="document-sheet min-h-[297mm] bg-white p-5 text-gray-900 shadow-sm sm:p-8 print:min-h-0 print:p-0 print:shadow-none">
+    <article className="document-sheet relative isolate min-h-[297mm] overflow-hidden bg-white p-5 text-gray-900 shadow-sm sm:p-8 print:min-h-0 print:p-0 print:shadow-none [&>*:not(.document-watermark)]:relative [&>*:not(.document-watermark)]:z-[2]">
+      <img
+        src={DAMDA_DOCUMENT_WATERMARK_SRC}
+        alt=""
+        aria-hidden="true"
+        className="document-watermark pointer-events-none absolute left-1/2 top-[430px] z-[1] w-2/3 max-w-[420px] -translate-x-1/2 -translate-y-1/2 object-contain"
+      />
       <header className="border-b-2 border-gray-950 pb-4 text-center">
         <p className="text-[10px] font-semibold tracking-[0.2em] text-gray-500">DAMDA FREE DOCUMENT</p>
         <h1 className="mt-2 text-2xl font-black sm:text-3xl">{definition.title}</h1>
@@ -89,6 +97,12 @@ export function FreeFormPreview({ definition, values }: { definition: FreeFormDe
               ))}
             </tbody></table>
           </div>
+          {section.title === "발행자 정보" && values.issuerSeal === "true" && (
+            <div className="mt-2 flex items-center justify-end gap-2 text-xs text-gray-500">
+              <span>사업자 인감</span>
+              <img src={DAMDA_BUSINESS_SEAL_SRC} alt="담다 사업자 인감" className="h-20 w-20 object-contain" />
+            </div>
+          )}
         </section>
       ))}
 

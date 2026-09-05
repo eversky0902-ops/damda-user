@@ -4,8 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { ChevronRight, Star, MapPin, Heart } from "lucide-react";
+import { ChevronRight, Star, MapPin } from "lucide-react";
 import type { Product } from "@/services/productService";
+import { ProductWishlistButton } from "./ProductWishlistButton";
 
 interface NearbyProductsSectionProps {
   products: Product[];
@@ -77,10 +78,11 @@ function NearbyProductCard({ product, dateParam }: { product: Product; dateParam
           />
         )}
 
-        {/* 찜 아이콘 (우측 상단) */}
-        <div className="absolute top-2 right-2">
-          <Heart className="w-5 h-5 text-white drop-shadow-md" />
-        </div>
+        <ProductWishlistButton
+          productId={product.id}
+          label={product.name}
+          className="right-2 top-2 h-8 w-8"
+        />
       </div>
 
       {/* 내용 */}

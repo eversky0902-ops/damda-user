@@ -1,5 +1,7 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import {
   Building2,
   ChevronRight,
@@ -16,6 +18,7 @@ import { BusinessReservationFlow } from "@/components/businesses/BusinessReserva
 import { DetailSectionNav } from "@/components/businesses/DetailSectionNav";
 import {
   getBusinessOwnerById,
+  getBusinessProductPreview,
   getProductsByBusinessOwnerResult,
   type BusinessHour,
 } from "@/services/productService";
@@ -23,46 +26,43 @@ import { getLatestLegalDocument } from "@/services/contentService";
 
 interface BusinessPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ preview_product_id?: string; preview_token?: string }>;
 }
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
-const SHARED_OG_TITLE = "담다 | 어린이집·유치원 현장체험학습 예약 플랫폼";
-const SHARED_OG_DESCRIPTION = "검증된 체험학습 프로그램을 간편하게 예약하고, 아이들에게 잊지 못할 추억을 선물하세요.";
-const SHARED_OG_IMAGE = {
-  url: "/og-image.png?v=20260828-2",
-  width: 1200,
-  height: 630,
-  alt: "담다 - 어린이집, 유치원 현장체험학습 예약 플랫폼",
+
+// 사업장 정보는 승인 회원 전용입니다. 이름·주소·이미지를 검색 결과에 남기지 않습니다.
+export const metadata: Metadata = {
+  title: "체험 사업장",
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+      nosnippet: true,
+    },
+  },
 };
 
-export async function generateMetadata({ params }: BusinessPageProps) {
+export default async function BusinessPage({ params, searchParams }: BusinessPageProps) {
   const { id } = await params;
-  const business = await getBusinessOwnerById(id);
-  const introduction = business?.introduction || business?.place_profile?.introduction;
-
-  return business
-    ? {
-        title: business.name,
-        description: introduction || `${business.name}의 체험 상품을 확인하세요.`,
-        alternates: { canonical: `/businesses/${id}` },
-        openGraph: {
-          title: SHARED_OG_TITLE,
-          description: SHARED_OG_DESCRIPTION,
-          url: `/businesses/${id}`,
-          type: "website",
-          images: [SHARED_OG_IMAGE],
-        },
-      }
-    : { title: "사업장을 찾을 수 없습니다" };
-}
-
-export default async function BusinessPage({ params }: BusinessPageProps) {
-  const { id } = await params;
-  const [business, productsResult, refundPolicy] = await Promise.all([
-    getBusinessOwnerById(id),
-    getProductsByBusinessOwnerResult(id),
+  const { preview_product_id: previewProductId, preview_token: previewToken } = await searchParams;
+  const headersList = await headers();
+  const isPreview = headersList.get("x-preview-mode") === "true"
+    && Boolean(previewProductId)
+    && Boolean(previewToken);
+  const [previewBundle, refundPolicy] = await Promise.all([
+    isPreview
+      ? getBusinessProductPreview(id, previewProductId!, previewToken!)
+      : Promise.resolve(null),
     getLatestLegalDocument("refund-policy"),
   ]);
+  const business = isPreview ? previewBundle?.business ?? null : await getBusinessOwnerById(id);
+  const productsResult = isPreview
+    ? { data: previewBundle?.products ?? [], error: previewBundle ? null : "미리보기 정보를 불러오지 못했습니다." }
+    : await getProductsByBusinessOwnerResult(id);
 
   if (!business) notFound();
 
@@ -90,42 +90,15 @@ export default async function BusinessPage({ params }: BusinessPageProps) {
   );
   const averageRating = reviewCount ? Math.round((reviewScoreTotal / reviewCount) * 10) / 10 : 0;
   const minPrice = products.length ? Math.min(...products.map((product) => product.sale_price)) : null;
-  const businessJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "LocalBusiness",
-    "@id": `https://withdamda.kr/businesses/${id}#business`,
-    name: business.name,
-    url: `https://withdamda.kr/businesses/${id}`,
-    description: summary || introduction || `${business.name}의 현장체험 프로그램`,
-    image: galleryThumbnail || undefined,
-    telephone: publicPhone || undefined,
-    address: fullAddress
-      ? {
-          "@type": "PostalAddress",
-          streetAddress: fullAddress,
-          addressCountry: "KR",
-        }
-      : undefined,
-    aggregateRating: reviewCount
-      ? {
-          "@type": "AggregateRating",
-          ratingValue: averageRating,
-          reviewCount,
-          bestRating: 5,
-        }
-      : undefined,
-    priceRange: minPrice !== null ? `${minPrice.toLocaleString("ko-KR")}원부터` : undefined,
-    mainEntityOfPage: `https://withdamda.kr/businesses/${id}`,
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(businessJsonLd).replace(/</g, "\\u003c"),
-        }}
-      />
+      {isPreview && (
+        <div className="border-b border-amber-200 bg-amber-50">
+          <div className="mx-auto max-w-6xl px-4 py-3 text-center text-sm font-medium text-amber-800">
+            메인 홈페이지 노출 화면 미리보기 · 예약 및 장바구니 기능은 비활성화되어 있습니다
+          </div>
+        </div>
+      )}
       <div className="border-b border-gray-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
           <nav className="flex min-w-0 items-center text-sm text-gray-500" aria-label="현재 위치">
@@ -218,7 +191,12 @@ export default async function BusinessPage({ params }: BusinessPageProps) {
               </Link>
             </div>
           ) : products.length ? (
-            <BusinessReservationFlow products={products} businessLogo={business.logo_url} />
+            <BusinessReservationFlow
+              products={products}
+              businessLogo={business.logo_url}
+              isPreview={isPreview}
+              previewProductId={previewProductId}
+            />
           ) : (
             <div className="mt-6 rounded-2xl border border-gray-200 bg-white px-6 py-14 text-center">
               <p className="font-semibold text-gray-950">현재 예약 가능한 상품이 없습니다.</p>

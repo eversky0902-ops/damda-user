@@ -38,6 +38,11 @@ export type FreeFormDefinition = {
   sections: FreeFormSection[];
 };
 
+export const DAMDA_BUSINESS_SEAL_SRC = "/images/free-forms/damda-business-seal.png";
+// Cropped, semi-transparent asset so the same watermark stays visible in
+// the preview, printed PDF, and downloaded Word file.
+export const DAMDA_DOCUMENT_WATERMARK_SRC = "/images/free-forms/damda-document-watermark.png";
+
 const DAMDA_ISSUER_FIELDS: FreeFormField[] = [
   { name: "issuerName", label: "발행 업체명", defaultValue: "담다", exampleValue: "담다" },
   { name: "issuerBusinessNumber", label: "사업자등록번호", defaultValue: "660-08-02811", exampleValue: "660-08-02811" },
@@ -405,24 +410,228 @@ function consentHtml(type: FreeFormType) {
   return "";
 }
 
-export function buildFreeFormDocumentHtml(type: FreeFormType, values: FreeFormValues) {
+export function buildFreeFormDocumentHtml(
+  type: FreeFormType,
+  values: FreeFormValues,
+  options: { sealImageSrc?: string; watermarkImageSrc?: string } = {},
+) {
   const definition = FREE_FORM_DEFINITION_BY_TYPE[type];
   const amount = calculateFreeFormAmounts(values, { includeDiscount: false });
+  const useIssuerSeal = (type === "quotation" || type === "payment-statement") && values.issuerSeal === "true";
+  const sealImageSrc = options.sealImageSrc ?? DAMDA_BUSINESS_SEAL_SRC;
+  const watermarkImageSrc = options.watermarkImageSrc ?? DAMDA_DOCUMENT_WATERMARK_SRC;
   const sections = definition.sections.map((section) => `<section><h2>${escapeHtml(section.title)}</h2><table>${section.fields
     .filter((field) => !(["quotation", "payment-statement"].includes(type) && field.name === "discountAmount"))
     .map((field) => `
-    <tr><th>${escapeHtml(field.label)}</th><td>${htmlValue(field.kind === "number" ? formatNumber(values[field.name]) : values[field.name])}</td></tr>`).join("")}</table></section>`).join("");
+    <tr><th>${escapeHtml(field.label)}</th><td>${htmlValue(field.kind === "number" ? formatNumber(values[field.name]) : values[field.name])}</td></tr>`).join("")}</table>${section.title === "발행자 정보" && useIssuerSeal ? `<div class="issuer-seal"><span>사업자 인감</span><img src="${escapeHtml(sealImageSrc)}" alt="담다 사업자 인감" /></div>` : ""}</section>`).join("");
   const amountHtml = type === "quotation" || type === "payment-statement" ? `<section><h2>금액 합계</h2><table>
     <tr><th>인원별 금액</th><td>${amount.participantCount.toLocaleString("ko-KR")}명 × ${formatWon(amount.unitPrice)} = ${formatWon(amount.subtotal)}</td></tr>
     <tr><th>옵션·추가금액</th><td>${formatWon(amount.optionAmount)}</td></tr>
+    ${type === "payment-statement" && amount.refundAmount > 0 ? `<tr><th>취소·환불금액</th><td>-${formatWon(amount.refundAmount)}</td></tr>` : ""}
     <tr class="total"><th>${type === "quotation" ? "최종 견적금액" : "최종 결제금액"}</th><td>${formatWon(type === "payment-statement" ? amount.paidTotal : amount.total)}</td></tr>
   </table></section>` : "";
 
   return `<!doctype html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(definition.title)}</title><style>
-    @page { size: A4; margin: 16mm; } body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; color:#222; font-size:10.5pt; line-height:1.55; }
+    @page { size: A4; margin: 16mm; } body { position:relative; margin:0; height:auto; overflow:visible; font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; color:#222; font-size:10.5pt; line-height:1.55; }
+    .document-watermark { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:0; }
+    .document-watermark img { width:96mm; max-width:64vw; height:auto; opacity:1; object-fit:contain; }
+    .document-sheet { position:relative; z-index:1; width:100%; height:auto; min-height:0; overflow:visible; }
     header { text-align:center; border-bottom:2px solid #222; padding-bottom:14px; margin-bottom:20px; } header p { color:#777; font-size:9pt; letter-spacing:2px; margin:0; } h1 { font-size:24pt; margin:6px 0 0; }
-    section { margin:18px 0; page-break-inside:avoid; } h2 { font-size:12pt; margin:0 0 7px; padding-left:8px; border-left:4px solid #f8b737; }
-    table { width:100%; border-collapse:collapse; } th, td { border:1px solid #bbb; padding:7px 9px; vertical-align:top; } th { width:25%; background:#f5f5f5; text-align:left; } td { min-height:22px; white-space:normal; }
-    tr.total th, tr.total td { font-size:13pt; font-weight:bold; background:#fff8e8; } footer { border-top:1px solid #ccc; margin-top:24px; padding-top:8px; color:#777; font-size:8.5pt; text-align:center; }
-  </style></head><body><header><p>DAMDA FREE DOCUMENT</p><h1>${escapeHtml(definition.title)}</h1></header>${sections}${amountHtml}${consentHtml(type)}<footer>담다 무료 어린이집 행정자료 · 입력 내용은 이용자가 확인 후 사용해 주세요.</footer></body></html>`;
+    section { margin:18px 0; page-break-inside:auto; } h2 { font-size:12pt; margin:0 0 7px; padding-left:8px; border-left:4px solid #f8b737; page-break-after:avoid; }
+    table { width:100%; border-collapse:collapse; table-layout:fixed; page-break-inside:auto; } th, td { border:1px solid #bbb; padding:7px 9px; vertical-align:top; word-break:break-word; overflow-wrap:anywhere; } th { width:25%; background:#f5f5f5; text-align:left; } td { min-height:22px; white-space:pre-line; }
+    tr { page-break-inside:avoid; }
+    tr.total th, tr.total td { font-size:13pt; font-weight:bold; background:#fff8e8; } .issuer-seal { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:10px; font-size:9pt; color:#555; } .issuer-seal img { width:32mm; height:32mm; object-fit:contain; } footer { border-top:1px solid #ccc; margin-top:24px; padding-top:8px; color:#777; font-size:8.5pt; text-align:center; }
+  </style></head><body><div class="document-watermark" aria-hidden="true"><img src="${escapeHtml(watermarkImageSrc)}" alt="" /></div><div class="document-sheet"><header><p>DAMDA FREE DOCUMENT</p><h1>${escapeHtml(definition.title)}</h1></header>${sections}${amountHtml}${consentHtml(type)}<footer>담다 무료 어린이집 행정자료 · 입력 내용은 이용자가 확인 후 사용해 주세요.</footer></div></body></html>`;
+}
+
+function escapeXml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+}
+
+function docxParagraph(text: string, style?: "title" | "heading" | "footer") {
+  const properties = style === "title"
+    ? "<w:pPr><w:jc w:val=\"center\"/><w:spacing w:after=\"180\"/><w:rPr><w:b/><w:sz w:val=\"36\"/></w:rPr></w:pPr>"
+    : style === "heading"
+      ? "<w:pPr><w:spacing w:before=\"220\" w:after=\"90\"/><w:rPr><w:b/><w:sz w:val=\"24\"/><w:color w:val=\"9C6500\"/></w:rPr></w:pPr>"
+      : style === "footer"
+        ? "<w:pPr><w:jc w:val=\"center\"/><w:spacing w:before=\"200\"/><w:rPr><w:sz w:val=\"16\"/><w:color w:val=\"777777\"/></w:rPr></w:pPr>"
+        : "<w:pPr><w:spacing w:after=\"60\"/></w:pPr>";
+  const lines = text.split(/\r?\n/).map((line) => `<w:t xml:space=\"preserve\">${escapeXml(line || " ")}</w:t>`).join("<w:br/>");
+  return `<w:p>${properties}<w:r><w:rPr><w:rFonts w:ascii=\"Malgun Gothic\" w:hAnsi=\"Malgun Gothic\" w:eastAsia=\"Malgun Gothic\"/></w:rPr>${lines}</w:r></w:p>`;
+}
+
+function docxTableRow(cells: string[], isTotal = false) {
+  const cellXml = cells.map((cell, index) => {
+    const shaded = isTotal ? "<w:shd w:fill=\"FFF2CC\"/>" : index === 0 ? "<w:shd w:fill=\"F5F5F5\"/>" : "";
+    const width = index === 0 ? 2300 : 6900;
+    return `<w:tc><w:tcPr><w:tcW w:w=\"${width}\" w:type=\"dxa\"/>${shaded}</w:tcPr>${docxParagraph(cell)}</w:tc>`;
+  }).join("");
+  return `<w:tr>${cellXml}</w:tr>`;
+}
+
+function docxTable(rows: Array<{ cells: string[]; total?: boolean }>) {
+  return `<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/><w:tblBorders><w:top w:val=\"single\" w:sz=\"6\" w:color=\"BFBFBF\"/><w:left w:val=\"single\" w:sz=\"6\" w:color=\"BFBFBF\"/><w:bottom w:val=\"single\" w:sz=\"6\" w:color=\"BFBFBF\"/><w:right w:val=\"single\" w:sz=\"6\" w:color=\"BFBFBF\"/><w:insideH w:val=\"single\" w:sz=\"6\" w:color=\"D9D9D9\"/><w:insideV w:val=\"single\" w:sz=\"6\" w:color=\"D9D9D9\"/></w:tblBorders></w:tblPr>${rows.map((row) => docxTableRow(row.cells, row.total)).join("")}</w:tbl>`;
+}
+
+function docxSealParagraph() {
+  return `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="120" w:after="80"/></w:pPr><w:r><w:t>사업자 인감  </w:t></w:r><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="914400" cy="914400"/><wp:docPr id="1" name="담다 사업자 인감"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="damda-business-seal.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+}
+
+function docxWatermarkHeader() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><w:p><w:r><w:pict><v:shape id="DamdaDocumentWatermark" o:spid="_x0000_s1025" type="#_x0000_t75" style="position:absolute;width:240pt;height:86pt;z-index:-251654144;mso-position-horizontal:center;mso-position-horizontal-relative:page;mso-position-vertical:center;mso-position-vertical-relative:page" o:allowincell="f" stroked="f"><v:imagedata r:id="rId1" o:title="담다 로고 워터마크"/><v:fill opacity="1"/><o:lock v:ext="edit" aspectratio="t"/></v:shape></w:pict></w:r></w:p></w:hdr>`;
+}
+
+function crc32(bytes: Uint8Array) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function uint16(value: number) {
+  return Uint8Array.of(value & 0xff, (value >>> 8) & 0xff);
+}
+
+function uint32(value: number) {
+  return Uint8Array.of(value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff);
+}
+
+function concatBytes(parts: Uint8Array[]) {
+  const output = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
+  let offset = 0;
+  for (const part of parts) {
+    output.set(part, offset);
+    offset += part.length;
+  }
+  return output;
+}
+
+/** Creates a genuine Office Open XML file rather than HTML renamed as a Word file. */
+function createDocxBlob(files: Record<string, string | Uint8Array>) {
+  const encoder = new TextEncoder();
+  const records: Uint8Array[] = [];
+  const directories: Uint8Array[] = [];
+  let offset = 0;
+
+  for (const [name, content] of Object.entries(files)) {
+    const nameBytes = encoder.encode(name);
+    const contentBytes = typeof content === "string" ? encoder.encode(content) : content;
+    const checksum = crc32(contentBytes);
+    const local = concatBytes([
+      uint32(0x04034b50), uint16(20), uint16(0x0800), uint16(0), uint16(0), uint16(0), uint32(checksum),
+      uint32(contentBytes.length), uint32(contentBytes.length), uint16(nameBytes.length), uint16(0), nameBytes, contentBytes,
+    ]);
+    records.push(local);
+    directories.push(concatBytes([
+      uint32(0x02014b50), uint16(20), uint16(20), uint16(0x0800), uint16(0), uint16(0), uint16(0), uint32(checksum),
+      uint32(contentBytes.length), uint32(contentBytes.length), uint16(nameBytes.length), uint16(0), uint16(0), uint16(0), uint16(0),
+      uint32(0), uint32(offset), nameBytes,
+    ]));
+    offset += local.length;
+  }
+
+  const directory = concatBytes(directories);
+  const end = concatBytes([
+    uint32(0x06054b50), uint16(0), uint16(0), uint16(directories.length), uint16(directories.length),
+    uint32(directory.length), uint32(offset), uint16(0),
+  ]);
+  return new Blob([concatBytes([...records, directory, end])], {
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  });
+}
+
+export async function buildFreeFormDocxBlob(type: FreeFormType, values: FreeFormValues) {
+  const definition = FREE_FORM_DEFINITION_BY_TYPE[type];
+  const amount = calculateFreeFormAmounts(values, { includeDiscount: false });
+  const useIssuerSeal = (type === "quotation" || type === "payment-statement") && values.issuerSeal === "true";
+  let sealImage: Uint8Array | null = null;
+  let watermarkImage: Uint8Array | null = null;
+  try {
+    const response = await fetch(DAMDA_DOCUMENT_WATERMARK_SRC);
+    if (response.ok) watermarkImage = new Uint8Array(await response.arrayBuffer());
+  } catch {
+    // The document remains valid when the nonessential watermark image cannot be loaded.
+  }
+  if (useIssuerSeal) {
+    try {
+      const response = await fetch(DAMDA_BUSINESS_SEAL_SRC);
+      if (response.ok) sealImage = new Uint8Array(await response.arrayBuffer());
+    } catch {
+      // The document remains valid when the optional seal image cannot be loaded.
+    }
+  }
+  const body: string[] = [
+    docxParagraph("DAMDA FREE DOCUMENT", "footer"),
+    docxParagraph(definition.title, "title"),
+  ];
+
+  for (const section of definition.sections) {
+    body.push(docxParagraph(section.title, "heading"));
+    body.push(docxTable(section.fields
+      .filter((field) => !(type === "quotation" || type === "payment-statement") || field.name !== "discountAmount")
+      .map((field) => ({ cells: [field.label, field.kind === "number" ? formatNumber(values[field.name]) : values[field.name] || ""] }))));
+    if (section.title === "발행자 정보" && sealImage) body.push(docxSealParagraph());
+  }
+
+  if (type === "quotation" || type === "payment-statement") {
+    body.push(docxParagraph("금액 합계", "heading"));
+    const amountRows: Array<{ cells: string[]; total?: boolean }> = [
+      { cells: ["인원별 금액", `${amount.participantCount.toLocaleString("ko-KR")}명 × ${formatWon(amount.unitPrice)} = ${formatWon(amount.subtotal)}`] },
+      { cells: ["옵션·추가금액", formatWon(amount.optionAmount)] },
+    ];
+    if (type === "payment-statement" && amount.refundAmount > 0) amountRows.push({ cells: ["취소·환불금액", `-${formatWon(amount.refundAmount)}`] });
+    amountRows.push({ cells: [type === "quotation" ? "최종 견적금액" : "최종 결제금액", formatWon(type === "payment-statement" ? amount.paidTotal : amount.total)], total: true });
+    body.push(docxTable(amountRows));
+  }
+
+  if (type === "family-letter") {
+    body.push(docxParagraph("보호자 참여동의서", "heading"));
+    body.push(docxTable([
+      { cells: ["체험 참여", "□ 참여합니다     □ 참여하지 않습니다"] },
+      { cells: ["사진 촬영·활용", "□ 동의합니다     □ 동의하지 않습니다"] },
+      { cells: ["알레르기·건강 특이사항", ""] },
+      { cells: ["비상 연락처", ""] },
+      { cells: ["보호자 확인", "원아명: ____________________     보호자명: ____________________ (서명)"] },
+    ]));
+  }
+  if (type === "safety-education") {
+    body.push(docxParagraph("교육 실시 확인", "heading"));
+    body.push(docxTable([
+      { cells: ["담당 교사", ""] },
+      { cells: ["원장·책임자", ""] },
+      { cells: ["특이사항", ""] },
+    ]));
+  }
+
+  body.push(docxParagraph("담다 무료 어린이집 행정자료 · 입력 내용은 이용자가 확인 후 사용해 주세요.", "footer"));
+  const watermarkRelationshipId = watermarkImage ? (sealImage ? "rId2" : "rId1") : "";
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>${body.join("")}<w:sectPr>${watermarkRelationshipId ? `<w:headerReference w:type="default" r:id="${watermarkRelationshipId}"/>` : ""}<w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="907" w:right="907" w:bottom="907" w:left="907"/></w:sectPr></w:body></w:document>`;
+  const documentRelationships = [
+    sealImage ? '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/damda-business-seal.png"/>' : "",
+    watermarkImage ? `<Relationship Id="${watermarkRelationshipId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>` : "",
+  ].join("");
+  return createDocxBlob({
+    "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>${sealImage || watermarkImage ? '<Default Extension="png" ContentType="image/png"/>' : ""}<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>${watermarkImage ? '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' : ""}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`,
+    "_rels/.rels": `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>`,
+    "docProps/core.xml": `<?xml version="1.0" encoding="UTF-8"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${escapeXml(definition.title)}</dc:title><dc:creator>담다</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created></cp:coreProperties>`,
+    "docProps/app.xml": `<?xml version="1.0" encoding="UTF-8"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>담다</Application></Properties>`,
+    "word/document.xml": documentXml,
+    "word/styles.xml": `<?xml version="1.0" encoding="UTF-8"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:eastAsia="Malgun Gothic"/></w:rPr></w:rPrDefault></w:docDefaults></w:styles>`,
+    ...(sealImage || watermarkImage ? {
+      "word/_rels/document.xml.rels": `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${documentRelationships}</Relationships>`,
+      ...(sealImage ? { "word/media/damda-business-seal.png": sealImage } : {}),
+      ...(watermarkImage ? {
+        "word/header1.xml": docxWatermarkHeader(),
+        "word/_rels/header1.xml.rels": `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/damda-document-watermark.png"/></Relationships>`,
+        "word/media/damda-document-watermark.png": watermarkImage,
+      } : {}),
+    } : {}),
+  });
 }

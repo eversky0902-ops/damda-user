@@ -1,10 +1,12 @@
 import { Suspense, cache } from "react";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import {
   getProductDetail,
+  getProductPreview,
   getProductReviews,
   getProductReviewStats,
   getProductsByCategory,
@@ -28,48 +30,40 @@ interface ProductDetailPageProps {
   searchParams: Promise<{ preview_token?: string }>;
 }
 
-const SHARED_OG_TITLE = "담다 | 어린이집·유치원 현장체험학습 예약 플랫폼";
-const SHARED_OG_DESCRIPTION = "검증된 체험학습 프로그램을 간편하게 예약하고, 아이들에게 잊지 못할 추억을 선물하세요.";
-const SHARED_OG_IMAGE = {
-  url: "/og-image.png?v=20260828-2",
-  width: 1200,
-  height: 630,
-  alt: "담다 - 어린이집, 유치원 현장체험학습 예약 플랫폼",
+// 상품 정보는 승인 회원 전용입니다. 상품명과 사업장 정보를 검색 결과에 남기지 않습니다.
+export const metadata: Metadata = {
+  title: "체험 상품",
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+      nosnippet: true,
+    },
+  },
 };
 
-export async function generateMetadata({ params }: ProductDetailPageProps) {
+export default async function ProductDetailPage({ params, searchParams }: ProductDetailPageProps) {
   const { id } = await params;
-  const product = await getCachedProductDetail(id);
-
-  if (!product) {
-    return { title: "상품을 찾을 수 없습니다" };
-  }
-
-  return {
-    title: product.name,
-    description: product.summary || product.name,
-    openGraph: {
-      title: SHARED_OG_TITLE,
-      description: SHARED_OG_DESCRIPTION,
-      siteName: "담다",
-      locale: "ko_KR",
-      type: "article",
-      images: [SHARED_OG_IMAGE],
-    },
-  };
-}
-
-export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
-  const { id } = await params;
+  const { preview_token: previewToken } = await searchParams;
 
   const headersList = await headers();
-  const isPreview = headersList.get('x-preview-mode') === 'true';
+  const isPreview = headersList.get('x-preview-mode') === 'true' && Boolean(previewToken);
+
+  const emptyReviews = { data: [], total: 0, totalPages: 0 };
+  const emptyReviewStats = {
+    averageRating: 0,
+    totalCount: 0,
+    ratingDistribution: [5, 4, 3, 2, 1].map((rating) => ({ rating, count: 0 })),
+  };
 
   // 모든 데이터를 병렬로 fetch
   const [product, reviewsResult, reviewStats, reservationGuide] = await Promise.all([
-    getCachedProductDetail(id),
-    getProductReviews(id, 1, 5),
-    getProductReviewStats(id),
+    isPreview ? getProductPreview(id, previewToken!) : getCachedProductDetail(id),
+    isPreview ? Promise.resolve(emptyReviews) : getProductReviews(id, 1, 5),
+    isPreview ? Promise.resolve(emptyReviewStats) : getProductReviewStats(id),
     getLatestLegalDocument("reservation-guide"),
   ]);
 
@@ -79,8 +73,8 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
   // 같은 사업장의 등록 상품과 카테고리 연관 상품을 함께 조회합니다.
   const [businessProducts, relatedProducts] = await Promise.all([
-    getProductsByBusinessOwner(product.business_id),
-    product.category_id
+    isPreview ? Promise.resolve([]) : getProductsByBusinessOwner(product.business_id),
+    !isPreview && product.category_id
       ? getProductsByCategory(product.category_id, 5)
       : Promise.resolve([]),
   ]);

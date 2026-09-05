@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { Download, FileCheck2, Info, Printer, RotateCcw, Sparkles } from "lucide-react";
 import {
+  buildFreeFormDocxBlob,
   buildFreeFormDocumentHtml,
+  DAMDA_BUSINESS_SEAL_SRC,
+  DAMDA_DOCUMENT_WATERMARK_SRC,
   FREE_FORM_DEFINITION_BY_TYPE,
   getFreeFormExampleValues,
   getFreeFormInitialValues,
@@ -132,17 +135,55 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type, user?.id, isAuthenticated]);
 
-  const downloadWord = () => {
-    const html = buildFreeFormDocumentHtml(type, values);
-    const blob = new Blob(["\ufeff", html], { type: "application/msword;charset=utf-8" });
+  const downloadWord = async () => {
+    const blob = await buildFreeFormDocxBlob(type, values);
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `${new Date().toISOString().slice(0, 10)}_${definition.downloadName}.doc`;
+    anchor.download = `${new Date().toISOString().slice(0, 10)}_${definition.downloadName}.docx`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  const printOrSavePdf = () => {
+    // Open the document during the click event so browsers permit printing.
+    // A hidden iframe can lose the user gesture and silently prevent printing.
+    const printWindow = window.open("", "_blank", "popup,width=960,height=1200");
+    if (!printWindow) {
+      setLoadMessage("인쇄 창을 열 수 없습니다. 브라우저의 팝업 차단을 해제한 뒤 다시 시도해 주세요.");
+      return;
+    }
+
+    let printed = false;
+    const printWhenReady = () => {
+      if (printed || printWindow.closed) return;
+      printed = true;
+      const images = Array.from(printWindow.document.images);
+      void Promise.all(images.map((image) => image.complete
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+          image.addEventListener("load", () => resolve(), { once: true });
+          image.addEventListener("error", () => resolve(), { once: true });
+        })))
+        .then(() => window.setTimeout(() => {
+          if (!printWindow.closed) {
+            printWindow.focus();
+            printWindow.print();
+          }
+        }, 150));
+    };
+
+    printWindow.document.open();
+    printWindow.document.write(buildFreeFormDocumentHtml(type, values, {
+      // The isolated document needs absolute asset URLs for images.
+      sealImageSrc: new URL(DAMDA_BUSINESS_SEAL_SRC, window.location.origin).toString(),
+      watermarkImageSrc: new URL(DAMDA_DOCUMENT_WATERMARK_SRC, window.location.origin).toString(),
+    }));
+    printWindow.document.close();
+    printWindow.addEventListener("load", printWhenReady, { once: true });
+    window.setTimeout(printWhenReady, 300);
   };
 
   const clearForm = () => {
@@ -170,8 +211,8 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <button type="button" onClick={() => setValues(getFreeFormExampleValues(type))} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-800 hover:bg-violet-100"><Sparkles className="h-4 w-4" />예시 불러오기</button>
               <button type="button" onClick={clearForm} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"><RotateCcw className="h-4 w-4" />전체 비우기</button>
-              <button type="button" onClick={downloadWord} className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-damda-yellow px-3 py-2 text-sm font-bold text-gray-950 hover:bg-damda-yellow-dark"><Download className="h-4 w-4" />Word 다운로드</button>
-              <button type="button" onClick={() => window.print()} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-gray-900 px-3 py-2 text-sm font-bold text-white hover:bg-gray-800"><Printer className="h-4 w-4" />인쇄·PDF</button>
+              <button type="button" onClick={() => void downloadWord()} className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-damda-yellow px-3 py-2 text-sm font-bold text-gray-950 hover:bg-damda-yellow-dark"><Download className="h-4 w-4" />Word 다운로드</button>
+              <button type="button" onClick={printOrSavePdf} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-gray-900 px-3 py-2 text-sm font-bold text-white hover:bg-gray-800"><Printer className="h-4 w-4" />인쇄·PDF</button>
             </div>
             {loadMessage && <p className="mt-3 text-xs font-medium text-teal-700" role="status">{loadMessage}</p>}
           </div>
@@ -183,6 +224,13 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 {section.fields.filter((field) => (!(["quotation", "payment-statement"].includes(type)) || field.name !== "discountAmount")).map((field) => <EditorField key={field.name} field={field} value={values[field.name] || ""} onChange={(value) => updateValue(field.name, value)} />)}
               </div>
+              {section.title === "발행자 정보" && (type === "quotation" || type === "payment-statement") && (
+                <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-lg border border-rose-100 bg-rose-50/60 p-3 text-sm font-semibold text-gray-800">
+                  <input type="checkbox" checked={values.issuerSeal === "true"} onChange={(event) => updateValue("issuerSeal", String(event.target.checked))} className="h-4 w-4 accent-red-700" />
+                  <img src={DAMDA_BUSINESS_SEAL_SRC} alt="담다 사업자 인감 미리보기" className="h-10 w-10 rounded-full object-contain" />
+                  <span>발행자 정보에 사업자 인감 찍기</span>
+                </label>
+              )}
             </section>
           ))}
         </div>

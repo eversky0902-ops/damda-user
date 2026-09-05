@@ -14,16 +14,24 @@ import { useCart } from "@/hooks/use-cart";
 import { cn } from "@/lib/utils";
 import { getUnavailableDates } from "@/services/holdService";
 import type { Product } from "@/services/productService";
+import type { CartItem } from "@/stores/cart-store";
 import { toast } from "sonner";
 
 interface BusinessReservationFlowProps {
   products: Product[];
   businessLogo?: string | null;
+  isPreview?: boolean;
+  previewProductId?: string;
 }
 
-export function BusinessReservationFlow({ products, businessLogo }: BusinessReservationFlowProps) {
+export function BusinessReservationFlow({
+  products,
+  businessLogo,
+  isPreview = false,
+  previewProductId,
+}: BusinessReservationFlowProps) {
   const router = useRouter();
-  const { setDirectItem } = useCart();
+  const { addItem, setDirectItem } = useCart();
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [participants, setParticipants] = useState(0);
@@ -56,13 +64,22 @@ export function BusinessReservationFlow({ products, businessLogo }: BusinessRese
 
   useEffect(() => {
     if (!selectedProductId) return;
+    if (isPreview) return;
 
     let active = true;
     getUnavailableDates(selectedProductId)
       .then((dates) => active && setUnavailableDates(new Set(dates)))
       .catch(() => active && setUnavailableDates(new Set()));
     return () => { active = false; };
-  }, [selectedProductId]);
+  }, [isPreview, selectedProductId]);
+
+  useEffect(() => {
+    if (!previewProductId) return;
+    const previewProduct = products.find((product) => product.id === previewProductId);
+    if (previewProduct) selectProduct(previewProduct);
+    // 미리보기 대상은 최초 진입 때 한 번만 자동 선택합니다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewProductId]);
 
   const selectProduct = (product: Product) => {
     setUnavailableDates(new Set());
@@ -116,19 +133,22 @@ export function BusinessReservationFlow({ products, businessLogo }: BusinessRese
     return dayConfig.start || null;
   };
 
-  const handleCheckout = () => {
-    if (!selectedProduct) return;
+  const buildCartItem = (): CartItem | null => {
+    if (!selectedProduct) {
+      toast.info("상품을 먼저 선택해주세요.");
+      return null;
+    }
     if (!selectedDate) {
       setCalendarOpen(true);
       window.setTimeout(() => dateButtonRef.current?.focus(), 50);
       toast.info("방문일을 먼저 선택해주세요.");
-      return;
+      return null;
     }
 
     const reservationTime = getReservationTime();
     if (!reservationTime) {
       toast.error("선택한 날짜의 예약 가능 시간을 확인할 수 없습니다.");
-      return;
+      return null;
     }
 
     const normalizedParticipants = Math.max(
@@ -136,14 +156,14 @@ export function BusinessReservationFlow({ products, businessLogo }: BusinessRese
       Math.min(selectedProduct.max_participants, Number(participantsInput) || selectedProduct.min_participants)
     );
     adjustParticipants(normalizedParticipants);
-    setDirectItem({
+    return {
       product: {
         id: selectedProduct.id,
         name: selectedProduct.name,
-        thumbnail: selectedProduct.thumbnail,
+        thumbnail: selectedProduct.thumbnail || "",
         original_price: selectedProduct.original_price,
         sale_price: selectedProduct.sale_price,
-        business_owner_name: selectedProduct.business_owner?.name || "",
+        business_owner_name: selectedProduct.business_owner?.name || selectedProduct.business?.name || "",
         min_participants: selectedProduct.min_participants,
         max_participants: selectedProduct.max_participants,
       },
@@ -151,7 +171,28 @@ export function BusinessReservationFlow({ products, businessLogo }: BusinessRese
       reservationDate: format(selectedDate, "yyyy-MM-dd"),
       reservationTime,
       options: [],
-    });
+    };
+  };
+
+  const handleAddToCart = async () => {
+    if (isPreview) {
+      toast.info("미리보기에서는 장바구니 기능을 사용할 수 없습니다.");
+      return;
+    }
+    const item = buildCartItem();
+    if (!item) return;
+    await addItem(item);
+    toast.success("장바구니에 담았습니다.");
+  };
+
+  const handleCheckout = () => {
+    if (isPreview) {
+      toast.info("미리보기에서는 예약 기능을 사용할 수 없습니다.");
+      return;
+    }
+    const item = buildCartItem();
+    if (!item) return;
+    setDirectItem(item);
     router.push("/checkout");
   };
 
@@ -263,8 +304,10 @@ export function BusinessReservationFlow({ products, businessLogo }: BusinessRese
             businessLogo={businessLogo}
             selected={selectedProductId === product.id}
             onSelect={() => selectProduct(product)}
+            onAddToCart={handleAddToCart}
             onReserve={handleCheckout}
             selectionMode
+            isPreview={isPreview}
           />
         ))}
       </div>
@@ -277,9 +320,19 @@ export function BusinessReservationFlow({ products, businessLogo }: BusinessRese
               {format(selectedDate, "M월 d일 (E)", { locale: ko })} · {participants}명
             </p>
           </div>
-          <Button onClick={handleCheckout} className="h-12 w-full bg-damda-yellow px-8 text-base font-bold text-gray-950 hover:bg-damda-yellow-dark sm:w-auto">
-            예약하기
-          </Button>
+          <div className="flex w-full gap-2 sm:w-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleAddToCart}
+              className="h-12 flex-1 px-4 text-base font-bold sm:flex-none"
+            >
+              장바구니 담기
+            </Button>
+            <Button onClick={handleCheckout} className="h-12 flex-1 bg-damda-yellow px-6 text-base font-bold text-gray-950 hover:bg-damda-yellow-dark sm:flex-none">
+              예약하기
+            </Button>
+          </div>
         </div>
       )}
     </>

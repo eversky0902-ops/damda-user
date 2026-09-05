@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const pageSource = readFileSync(new URL("../src/app/page.tsx", import.meta.url), "utf8");
-const layoutSource = readFileSync(new URL("../src/app/layout.tsx", import.meta.url), "utf8");
 const heroSource = readFileSync(new URL("../src/components/landing/Hero.tsx", import.meta.url), "utf8");
 const reviewsSource = readFileSync(new URL("../src/components/landing/Reviews.tsx", import.meta.url), "utf8");
 const popularSource = readFileSync(new URL("../src/components/landing/PopularProducts.tsx", import.meta.url), "utf8");
@@ -39,11 +38,11 @@ test("popular businesses show business-only cards with discount rates", () => {
 });
 
 test("homepage keeps existing structured data and adds visible FAQ data", () => {
-  assert.match(layoutSource, /homeStructuredData/);
-  assert.match(layoutSource, /Organization/);
-  assert.match(layoutSource, /WebSite/);
-  assert.match(layoutSource, /FAQPage/);
-  assert.match(layoutSource, /landingFaqItems/);
+  assert.match(pageSource, /homeStructuredData/);
+  assert.match(pageSource, /Organization/);
+  assert.match(pageSource, /WebSite/);
+  assert.match(pageSource, /FAQPage/);
+  assert.match(pageSource, /landingFaqItems/);
 });
 
 test("footer links to the email collection rejection notice", () => {
