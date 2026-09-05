@@ -3,6 +3,7 @@ import NextTopLoader from "nextjs-toploader";
 import { Providers } from "@/providers";
 import { FloatingChatButton } from "@/components/common/FloatingChatButton";
 import { NaverAnalytics } from "@/components/common/NaverAnalytics";
+import { SiteAnalyticsTracker } from "@/components/common/SiteAnalyticsTracker";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -75,6 +76,7 @@ export default function RootLayout({
       </head>
       <body className="font-pretendard antialiased bg-white">
         <NaverAnalytics />
+        <SiteAnalyticsTracker />
         <NextTopLoader color="#F8B737" showSpinner={false} />
         <Providers>
           {children}

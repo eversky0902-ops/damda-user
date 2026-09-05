@@ -21,7 +21,7 @@ export function CTASection() {
               asChild
               className="group h-12 gap-2 rounded-full bg-white px-8 text-base font-semibold text-primary hover:bg-white/90"
             >
-              <Link href="/signup">
+              <Link href="/signup" data-analytics-metric="signup_cta_click">
                 가입 신청하기
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
@@ -32,7 +32,7 @@ export function CTASection() {
               asChild
               className="h-12 rounded-full border-2 border-white/30 bg-transparent px-8 text-base font-semibold text-white hover:bg-white/10"
             >
-              <Link href="/partner">입점문의하기</Link>
+              <Link href="/partner" data-analytics-metric="partner_cta_click">입점문의하기</Link>
             </Button>
           </div>
         </div>

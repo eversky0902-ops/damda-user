@@ -40,7 +40,7 @@ export function Header() {
             asChild
             className="btn-shine rounded-full bg-primary px-6 font-medium text-white shadow-lg shadow-primary/25 transition-all hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30"
           >
-            <Link href="/signup">가입 신청</Link>
+            <Link href="/signup" data-analytics-metric="signup_cta_click">가입 신청</Link>
           </Button>
         </div>
 
@@ -75,7 +75,7 @@ export function Header() {
               <Link href="/login">로그인</Link>
             </Button>
             <Button asChild className="justify-center">
-              <Link href="/signup">가입 신청</Link>
+              <Link href="/signup" data-analytics-metric="signup_cta_click">가입 신청</Link>
             </Button>
           </div>
         </nav>
