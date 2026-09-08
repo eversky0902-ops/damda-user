@@ -81,20 +81,38 @@ export function ReservationCalendar({ reservations }: ReservationCalendarProps) 
                 {format(day, "d")}
               </div>
               <div className="space-y-1">
-                {dayReservations.map((reservation) => (
-                  <Link
-                    key={reservation.id}
-                    href={`/mypage/reservations/${reservation.id}`}
-                    className="block rounded-md bg-damda-yellow-light px-1.5 py-1 text-left text-[11px] leading-tight text-gray-900 transition-colors hover:bg-damda-yellow"
-                    title={reservation.product?.name || "상품 정보 없음"}
-                  >
-                    <span className="block truncate font-semibold">{reservation.product?.name || "상품 정보 없음"}</span>
-                    <span className="mt-0.5 flex items-center gap-0.5 text-[10px] text-gray-600">
-                      <Clock className="h-3 w-3" />
-                      {reservation.reserved_time || `${reservation.participant_count}명`}
-                    </span>
-                  </Link>
-                ))}
+                {dayReservations.map((reservation) => {
+                  const productName = reservation.product?.name || "상품 정보 없음";
+                  const cancellationLabel = reservation.status === "refunded"
+                    ? "환불 완료"
+                    : reservation.status === "cancelled"
+                      ? "취소"
+                      : null;
+
+                  return (
+                    <Link
+                      key={reservation.id}
+                      href={`/mypage/reservations/${reservation.id}`}
+                      className={`block rounded-md px-1.5 py-1 text-left text-[11px] leading-tight transition-colors ${cancellationLabel
+                        ? "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                        : "bg-damda-yellow-light text-gray-900 hover:bg-damda-yellow"}`}
+                      title={cancellationLabel ? `${productName} (${cancellationLabel})` : productName}
+                    >
+                      <span className={`block truncate font-semibold ${cancellationLabel ? "line-through" : ""}`}>
+                        {productName}
+                      </span>
+                      {cancellationLabel && (
+                        <span className="mt-0.5 block break-keep text-[10px] font-semibold leading-snug text-gray-700">
+                          {cancellationLabel}
+                        </span>
+                      )}
+                      <span className="mt-0.5 flex min-w-0 items-center gap-0.5 text-[10px] text-gray-600">
+                        <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{reservation.reserved_time || `${reservation.participant_count}명`}</span>
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           );

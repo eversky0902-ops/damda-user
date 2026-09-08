@@ -128,7 +128,29 @@ async function sendAndLog(params: {
   return result;
 }
 
-async function handleReservationPaid(reservationId: string, testPhone?: string) {
+class PaymentNotificationError extends Error {
+  constructor(readonly reason: string, readonly status: number) {
+    super(reason);
+  }
+}
+
+function authorizedPaymentWorker(req: Request): boolean {
+  const expected = Deno.env.get("PAYMENT_WORKER_SECRET");
+  const received = req.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
+  if (!expected || !received || expected.length !== received.length) return false;
+  let difference = 0;
+  for (let index = 0; index < expected.length; index++) {
+    difference |= expected.charCodeAt(index) ^ received.charCodeAt(index);
+  }
+  return difference === 0;
+}
+
+function validReservationId(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+// The health event and delivery use the same read-only lookup and readiness checks.
+async function lookupPaidReservation(reservationId: string) {
   const { data: reservation, error } = await supabase
     .from("reservations")
     .select(`
@@ -140,10 +162,30 @@ async function handleReservationPaid(reservationId: string, testPhone?: string) 
     .eq("id", reservationId)
     .single();
 
-  if (error || !reservation) {
-    console.error("Failed to fetch reservation:", error);
-    throw new Error("Payment notification reservation lookup failed");
+  if (error) throw new PaymentNotificationError("reservation_lookup_failed", 503);
+  if (!reservation) throw new PaymentNotificationError("reservation_not_found", 404);
+
+  const daycare = reservation.daycares as any;
+  const product = reservation.products as any;
+  const owner = reservation.business_owners as any;
+  if (!daycare?.id || !daycare.name || !product?.id || !product.name || !owner?.id) {
+    throw new PaymentNotificationError("reservation_relations_incomplete", 422);
   }
+  const phoneReady = (phone: unknown) => typeof phone === "string" && /^0\d{8,10}$/.test(formatPhone(phone));
+  if (!phoneReady(reservation.reserver_phone || daycare.contact_phone) || !phoneReady(owner.contact_phone)) {
+    throw new PaymentNotificationError("reservation_contacts_incomplete", 422);
+  }
+  return reservation;
+}
+
+async function handlePaymentNotificationHealth(reservationId?: string) {
+  const { error } = await supabase.rpc("assert_payment_boundary");
+  if (error) throw new PaymentNotificationError("payment_boundary_unavailable", 503);
+  if (reservationId) await lookupPaidReservation(reservationId);
+}
+
+async function handleReservationPaid(reservationId: string, testPhone?: string) {
+  const reservation = await lookupPaidReservation(reservationId);
 
   const daycare = reservation.daycares as any;
   const product = reservation.products as any;
@@ -576,18 +618,30 @@ async function handleScheduledReviewRequest(testPhone?: string) {
 }
 
 Deno.serve(async (req: Request) => {
+  let paymentEvent = false;
   try {
     const body = await req.json();
     const { event, reservation_id, daycare_id, test_phone } = body;
 
-    if (event === "reservation_paid" && (test_phone || req.headers.get("authorization") !== `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`)) {
-      return new Response("Forbidden", { status: 403 });
+    paymentEvent = event === "reservation_paid" || event === "payment_notification_health";
+    if (paymentEvent && (test_phone || !authorizedPaymentWorker(req))) {
+      return new Response(JSON.stringify({ success: false, reason: "notification_unauthorized" }), {
+        status: 403, headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (paymentEvent && ((event === "reservation_paid" || reservation_id !== undefined) && !validReservationId(reservation_id))) {
+      throw new PaymentNotificationError("invalid_reservation_id", 400);
     }
 
     switch (event) {
       case "reservation_paid":
-        if (reservation_id) await handleReservationPaid(reservation_id, test_phone);
+        await handleReservationPaid(reservation_id, test_phone);
         break;
+      case "payment_notification_health":
+        await handlePaymentNotificationHealth(reservation_id);
+        return new Response(JSON.stringify({ success: true, ready: true }), {
+          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+        });
       case "reservation_cancelled":
         if (reservation_id) await handleReservationCancelled(reservation_id, test_phone);
         break;
@@ -614,6 +668,16 @@ Deno.serve(async (req: Request) => {
       headers: { "Content-Type": "application/json", "Connection": "keep-alive" },
     });
   } catch (error) {
+    if (paymentEvent) {
+      const reason = error instanceof PaymentNotificationError ? error.reason
+        : (error as Error).message === "Payment notification requires delivery review" ? "notification_delivery_review"
+        : "notification_internal_error";
+      console.error("[send-alimtalk] Payment notification failed:", reason);
+      return new Response(JSON.stringify({ success: false, reason }), {
+        status: error instanceof PaymentNotificationError ? error.status : 500,
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      });
+    }
     console.error("[send-alimtalk] Error:", error);
     return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
