@@ -7,41 +7,11 @@ import { HorizontalCarousel } from "./HorizontalCarousel";
 
 interface PopularProductsProps {
   businesses: BusinessOwnerShowcase[];
-  isAuthenticated: boolean;
 }
 
-export function PopularProducts({ businesses, isAuthenticated }: PopularProductsProps) {
-  if (!isAuthenticated) {
-    return (
-      <section id="products" className="bg-secondary/30 py-20 md:py-28">
-        <div className="mx-auto max-w-6xl px-4 text-center">
-          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">검증된 체험 사업장</h2>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-            담다는 승인된 회원만 체험 사업장과 프로그램 정보를 확인할 수 있는 폐쇄형 예약 플랫폼입니다.
-          </p>
-          <Button asChild className="mt-7">
-            <Link href="/login">로그인하고 체험 상품 보기</Link>
-          </Button>
-        </div>
-      </section>
-    );
-  }
-
+export function PopularProducts({ businesses }: PopularProductsProps) {
   const publicBusinesses = businesses
-    .filter((business) => !/테스트|test/i.test(business.name))
-    .map((business) => {
-      const publicProducts = business.products.filter((product) => !/테스트|test/i.test(product.name));
-      return {
-        ...business,
-        products: publicProducts,
-        product_count: publicProducts.length,
-        featured_product: publicProducts[0],
-        min_sale_price: publicProducts.length
-          ? Math.min(...publicProducts.map((product) => product.sale_price))
-          : 0,
-      };
-    })
-    .filter((business) => Boolean(business.featured_product));
+    .filter((business) => !/테스트|test/i.test(business.name) && Boolean(business.featured_product));
 
   return (
     <section id="products" className="bg-secondary/30 py-20 md:py-28">
@@ -74,6 +44,8 @@ export function PopularProducts({ businesses, isAuthenticated }: PopularProducts
               <BusinessOwnerCard
                 key={business.id}
                 owner={business}
+                // 랜딩 인기 업체는 계정 상태와 무관하게 가격·상품 수를 노출하지 않습니다.
+                // 업체 탐색 단계에서는 할인율만 보여주고 실제 가격은 상세 상품에서 확인합니다.
                 showPrice={false}
                 showLogo={false}
                 showProductName={false}

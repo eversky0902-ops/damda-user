@@ -3,14 +3,24 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import {
+  Armchair,
+  Baby,
   Building2,
+  Bus,
+  CarFront,
   ChevronRight,
   Clock3,
+  CloudRain,
+  Droplets,
   MapPin,
-  Phone,
+  Milk,
+  Sandwich,
   ShieldCheck,
   Sparkles,
   Star,
+  Toilet,
+  Trees,
+  Utensils,
   Users,
 } from "lucide-react";
 import { BusinessImageGallery } from "@/components/businesses/BusinessImageGallery";
@@ -30,6 +40,22 @@ interface BusinessPageProps {
 }
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+const FACILITY_SERVICE_OPTIONS = [
+  { code: "large_bus_parking", label: "대형버스 주차 가능", Icon: Bus },
+  { code: "lunchbox_allowed", label: "도시락 지참", Icon: Sandwich },
+  { code: "meal_space", label: "식사 공간", Icon: Utensils },
+  { code: "restroom", label: "화장실", Icon: Toilet },
+  { code: "indoor_waiting_area", label: "실내 대기실", Icon: Armchair },
+  { code: "operates_in_rain", label: "우천 시 진행", Icon: CloudRain },
+  { code: "nursing_room", label: "수유실", Icon: Milk },
+  { code: "diaper_changing_station", label: "기저귀 교환대", Icon: Baby },
+  { code: "passenger_car_parking", label: "승용차 주차", Icon: CarFront },
+  { code: "toddler_lounge", label: "유아 휴게실", Icon: Users },
+  { code: "drinking_water", label: "식수대", Icon: Droplets },
+  { code: "outdoor_activity_area", label: "야외 활동장", Icon: Trees },
+  { code: "teacher_lounge", label: "선생님 휴게실", Icon: Armchair },
+  { code: "lunch_sales", label: "도시락 판매", Icon: Sandwich },
+] as const;
 
 // 사업장 정보는 승인 회원 전용입니다. 이름·주소·이미지를 검색 결과에 남기지 않습니다.
 export const metadata: Metadata = {
@@ -69,7 +95,6 @@ export default async function BusinessPage({ params, searchParams }: BusinessPag
   const products = productsResult.data;
   const introduction = business.introduction || business.place_profile?.introduction;
   const summary = business.summary || introduction;
-  const publicPhone = business.place_profile?.public_phone || business.contact_phone;
   const fullAddress = [business.address, business.address_detail].filter(Boolean).join(" ");
   const registeredBusinessImages = business.images.map((image) => ({ id: image.id, image_url: image.image_url }));
   const productFallbackUrls = [...products]
@@ -84,6 +109,29 @@ export default async function BusinessPage({ params, searchParams }: BusinessPag
     : productFallbackUrls.map((image_url, index) => ({ id: `product-fallback-${index}`, image_url }));
   const galleryThumbnail = businessImages[0]?.image_url || business.logo_url || "";
   const reviewCount = products.reduce((sum, product) => sum + (product.review_count || 0), 0);
+  // 신규 데이터는 배열로 저장되지만, 기존에 쉼표로 저장된 시설 정보도 공개 화면에서
+  // 동일하게 해석해 체크 상태가 모두 "불가"로 보이지 않도록 처리합니다.
+  const rawBusinessFacilities: unknown = business.facilities;
+  const businessFacilities = Array.isArray(rawBusinessFacilities)
+    ? rawBusinessFacilities.filter((facility): facility is string => typeof facility === "string")
+    : typeof rawBusinessFacilities === "string"
+      ? rawBusinessFacilities.split(",").map((facility) => facility.trim()).filter(Boolean)
+      : [];
+  const sharedFacilityValues = new Set(businessFacilities);
+  const facilityServices = FACILITY_SERVICE_OPTIONS.map(({ code, label, Icon }) => {
+    return {
+      label,
+      Icon,
+      // 기존 사업장은 내부 코드, 비즈니스센터 최신 입력은 한글 항목명으로 저장될 수 있어
+      // 두 형식을 모두 지원합니다.
+      available: sharedFacilityValues.has(code)
+        || sharedFacilityValues.has(label)
+        || (code === "passenger_car_parking" && business.parking_available),
+    };
+  });
+  const extraFacilities = businessFacilities.filter(
+    (facility: string) => !FACILITY_SERVICE_OPTIONS.some(({ code, label }) => code === facility || label === facility)
+  );
   const reviewScoreTotal = products.reduce(
     (sum, product) => sum + (product.average_rating || 0) * (product.review_count || 0),
     0
@@ -149,12 +197,6 @@ export default async function BusinessPage({ params, searchParams }: BusinessPag
                 {fullAddress}
               </span>
             )}
-            {publicPhone && (
-              <a href={`tel:${publicPhone}`} className="flex items-center gap-2 hover:text-gray-950">
-                <Phone className="h-4 w-4 text-damda-teal" />
-                {publicPhone}
-              </a>
-            )}
           </div>
         </section>
 
@@ -194,6 +236,7 @@ export default async function BusinessPage({ params, searchParams }: BusinessPag
             <BusinessReservationFlow
               products={products}
               businessLogo={business.logo_url}
+              businessHours={business.hours}
               isPreview={isPreview}
               previewProductId={previewProductId}
             />
@@ -247,16 +290,17 @@ export default async function BusinessPage({ params, searchParams }: BusinessPag
           </InfoSection>
 
           <InfoSection id="facilities-services" title="시설 / 서비스" icon={<Sparkles />}>
-            {business.facilities.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {business.facilities.map((facility) => <span key={facility} className="rounded-full bg-damda-teal-light px-3 py-1.5 text-sm font-medium text-damda-teal-dark">{facility}</span>)}
-              </div>
-            )}
-            <div className={business.facilities.length ? "mt-4" : ""}>
-              <p className="text-sm font-semibold text-gray-900">주차 {business.parking_available ? "가능" : "불가"}</p>
-              {business.parking_notice && <p className="mt-2 whitespace-pre-line text-sm leading-7 text-gray-600">{business.parking_notice}</p>}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+              {facilityServices.map((service) => (
+                <div key={service.label} className={`rounded-xl border p-3 text-center transition ${service.available ? "border-damda-teal/40 bg-damda-teal-light/50" : "border-gray-200 bg-white"}`}>
+                  <service.Icon className={`mx-auto h-6 w-6 ${service.available ? "text-damda-teal" : "text-gray-300"}`} aria-hidden="true" />
+                  <p className={`mt-2 text-xs font-bold leading-5 ${service.available ? "text-gray-900" : "text-gray-400"}`}>{service.label}</p>
+                  <p className={`mt-1 text-[11px] font-semibold ${service.available ? "text-damda-teal-dark" : "text-gray-400"}`}>{service.available ? "가능" : "불가"}</p>
+                </div>
+              ))}
             </div>
-            {!business.facilities.length && !business.parking_notice && !business.parking_available && <EmptySectionText>시설 및 제공 서비스 정보는 사업주 확인 후 업데이트됩니다.</EmptySectionText>}
+            {extraFacilities.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{extraFacilities.map((facility) => <span key={facility} className="rounded-full bg-damda-teal-light px-3 py-1.5 text-sm font-medium text-damda-teal-dark">{facility}</span>)}</div>}
+            {business.parking_notice && <p className="mt-4 whitespace-pre-line text-sm leading-7 text-gray-600">{business.parking_notice}</p>}
           </InfoSection>
 
           <InfoSection id="usage-guide" title="이용안내" icon={<Clock3 />}>

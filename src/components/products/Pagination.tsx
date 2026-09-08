@@ -66,7 +66,7 @@ export function Pagination({ currentPage, totalPages, className }: PaginationPro
       <button
         onClick={() => goToPage(currentPage - 1)}
         disabled={currentPage === 1}
-        className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+        className="w-9 h-9 cursor-pointer flex items-center justify-center text-gray-400 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-30"
       >
         <ChevronLeft className="w-5 h-5" />
       </button>
@@ -87,8 +87,8 @@ export function Pagination({ currentPage, totalPages, className }: PaginationPro
             className={cn(
               "w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
               page === currentPage
-                ? "bg-damda-yellow text-gray-900"
-                : "text-gray-600 hover:bg-gray-100"
+                ? "cursor-default bg-damda-yellow text-gray-900"
+                : "cursor-pointer text-gray-600 hover:bg-gray-100"
             )}
           >
             {page}
@@ -100,7 +100,7 @@ export function Pagination({ currentPage, totalPages, className }: PaginationPro
       <button
         onClick={() => goToPage(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+        className="w-9 h-9 cursor-pointer flex items-center justify-center text-gray-400 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-30"
       >
         <ChevronRight className="w-5 h-5" />
       </button>

@@ -12,7 +12,7 @@ import {
   Footer,
 } from "@/components/landing";
 import type { Metadata } from "next";
-import { getPopularBusinessOwners } from "@/services/productService";
+import { getPopularBusinessOwners, getPublicPopularBusinessOwners } from "@/services/productService";
 import { getLandingReviews } from "@/services/reviewService";
 import { createClient } from "@/lib/supabase/server";
 import { landingFaqItems } from "@/components/landing/LandingFAQ";
@@ -93,9 +93,10 @@ export default async function Home() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const [businesses, landingReviews] = user
-    ? await Promise.all([getPopularBusinessOwners(), getLandingReviews(30)])
-    : [[], []];
+  const [businesses, landingReviews] = await Promise.all([
+    user ? getPopularBusinessOwners() : getPublicPopularBusinessOwners(),
+    user ? getLandingReviews(30) : Promise.resolve([]),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -109,7 +110,7 @@ export default async function Home() {
       <main className="flex-1">
         <Hero />
         <ExperienceExplorer />
-        <PopularProducts businesses={businesses} isAuthenticated={Boolean(user)} />
+        <PopularProducts businesses={businesses} />
         <GroupBookingChecklist />
         <Features />
         <HowItWorks />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, FileCheck2, Info, Printer, RotateCcw, Sparkles } from "lucide-react";
+import { Download, FileCheck2, Info, Printer, RotateCcw, Sparkles, X } from "lucide-react";
 import {
   buildFreeFormDocxBlob,
   buildFreeFormDocumentHtml,
@@ -20,6 +20,41 @@ import { createClient } from "@/lib/supabase/client";
 import { useCartStore } from "@/stores/cart-store";
 
 const inputClass = "mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-damda-yellow focus:ring-2 focus:ring-damda-yellow/20";
+
+const paymentMethodLabel = (method: string | null | undefined) => ({
+  card: "신용카드",
+  credit_card: "신용카드",
+  bank: "계좌이체",
+  account_transfer: "계좌이체",
+  virtual_account: "가상계좌",
+  cash: "현금",
+}[method || ""] || method || "");
+
+const paymentStatusLabel = (status: string | null | undefined) => ({
+  paid: "결제 완료",
+  pending: "부분 결제",
+  cancelled: "결제 취소",
+  failed: "결제 취소",
+}[status || ""] || status || "");
+
+type ReservationChoice = {
+  id: string;
+  reservationNumber: string;
+  reservedDate: string;
+  reservedTime: string | null;
+  participantCount: number;
+  totalAmount: number;
+  productName: string;
+  unitPrice: number | null;
+  payment: {
+    payment_method: string | null;
+    pg_tid: string | null;
+    status: string | null;
+    paid_at: string | null;
+    amount: number | null;
+  } | null;
+  refundAmount: number;
+};
 
 function EditorField({ field, value, onChange }: { field: FreeFormField; value: string; onChange: (value: string) => void }) {
   const common = { id: field.name, name: field.name, value: field.kind === "number" ? formatNumber(value) : value, onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => onChange(field.kind === "number" ? event.target.value.replace(/[^0-9]/g, "") : event.target.value), className: inputClass };
@@ -45,6 +80,9 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
   const definition = FREE_FORM_DEFINITION_BY_TYPE[type];
   const [values, setValues] = useState(() => getFreeFormInitialValues(type));
   const [loadMessage, setLoadMessage] = useState("");
+  const [reservationChoices, setReservationChoices] = useState<ReservationChoice[]>([]);
+  const [isReservationPickerOpen, setIsReservationPickerOpen] = useState(false);
+  const [isLoadingReservations, setIsLoadingReservations] = useState(false);
   const { user, isAuthenticated } = useAuth();
   const cartItems = useCartStore((state) => state.items);
 
@@ -83,29 +121,84 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
     setLoadMessage("로그인한 기관 정보가 입력되었습니다.");
   };
 
-  const loadLatestReservation = async () => {
+  const openReservationPicker = async () => {
     if (!user || !isAuthenticated) {
       setLoadMessage("로그인 후 예약 내역을 불러올 수 있습니다.");
       return;
     }
+    setIsLoadingReservations(true);
     const supabase = createClient();
-    const { data: reservation, error } = await supabase.from("reservations").select("id,product_id,reserved_date,participant_count,total_amount").eq("daycare_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (error || !reservation) {
+    const { data: reservations, error } = await supabase
+      .from("reservations")
+      .select("id,reservation_number,product_id,reserved_date,reserved_time,participant_count,total_amount")
+      .eq("daycare_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error || !reservations?.length) {
       setLoadMessage("불러올 예약 내역이 없습니다.");
+      setIsLoadingReservations(false);
       return;
     }
-    const { data: product } = await supabase.from("products").select("name,sale_price").eq("id", reservation.product_id).maybeSingle();
-    const unitPrice = product?.sale_price ? String(product.sale_price) : reservation.participant_count ? String(Math.round(reservation.total_amount / reservation.participant_count)) : "";
+    const reservationIds = reservations.map((reservation) => reservation.id);
+    const productIds = Array.from(new Set(reservations.map((reservation) => reservation.product_id)));
+    const [{ data: products }, { data: payments }, { data: refunds }] = await Promise.all([
+      supabase.from("products").select("id,name,sale_price").in("id", productIds),
+      supabase.from("payments").select("reservation_id,payment_method,pg_tid,status,paid_at,amount,created_at").in("reservation_id", reservationIds).order("created_at", { ascending: false }),
+      supabase.from("refunds").select("reservation_id,refund_amount").in("reservation_id", reservationIds).eq("status", "completed"),
+    ]);
+    const productById = new Map((products || []).map((product) => [product.id, product]));
+    const paymentByReservationId = new Map<string, NonNullable<typeof payments>[number]>();
+    (payments || []).forEach((payment) => {
+      if (!paymentByReservationId.has(payment.reservation_id)) paymentByReservationId.set(payment.reservation_id, payment);
+    });
+    const refundByReservationId = new Map<string, number>();
+    (refunds || []).forEach((refund) => {
+      refundByReservationId.set(refund.reservation_id, (refundByReservationId.get(refund.reservation_id) || 0) + Number(refund.refund_amount || 0));
+    });
+    setReservationChoices(reservations.map((reservation) => {
+      const product = productById.get(reservation.product_id);
+      return {
+        id: reservation.id,
+        reservationNumber: reservation.reservation_number,
+        reservedDate: reservation.reserved_date,
+        reservedTime: reservation.reserved_time,
+        participantCount: reservation.participant_count,
+        totalAmount: reservation.total_amount,
+        productName: product?.name || "상품 정보 없음",
+        unitPrice: product?.sale_price ?? null,
+        payment: paymentByReservationId.get(reservation.id) || null,
+        refundAmount: refundByReservationId.get(reservation.id) || 0,
+      };
+    }));
+    setIsReservationPickerOpen(true);
+    setIsLoadingReservations(false);
+  };
+
+  const loadReservation = (reservation: ReservationChoice) => {
+    const unitPrice = reservation.unitPrice ? String(reservation.unitPrice) : reservation.participantCount ? String(Math.round(reservation.totalAmount / reservation.participantCount)) : "";
     setValues((current) => ({
       ...current,
-      experienceName: product?.name || current.experienceName,
-      experienceDate: reservation.reserved_date || current.experienceDate,
-      participantCount: String(reservation.participant_count || ""),
+      experienceName: reservation.productName || current.experienceName,
+      experienceDate: reservation.reservedDate || current.experienceDate,
+      participantCount: String(reservation.participantCount || ""),
       unitPrice,
       optionAmount: "0",
-      ...(type === "payment-statement" ? { paymentStatus: "결제 완료", paymentDate: new Date().toISOString().slice(0, 10) } : {}),
+      ...(type === "payment-statement" ? reservation.payment ? {
+        paymentDate: reservation.payment.paid_at?.slice(0, 10) || "",
+        paymentMethod: paymentMethodLabel(reservation.payment.payment_method),
+        transactionId: reservation.payment.pg_tid || "",
+        paymentStatus: paymentStatusLabel(reservation.payment.status),
+        refundAmount: String(reservation.refundAmount),
+      } : {
+        paymentDate: "",
+        paymentMethod: "",
+        transactionId: "",
+        paymentStatus: "",
+        refundAmount: "0",
+      } : {}),
     }));
-    setLoadMessage("최근 예약 내역이 입력되었습니다.");
+    setIsReservationPickerOpen(false);
+    setLoadMessage(reservation.payment ? "선택한 예약 및 결제 정보가 입력되었습니다." : "선택한 예약 정보가 입력되었습니다. 결제 정보는 아직 없습니다.");
   };
 
   const loadCart = () => {
@@ -219,18 +312,11 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
 
           {definition.sections.map((section) => (
             <section key={section.title} className="rounded-2xl border bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3"><h3 className="text-base font-bold text-gray-950">{section.title}</h3>{(["quotation", "payment-statement"].includes(type) && section.title === "수신 기관") && <button type="button" onClick={loadLoginInfo} className="whitespace-nowrap rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "venue-guide" && section.title === "기본 정보" && <button type="button" onClick={loadLoginInfo} className="whitespace-nowrap rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "safety-education" && section.title === "교육 개요" && <button type="button" onClick={loadLoginInfo} className="whitespace-nowrap rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "parent-education" && section.title === "발행 정보" && <button type="button" onClick={loadLoginInfo} className="whitespace-nowrap rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "family-letter" && section.title === "안내 기본 정보" && <button type="button" onClick={loadLoginInfo} className="whitespace-nowrap rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "quotation" && section.title === "견적 내역" && <button type="button" onClick={loadCart} className="whitespace-nowrap rounded-md border border-damda-yellow px-2.5 py-1.5 text-xs font-bold text-gray-900 hover:bg-amber-50">장바구니 내역 불러오기</button>}{type === "payment-statement" && section.title === "결제 금액" && <button type="button" onClick={loadLatestReservation} className="whitespace-nowrap rounded-md border border-damda-yellow px-2.5 py-1.5 text-xs font-bold text-gray-900 hover:bg-amber-50">예약 내역 불러오기</button>}</div>
+              <div className="flex items-center justify-between gap-3"><h3 className="text-base font-bold text-gray-950">{section.title}</h3>{(["quotation", "payment-statement"].includes(type) && section.title === "수신 기관") && <button type="button" onClick={loadLoginInfo} className="whitespace-nowrap rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "venue-guide" && section.title === "기본 정보" && <button type="button" onClick={loadLoginInfo} className="whitespace-nowrap rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "safety-education" && section.title === "교육 개요" && <button type="button" onClick={loadLoginInfo} className="whitespace-nowrap rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "parent-education" && section.title === "발행 정보" && <button type="button" onClick={loadLoginInfo} className="whitespace-nowrap rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "family-letter" && section.title === "안내 기본 정보" && <button type="button" onClick={loadLoginInfo} className="whitespace-nowrap rounded-md border border-teal-200 px-2.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50">로그인 정보 불러오기</button>}{type === "quotation" && section.title === "견적 내역" && <button type="button" onClick={loadCart} className="whitespace-nowrap rounded-md border border-damda-yellow px-2.5 py-1.5 text-xs font-bold text-gray-900 hover:bg-amber-50">장바구니 내역 불러오기</button>}{type === "payment-statement" && section.title === "결제 금액" && <button type="button" onClick={() => void openReservationPicker()} disabled={isLoadingReservations} className="whitespace-nowrap rounded-md border border-damda-yellow px-2.5 py-1.5 text-xs font-bold text-gray-900 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60">{isLoadingReservations ? "예약 내역 불러오는 중" : "예약 결제 정보 불러오기"}</button>}</div>
               {section.description && <p className="mt-1 whitespace-pre-line text-xs leading-5 text-gray-500">{section.description}</p>}
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 {section.fields.filter((field) => (!(["quotation", "payment-statement"].includes(type)) || field.name !== "discountAmount")).map((field) => <EditorField key={field.name} field={field} value={values[field.name] || ""} onChange={(value) => updateValue(field.name, value)} />)}
               </div>
-              {section.title === "발행자 정보" && (type === "quotation" || type === "payment-statement") && (
-                <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-lg border border-rose-100 bg-rose-50/60 p-3 text-sm font-semibold text-gray-800">
-                  <input type="checkbox" checked={values.issuerSeal === "true"} onChange={(event) => updateValue("issuerSeal", String(event.target.checked))} className="h-4 w-4 accent-red-700" />
-                  <img src={DAMDA_BUSINESS_SEAL_SRC} alt="담다 사업자 인감 미리보기" className="h-10 w-10 rounded-full object-contain" />
-                  <span>발행자 정보에 사업자 인감 찍기</span>
-                </label>
-              )}
             </section>
           ))}
         </div>
@@ -240,6 +326,24 @@ export function FreeFormEditor({ type }: { type: FreeFormType }) {
           <FreeFormPreview definition={definition} values={values} />
         </div>
       </div>
+      {isReservationPickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/45 p-0 sm:items-center sm:justify-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="reservation-picker-title">
+          <div className="max-h-[86vh] w-full overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-w-2xl sm:rounded-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+              <div><h2 id="reservation-picker-title" className="text-lg font-black text-gray-950">예약·결제 정보 선택</h2><p className="mt-1 text-xs text-gray-500">불러올 예약 건을 선택하세요.</p></div>
+              <button type="button" onClick={() => setIsReservationPickerOpen(false)} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900" aria-label="예약 선택창 닫기"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="max-h-[calc(86vh-88px)] space-y-2 overflow-y-auto p-4">
+              {reservationChoices.map((reservation) => (
+                <button key={reservation.id} type="button" onClick={() => loadReservation(reservation)} className="w-full rounded-xl border border-gray-200 p-4 text-left transition hover:border-damda-yellow hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-damda-yellow">
+                  <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-bold text-gray-950">{reservation.productName}</p><p className="mt-1 text-xs text-gray-500">예약번호 {reservation.reservationNumber}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${reservation.payment?.status === "paid" ? "bg-teal-50 text-teal-700" : "bg-gray-100 text-gray-600"}`}>{reservation.payment ? paymentStatusLabel(reservation.payment.status) : "결제 정보 없음"}</span></div>
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600"><span>{reservation.reservedDate}{reservation.reservedTime ? ` ${reservation.reservedTime.slice(0, 5)}` : ""}</span><span>{reservation.participantCount.toLocaleString("ko-KR")}명</span><span className="font-bold text-gray-900">{reservation.totalAmount.toLocaleString("ko-KR")}원</span></div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

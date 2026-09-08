@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 const NICEPAY_API_URL = "https://api.nicepay.co.kr/v1/payments";
 
@@ -8,7 +9,14 @@ export async function POST(request: NextRequest) {
   try {
     const { tid, orderId } = await request.json();
 
-    if (typeof tid !== "string" || typeof orderId !== "string" || !tid || !orderId) {
+    if (
+      typeof tid !== "string" ||
+      typeof orderId !== "string" ||
+      !tid.trim() ||
+      !orderId.trim() ||
+      tid.length > 100 ||
+      orderId.length > 64
+    ) {
       return NextResponse.json(
         { success: false, error: "필수 파라미터가 누락되었습니다." },
         { status: 400 }
@@ -24,10 +32,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "로그인이 필요합니다." }, { status: 401 });
     }
 
-    const { data: order, error: orderError } = await supabase
+    // This client only authenticates the requester. Finalisation below uses
+    // server-only credentials after NICEPAY's source record is verified.
+    const serviceSupabase = createServiceClient();
+    const { data: order, error: orderError } = await serviceSupabase
       .from("payment_orders")
-      .select("order_id, amount, status, reservation_ids")
+      .select("order_id, daycare_id, amount, payment_method, status, pg_tid, reservation_ids, items")
       .eq("order_id", orderId)
+      .eq("daycare_id", user.id)
       .single();
 
     if (orderError || !order) {
@@ -35,6 +47,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (order.status === "paid") {
+      if (order.pg_tid !== tid) {
+        return NextResponse.json({ success: false, error: "주문 결제 정보가 일치하지 않습니다." }, { status: 409 });
+      }
       return NextResponse.json({
         success: true,
         data: { orderId: order.order_id, reservationIds: order.reservation_ids, idempotent: true },
@@ -52,31 +67,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Basic 인증: clientKey:secretKey를 Base64 인코딩
+    // NICEPAY 인증결제는 인증 응답을 받은 뒤 서버에서 승인 API를 호출해야
+    // 실제로 결제가 완료됩니다. 조회(GET)가 아니라 승인(POST) 결과만을
+    // 예약 확정의 근거로 사용합니다.
     const authKey = Buffer.from(`${clientKey}:${secretKey}`).toString("base64");
-
-    // 나이스페이 승인 API 호출
     const response = await fetch(`${NICEPAY_API_URL}/${tid}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Basic ${authKey}`,
       },
-      body: JSON.stringify({
-        amount: order.amount,
-      }),
+      body: JSON.stringify({ amount: order.amount }),
+      cache: "no-store",
     });
 
-    const result = await response.json();
+    const result = await response.json().catch(() => null);
 
     if (
+      response.ok &&
+      result &&
       result.resultCode === "0000" &&
+      result.tid === tid &&
       result.orderId === order.order_id &&
       Number(result.amount) === order.amount
     ) {
-      const { data: finalized, error: finalizeError } = await supabase.rpc("finalize_secure_payment_order", {
+      const { data: finalized, error: finalizeError } = await serviceSupabase.rpc("finalize_secure_payment_order", {
         p_order_id: order.order_id,
-        p_tid: result.tid,
+        p_tid: tid,
         p_paid_amount: order.amount,
       });
 
@@ -97,11 +114,11 @@ export async function POST(request: NextRequest) {
         data: finalized,
       });
     } else {
-      console.error("Payment approval failed", result.resultCode);
+      console.error("Payment verification failed", result?.resultCode, result?.status);
       return NextResponse.json({
         success: false,
-        error: result.resultMsg || "결제 승인에 실패했습니다.",
-        code: result.resultCode,
+        error: result?.resultMsg || "결제 승인 정보를 검증하지 못했습니다.",
+        code: result?.resultCode,
       });
     }
   } catch (error) {

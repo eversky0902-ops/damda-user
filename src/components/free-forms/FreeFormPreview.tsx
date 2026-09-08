@@ -89,20 +89,20 @@ export function FreeFormPreview({ definition, values }: { definition: FreeFormDe
           <h2 className="border-l-4 border-damda-yellow pl-2 text-sm font-bold text-gray-950">{section.title}</h2>
           <div className="mt-2 overflow-hidden rounded-lg border border-gray-300">
             <table className="w-full text-xs sm:text-sm"><tbody className="divide-y divide-gray-200">
-              {section.fields.filter((field) => (!["quotation", "payment-statement"].includes(definition.type) || field.name !== "discountAmount")).map((field) => (
-                <tr key={field.name}>
-                  <th className="w-36 bg-gray-50 px-3 py-2.5 text-left align-top font-semibold text-gray-600">{field.label}</th>
-                  <td className="px-3 py-2.5 align-top"><PreviewValue value={field.kind === "number" ? formatNumber(values[field.name]) : values[field.name]} /></td>
-                </tr>
-              ))}
+              {section.fields.filter((field) => (!["quotation", "payment-statement"].includes(definition.type) || field.name !== "discountAmount")).map((field) => {
+                const value = field.kind === "number" ? formatNumber(values[field.name]) : values[field.name];
+                const showIssuerSeal = ["quotation", "payment-statement"].includes(definition.type) && section.title === "발행자 정보" && field.name === "issuerRepresentative";
+                return (
+                  <tr key={field.name}>
+                    <th className={`w-36 bg-gray-50 px-3 py-2.5 text-left font-semibold text-gray-600 ${showIssuerSeal ? "align-middle" : "align-top"}`}>{field.label}</th>
+                    <td className={`px-3 py-2.5 ${showIssuerSeal ? "align-middle" : "align-top"}`}>
+                      {showIssuerSeal ? <div className="flex items-center justify-start gap-2"><PreviewValue value={value} /><img src={DAMDA_BUSINESS_SEAL_SRC} alt="담다 사업자 인감" className="h-12 w-12 shrink-0 object-contain" /></div> : <PreviewValue value={value} />}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody></table>
           </div>
-          {section.title === "발행자 정보" && values.issuerSeal === "true" && (
-            <div className="mt-2 flex items-center justify-end gap-2 text-xs text-gray-500">
-              <span>사업자 인감</span>
-              <img src={DAMDA_BUSINESS_SEAL_SRC} alt="담다 사업자 인감" className="h-20 w-20 object-contain" />
-            </div>
-          )}
         </section>
       ))}
 

@@ -52,7 +52,7 @@ export function Footer() {
           {/* Customer center */}
           <div className="lg:text-right">
             <p className="text-sm text-gray-400 mb-1">고객센터</p>
-            <p className="text-2xl font-bold text-white mb-2">010-7625-3711</p>
+            <p className="text-2xl font-bold text-white mb-2">050-6458-0711</p>
             <div className="text-xs text-gray-400 space-y-1">
               <p>평일 09:00~18:00, 점심 12:00~13:00 (토/일/공휴일 휴무)</p>
               <p>{/* FAX : 02-1234-5678 | */}이메일 : damda_0001@naver.com</p>

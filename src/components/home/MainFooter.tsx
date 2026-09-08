@@ -2,7 +2,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { unstable_cache } from "next/cache";
 import { createCacheClient } from "@/lib/supabase/cache-client";
-import { createClient } from "@/lib/supabase/server";
 
 // 푸터 고객센터 정보는 공개 데이터 → 쿠키 없는 클라이언트 + 캐시 (레이아웃 전체의 동적화 방지)
 const getServiceSettings = unstable_cache(
@@ -13,7 +12,7 @@ const getServiceSettings = unstable_cache(
       .select("key, value")
       .in("key", ["service_phone", "service_email", "business_hours"]);
 
-    if (!data) return { phone: "010-7625-3711", email: "damda_0001@naver.com", hoursStart: "09:00", hoursEnd: "18:00" };
+    if (!data) return { phone: "050-6458-0711", email: "damda_0001@naver.com", hoursStart: "09:00", hoursEnd: "18:00" };
 
     const settings: Record<string, unknown> = {};
     for (const row of data) {
@@ -24,7 +23,7 @@ const getServiceSettings = unstable_cache(
       }
     }
 
-    const phone = (settings.service_phone as string) || "010-7625-3711";
+    const phone = (settings.service_phone as string) || "050-6458-0711";
     const configuredEmail = (settings.service_email as string) || "damda_0001@naver.com";
     const email = configuredEmail === "damda_0003@naver.com"
       ? "damda_0001@naver.com"
@@ -55,8 +54,6 @@ function formatPhone(phone: string) {
 
 export async function MainFooter() {
   const settings = await getServiceSettings();
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
   const displayPhone = formatPhone(settings.phone);
 
   return (
@@ -69,18 +66,17 @@ export async function MainFooter() {
             <Link href="/privacy" className="hover:text-white font-semibold">개인정보처리방침</Link>
             <Link href="/refund-policy" className="hover:text-white">환불정책</Link>
             <Link href="/reservation-guide" className="hover:text-white">예약안내</Link>
-            {user && <Link href="/free-forms" className="font-semibold text-white hover:text-damda-yellow">무료 행정서류</Link>}
             <Link href="/email-rejection" className="hover:text-white">이메일 무단 수집거부</Link>
           </div>
           <div className="flex gap-4">
+            <Link href="/partner" className="hover:text-white">입점문의</Link>
+            <Link href="/notice" className="hover:text-white">공지사항</Link>
             <a
               href="https://santarally.net/c/c_HZJwVaOY0lJ83oobzylP1MHDe7eFPYbP/article-index-c_HZJwVaOY0lJ83oobzylP1MHDe7eFPYbP"
               className="hover:text-white"
             >
               블로그
             </a>
-            <Link href="/partner" className="hover:text-white">입점문의</Link>
-            <Link href="/notice" className="hover:text-white">공지사항</Link>
           </div>
         </div>
       </div>

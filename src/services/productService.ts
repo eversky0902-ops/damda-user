@@ -162,6 +162,8 @@ export interface BusinessOwnerShowcase {
   logo_url: string | null;
   product_count: number;
   min_sale_price: number;
+  /** 비로그인 랜딩 카드에서 실제 가격 없이 표시하는 최대 할인율 */
+  discount_rate?: number;
   regions: string[];
   featured_product?: Product;
   products: Product[];
@@ -330,6 +332,56 @@ export async function getPopularBusinessOwners(limit?: number): Promise<Business
 
   const allOwners = Array.from(owners.values());
   return limit ? allOwners.slice(0, limit) : allOwners;
+}
+
+interface PublicPopularBusinessRow {
+  business_id: string;
+  business_name: string;
+  business_logo_url: string | null;
+  region: string | null;
+  featured_product_id: string;
+  featured_product_name: string;
+  featured_product_thumbnail: string | null;
+  discount_rate: number;
+}
+
+// 비로그인 랜딩에는 가격·연락처·예약정보를 전혀 포함하지 않는 전용 RPC만 사용합니다.
+// 조회 실패를 빈 결과로 캐시하지 않기 위해 캐시 함수 내부에서는 오류를 그대로 던집니다.
+const getPublicPopularBusinessOwnersCached = unstable_cache(
+  async (limit: number): Promise<BusinessOwnerShowcase[]> => {
+    const supabase = createCacheClient();
+    const { data, error } = await supabase.rpc("get_public_popular_businesses", { p_limit: limit });
+    if (error) throw error;
+
+    return ((data || []) as PublicPopularBusinessRow[]).map((business) => ({
+      id: business.business_id,
+      name: business.business_name,
+      logo_url: business.business_logo_url,
+      // 공개 랜딩에서는 상품 수를 노출하지 않습니다. 카드의 가격/신규등록 분기만
+      // 안정적으로 유지할 수 있도록 내부 표시값은 1로 고정합니다.
+      product_count: 1,
+      min_sale_price: 0,
+      discount_rate: business.discount_rate,
+      regions: business.region ? [business.region] : [],
+      featured_product: {
+        id: business.featured_product_id,
+        name: business.featured_product_name,
+        thumbnail: business.featured_product_thumbnail || "",
+      } as Product,
+      products: [],
+    }));
+  },
+  ["public-popular-businesses"],
+  { revalidate: 300, tags: ["public-popular-businesses"] }
+);
+
+export async function getPublicPopularBusinessOwners(limit = 8): Promise<BusinessOwnerShowcase[]> {
+  try {
+    return await getPublicPopularBusinessOwnersCached(limit);
+  } catch (error) {
+    console.error("Error fetching public popular business owners:", error);
+    return [];
+  }
 }
 
 export async function getBusinessOwnerById(id: string): Promise<BusinessDetail | null> {
@@ -933,6 +985,7 @@ export interface ProductDetail extends Product {
   options: ProductOption[];
   unavailable_dates: ProductUnavailableDate[];
   available_time_slots: ProductTimeSlot[] | null;
+  business_hours?: BusinessHour[];
 }
 
 export interface ProductImage {
@@ -1038,6 +1091,7 @@ export async function getProductDetail(id: string): Promise<ProductDetail | null
     options: optionsResult.data || [],
     unavailable_dates: unavailableDatesResult.data || [],
     available_time_slots: product.available_time_slots as ProductTimeSlot[] | null,
+    business_hours: business?.hours || [],
   };
 }
 

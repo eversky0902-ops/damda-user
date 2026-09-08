@@ -27,7 +27,7 @@ import { useCart } from "@/hooks/use-cart";
 import { toast } from "sonner";
 import { format, addDays, isBefore, isAfter, startOfDay, getDay, parse } from "date-fns";
 import { ko } from "date-fns/locale";
-import type { ProductDetail } from "@/services/productService";
+import type { BusinessHour, ProductDetail } from "@/services/productService";
 import { addRecentView } from "@/services/recentViewService";
 import { getUnavailableDates } from "@/services/holdService";
 import { useReservationSettings } from "@/hooks/use-reservation-settings";
@@ -106,14 +106,20 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
 
   // 시간 문자열을 라벨로 변환
   const formatTimeLabel = (time: string): string => {
-    const [hour] = time.split(":").map(Number);
+    const [hour, minute = 0] = time.split(":").map(Number);
+    const minuteLabel = minute ? ` ${minute}분` : "";
     if (hour < 12) {
-      return `오전 ${hour}시`;
+      return `오전 ${hour}시${minuteLabel}`;
     } else if (hour === 12) {
-      return "오후 12시";
+      return `오후 12시${minuteLabel}`;
     } else {
-      return `오후 ${hour - 12}시`;
+      return `오후 ${hour - 12}시${minuteLabel}`;
     }
+  };
+
+  const toMinutes = (time: string): number => {
+    const [hour, minute = 0] = time.split(":").map(Number);
+    return hour * 60 + minute;
   };
 
   // 자동 시간 슬롯 생성
@@ -135,13 +141,30 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
     return slots;
   };
 
-  // 선택한 날짜에 맞는 예약 가능 시간 슬롯 계산
-  const availableTimeSlots = useMemo(() => {
-    // DB에 저장된 시간 슬롯이 없으면 빈 배열
-    if (!product.available_time_slots || product.available_time_slots.length === 0) {
-      return [];
+  // 사업장 운영시간에서는 1시간 이용이 가능한 시작 시간만 노출합니다.
+  const generateBusinessTimeSlots = (hour: BusinessHour): string[] => {
+    if (!hour.open_time || !hour.close_time) return [];
+
+    const slots: string[] = [];
+    const endMinutes = toMinutes(hour.close_time);
+    const breakStart = hour.break_start ? toMinutes(hour.break_start) : null;
+    const breakEnd = hour.break_end ? toMinutes(hour.break_end) : null;
+
+    for (let currentMinutes = toMinutes(hour.open_time); currentMinutes + 60 <= endMinutes; currentMinutes += 60) {
+      const slotEnd = currentMinutes + 60;
+      const overlapsBreak = breakStart !== null && breakEnd !== null && currentMinutes < breakEnd && slotEnd > breakStart;
+      if (overlapsBreak) continue;
+
+      const hourValue = Math.floor(currentMinutes / 60);
+      const minuteValue = currentMinutes % 60;
+      slots.push(`${hourValue.toString().padStart(2, "0")}:${minuteValue.toString().padStart(2, "0")}`);
     }
 
+    return slots;
+  };
+
+  // 선택한 날짜에 맞는 예약 가능 시간 슬롯 계산
+  const availableTimeSlots = useMemo(() => {
     // 날짜가 선택되지 않았으면 빈 배열
     if (!selectedDate) {
       return [];
@@ -149,6 +172,22 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
 
     // 선택한 날짜의 요일 (0=일, 1=월, ... 6=토)
     const dayOfWeek = getDay(selectedDate);
+
+    // 사업장 운영시간이 등록된 경우 이를 우선 사용합니다. 상품별 슬롯은 기존 상품의 호환용으로만 사용합니다.
+    if (product.business_hours && product.business_hours.length > 0) {
+      const businessHour = product.business_hours.find((hour) => hour.day_of_week === dayOfWeek);
+      if (!businessHour || businessHour.is_closed) return [];
+
+      return generateBusinessTimeSlots(businessHour).map((time) => ({
+        time,
+        label: formatTimeLabel(time),
+      }));
+    }
+
+    // 기존 상품의 시간 슬롯이 없으면 선택 가능한 시간을 표시하지 않습니다.
+    if (!product.available_time_slots || product.available_time_slots.length === 0) {
+      return [];
+    }
 
     // 해당 요일의 시간 설정 찾기
     const dayConfig = product.available_time_slots.find(
@@ -176,7 +215,7 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
       time,
       label: formatTimeLabel(time),
     }));
-  }, [product.available_time_slots, selectedDate]);
+  }, [product.available_time_slots, product.business_hours, selectedDate]);
 
   // 인원 입력 처리
   const handleParticipantsInputChange = (value: string) => {
@@ -230,7 +269,13 @@ export function ProductDetailInfo({ product, isPreview = false }: ProductDetailI
 
     if (isHoliday) return true;
 
-    // 3. 영업일이 아닌 요일 체크 (available_time_slots에 해당 요일이 없으면 비활성화)
+    // 3. 사업장 운영시간이 등록된 경우 휴무일 또는 운영시간 미설정 요일은 비활성화
+    if (product.business_hours && product.business_hours.length > 0) {
+      const businessHour = product.business_hours.find((hour) => hour.day_of_week === dayOfWeek);
+      return !businessHour || businessHour.is_closed || !businessHour.open_time || !businessHour.close_time;
+    }
+
+    // 4. 기존 상품 시간 슬롯 기준 영업일 체크
     const timeSlots = product.available_time_slots;
     if (timeSlots && Array.isArray(timeSlots) && timeSlots.length > 0) {
       const availableDays = timeSlots.map((slot) => slot.day);

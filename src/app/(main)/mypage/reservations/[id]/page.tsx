@@ -100,7 +100,7 @@ export default async function ReservationDetailPage({
     .select("key, value")
     .in("key", ["service_phone", "business_hours"]);
 
-  let servicePhone = "010-7625-3711";
+  let servicePhone = "050-6458-0711";
   let businessHours = "평일 09:00~18:00";
 
   if (siteSettings) {
@@ -116,6 +116,10 @@ export default async function ReservationDetailPage({
         if (row.key === "service_phone") servicePhone = row.value as string;
       }
     }
+  }
+
+  if (servicePhone.replace(/\D/g, "") === "01076253711") {
+    servicePhone = "050-6458-0711";
   }
 
   // 전화번호 포맷팅
@@ -350,6 +354,7 @@ export default async function ReservationDetailPage({
       {/* 액션 버튼 */}
       <ReservationActions
         reservationId={reservation.id}
+        reservationNumber={reservation.reservation_number}
         canReview={canReview}
         canCancel={canCancel}
         servicePhone={displayPhone}

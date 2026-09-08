@@ -58,7 +58,7 @@ export function BusinessOwnerCard({
   const destination = href ?? getBusinessHref(owner.id);
   const image =
     owner.featured_product?.thumbnail || owner.logo_url || (showPublicDetails ? null : DEFAULT_IMAGE);
-  const maxDiscountRate = owner.products.reduce((maximum, product) => {
+  const maxDiscountRate = owner.discount_rate ?? owner.products.reduce((maximum, product) => {
     if (product.original_price <= 0 || product.sale_price >= product.original_price) return maximum;
     const discountRate = Math.round(((product.original_price - product.sale_price) / product.original_price) * 100);
     return Math.max(maximum, discountRate);

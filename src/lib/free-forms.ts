@@ -417,13 +417,16 @@ export function buildFreeFormDocumentHtml(
 ) {
   const definition = FREE_FORM_DEFINITION_BY_TYPE[type];
   const amount = calculateFreeFormAmounts(values, { includeDiscount: false });
-  const useIssuerSeal = (type === "quotation" || type === "payment-statement") && values.issuerSeal === "true";
+  const useIssuerSeal = type === "quotation" || type === "payment-statement";
   const sealImageSrc = options.sealImageSrc ?? DAMDA_BUSINESS_SEAL_SRC;
   const watermarkImageSrc = options.watermarkImageSrc ?? DAMDA_DOCUMENT_WATERMARK_SRC;
   const sections = definition.sections.map((section) => `<section><h2>${escapeHtml(section.title)}</h2><table>${section.fields
     .filter((field) => !(["quotation", "payment-statement"].includes(type) && field.name === "discountAmount"))
-    .map((field) => `
-    <tr><th>${escapeHtml(field.label)}</th><td>${htmlValue(field.kind === "number" ? formatNumber(values[field.name]) : values[field.name])}</td></tr>`).join("")}</table>${section.title === "발행자 정보" && useIssuerSeal ? `<div class="issuer-seal"><span>사업자 인감</span><img src="${escapeHtml(sealImageSrc)}" alt="담다 사업자 인감" /></div>` : ""}</section>`).join("");
+    .map((field) => {
+      const value = htmlValue(field.kind === "number" ? formatNumber(values[field.name]) : values[field.name]);
+      const showIssuerSeal = useIssuerSeal && section.title === "발행자 정보" && field.name === "issuerRepresentative";
+      return `<tr class="${showIssuerSeal ? "representative-row" : ""}"><th>${escapeHtml(field.label)}</th><td>${showIssuerSeal ? `<span class="representative-value">${value}<img src="${escapeHtml(sealImageSrc)}" alt="담다 사업자 인감" /></span>` : value}</td></tr>`;
+    }).join("")}</table></section>`).join("");
   const amountHtml = type === "quotation" || type === "payment-statement" ? `<section><h2>금액 합계</h2><table>
     <tr><th>인원별 금액</th><td>${amount.participantCount.toLocaleString("ko-KR")}명 × ${formatWon(amount.unitPrice)} = ${formatWon(amount.subtotal)}</td></tr>
     <tr><th>옵션·추가금액</th><td>${formatWon(amount.optionAmount)}</td></tr>
@@ -440,7 +443,7 @@ export function buildFreeFormDocumentHtml(
     section { margin:18px 0; page-break-inside:auto; } h2 { font-size:12pt; margin:0 0 7px; padding-left:8px; border-left:4px solid #f8b737; page-break-after:avoid; }
     table { width:100%; border-collapse:collapse; table-layout:fixed; page-break-inside:auto; } th, td { border:1px solid #bbb; padding:7px 9px; vertical-align:top; word-break:break-word; overflow-wrap:anywhere; } th { width:25%; background:#f5f5f5; text-align:left; } td { min-height:22px; white-space:pre-line; }
     tr { page-break-inside:avoid; }
-    tr.total th, tr.total td { font-size:13pt; font-weight:bold; background:#fff8e8; } .issuer-seal { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:10px; font-size:9pt; color:#555; } .issuer-seal img { width:32mm; height:32mm; object-fit:contain; } footer { border-top:1px solid #ccc; margin-top:24px; padding-top:8px; color:#777; font-size:8.5pt; text-align:center; }
+    tr.total th, tr.total td { font-size:13pt; font-weight:bold; background:#fff8e8; } tr.representative-row th, tr.representative-row td { vertical-align:middle; } .representative-value { display:flex; align-items:center; justify-content:flex-start; gap:8px; min-height:22px; } .representative-value img { width:18mm; height:18mm; flex:0 0 auto; object-fit:contain; } footer { border-top:1px solid #ccc; margin-top:24px; padding-top:8px; color:#777; font-size:8.5pt; text-align:center; }
   </style></head><body><div class="document-watermark" aria-hidden="true"><img src="${escapeHtml(watermarkImageSrc)}" alt="" /></div><div class="document-sheet"><header><p>DAMDA FREE DOCUMENT</p><h1>${escapeHtml(definition.title)}</h1></header>${sections}${amountHtml}${consentHtml(type)}<footer>담다 무료 어린이집 행정자료 · 입력 내용은 이용자가 확인 후 사용해 주세요.</footer></div></body></html>`;
 }
 
@@ -465,17 +468,27 @@ function docxParagraph(text: string, style?: "title" | "heading" | "footer") {
   return `<w:p>${properties}<w:r><w:rPr><w:rFonts w:ascii=\"Malgun Gothic\" w:hAnsi=\"Malgun Gothic\" w:eastAsia=\"Malgun Gothic\"/></w:rPr>${lines}</w:r></w:p>`;
 }
 
-function docxTableRow(cells: string[], isTotal = false) {
+function docxSealDrawing() {
+  return `<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="609600" cy="609600"/><wp:docPr id="1" name="담다 사업자 인감"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="damda-business-seal.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="609600" cy="609600"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>`;
+}
+
+function docxParagraphWithSeal(text: string) {
+  const lines = text.split(/\r?\n/).map((line) => `<w:t xml:space="preserve">${escapeXml(line || " ")}</w:t>`).join("<w:br/>");
+  return `<w:p><w:pPr><w:spacing w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:eastAsia="Malgun Gothic"/></w:rPr>${lines}</w:r><w:r>${docxSealDrawing()}</w:r></w:p>`;
+}
+
+function docxTableRow(cells: string[], isTotal = false, sealInValueCell = false) {
   const cellXml = cells.map((cell, index) => {
     const shaded = isTotal ? "<w:shd w:fill=\"FFF2CC\"/>" : index === 0 ? "<w:shd w:fill=\"F5F5F5\"/>" : "";
     const width = index === 0 ? 2300 : 6900;
-    return `<w:tc><w:tcPr><w:tcW w:w=\"${width}\" w:type=\"dxa\"/>${shaded}</w:tcPr>${docxParagraph(cell)}</w:tc>`;
+    const paragraph = sealInValueCell && index === 1 ? docxParagraphWithSeal(cell) : docxParagraph(cell);
+    return `<w:tc><w:tcPr><w:tcW w:w=\"${width}\" w:type=\"dxa\"/>${shaded}${sealInValueCell ? "<w:vAlign w:val=\"center\"/>" : ""}</w:tcPr>${paragraph}</w:tc>`;
   }).join("");
   return `<w:tr>${cellXml}</w:tr>`;
 }
 
-function docxTable(rows: Array<{ cells: string[]; total?: boolean }>) {
-  return `<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/><w:tblBorders><w:top w:val=\"single\" w:sz=\"6\" w:color=\"BFBFBF\"/><w:left w:val=\"single\" w:sz=\"6\" w:color=\"BFBFBF\"/><w:bottom w:val=\"single\" w:sz=\"6\" w:color=\"BFBFBF\"/><w:right w:val=\"single\" w:sz=\"6\" w:color=\"BFBFBF\"/><w:insideH w:val=\"single\" w:sz=\"6\" w:color=\"D9D9D9\"/><w:insideV w:val=\"single\" w:sz=\"6\" w:color=\"D9D9D9\"/></w:tblBorders></w:tblPr>${rows.map((row) => docxTableRow(row.cells, row.total)).join("")}</w:tbl>`;
+function docxTable(rows: Array<{ cells: string[]; total?: boolean; sealInValueCell?: boolean }>) {
+  return `<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/><w:tblBorders><w:top w:val=\"single\" w:sz=\"6\" w:color=\"BFBFBF\"/><w:left w:val=\"single\" w:sz=\"6\" w:color=\"BFBFBF\"/><w:bottom w:val=\"single\" w:sz=\"6\" w:color=\"BFBFBF\"/><w:right w:val=\"single\" w:sz=\"6\" w:color=\"BFBFBF\"/><w:insideH w:val=\"single\" w:sz=\"6\" w:color=\"D9D9D9\"/><w:insideV w:val=\"single\" w:sz=\"6\" w:color=\"D9D9D9\"/></w:tblBorders></w:tblPr>${rows.map((row) => docxTableRow(row.cells, row.total, row.sealInValueCell)).join("")}</w:tbl>`;
 }
 
 function docxSealParagraph() {
@@ -550,7 +563,7 @@ function createDocxBlob(files: Record<string, string | Uint8Array>) {
 export async function buildFreeFormDocxBlob(type: FreeFormType, values: FreeFormValues) {
   const definition = FREE_FORM_DEFINITION_BY_TYPE[type];
   const amount = calculateFreeFormAmounts(values, { includeDiscount: false });
-  const useIssuerSeal = (type === "quotation" || type === "payment-statement") && values.issuerSeal === "true";
+  const useIssuerSeal = type === "quotation" || type === "payment-statement";
   let sealImage: Uint8Array | null = null;
   let watermarkImage: Uint8Array | null = null;
   try {
@@ -576,8 +589,10 @@ export async function buildFreeFormDocxBlob(type: FreeFormType, values: FreeForm
     body.push(docxParagraph(section.title, "heading"));
     body.push(docxTable(section.fields
       .filter((field) => !(type === "quotation" || type === "payment-statement") || field.name !== "discountAmount")
-      .map((field) => ({ cells: [field.label, field.kind === "number" ? formatNumber(values[field.name]) : values[field.name] || ""] }))));
-    if (section.title === "발행자 정보" && sealImage) body.push(docxSealParagraph());
+      .map((field) => ({
+        cells: [field.label, field.kind === "number" ? formatNumber(values[field.name]) : values[field.name] || ""],
+        sealInValueCell: Boolean(sealImage) && section.title === "발행자 정보" && field.name === "issuerRepresentative",
+      }))));
   }
 
   if (type === "quotation" || type === "payment-statement") {
