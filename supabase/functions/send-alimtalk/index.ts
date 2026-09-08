@@ -184,6 +184,94 @@ async function handlePaymentNotificationHealth(reservationId?: string) {
   if (reservationId) await lookupPaidReservation(reservationId);
 }
 
+// This is intentionally read-only: it checks Aligo's per-recipient result for
+// the stored daycare delivery ID and never sends, claims, or writes a log.
+async function handlePaymentNotificationDeliveryStatus(reservationId: string) {
+  const { data: notification, error } = await supabase
+    .from("notification_logs")
+    .select("aligo_response")
+    .eq("reference_id", reservationId)
+    .eq("notification_type", "reservation_completed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new PaymentNotificationError("notification_status_lookup_failed", 503);
+  const mid = notification?.aligo_response?.info?.mid;
+  if (!/^\d+$/.test(String(mid))) throw new PaymentNotificationError("notification_status_not_found", 404);
+
+  const body = new URLSearchParams({
+    apikey: Deno.env.get("ALIGO_API_KEY")!,
+    userid: Deno.env.get("ALIGO_USER_ID")!,
+    mid: String(mid), page: "1", limit: "50",
+  });
+  // Aligo has the project's database egress IP registered. Reuse that fixed
+  // route for this read-only detail query; Edge egress is not allow-listed.
+  const { data: providerResponse, error: providerError } = await supabase.rpc(
+    "get_alimtalk_delivery_status_http", { p_body: body.toString() },
+  );
+  if (providerError || providerResponse?.status !== 200) {
+    throw new PaymentNotificationError("notification_status_unavailable", 503);
+  }
+  const result = providerResponse.body;
+  if (result?.code !== 0) {
+    return {
+      available: false,
+      providerQueryCode: typeof result?.code === "number" ? result.code : null,
+      found: false, status: null, result: null, resultMessage: null,
+    };
+  }
+  const delivery = Array.isArray(result.list) ? result.list[0] : null;
+  // Aligo documents a 24-hour result window. Return only delivery state, never
+  // phone numbers, message contents, credentials, or the complete provider body.
+  return {
+    available: true,
+    providerQueryCode: 0,
+    found: Boolean(delivery),
+    status: typeof delivery?.status === "string" ? delivery.status : null,
+    result: typeof delivery?.rslt === "string" ? delivery.rslt.slice(0, 32) : null,
+    resultMessage: typeof delivery?.rslt_message === "string" ? delivery.rslt_message.slice(0, 160) : null,
+  };
+}
+
+async function handlePaymentNotificationTemplateStatus(reservationId: string) {
+  const { data: notification, error } = await supabase
+    .from("notification_logs")
+    .select("template_code")
+    .eq("reference_id", reservationId)
+    .eq("notification_type", "reservation_completed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new PaymentNotificationError("notification_template_lookup_failed", 503);
+  const templateCode = notification?.template_code;
+  if (typeof templateCode !== "string" || !/^[A-Z0-9_-]{3,64}$/.test(templateCode)) {
+    throw new PaymentNotificationError("notification_template_not_found", 404);
+  }
+  const body = new URLSearchParams({
+    apikey: Deno.env.get("ALIGO_API_KEY")!,
+    userid: Deno.env.get("ALIGO_USER_ID")!,
+    senderkey: Deno.env.get("ALIGO_SENDER_KEY")!,
+    tpl_code: templateCode,
+  });
+  const { data: providerResponse, error: providerError } = await supabase.rpc(
+    "get_alimtalk_template_http", { p_body: body.toString() },
+  );
+  if (providerError || providerResponse?.status !== 200 || providerResponse?.body?.code !== 0) {
+    throw new PaymentNotificationError("notification_template_unavailable", 503);
+  }
+  const template = Array.isArray(providerResponse.body.list)
+    ? providerResponse.body.list.find((item: any) => item?.templtCode === templateCode) : null;
+  if (!template || typeof template.templtContent !== "string") {
+    throw new PaymentNotificationError("notification_template_not_found", 404);
+  }
+  return {
+    templateCode,
+    content: template.templtContent.slice(0, 4000),
+    buttons: Array.isArray(template.buttons) ? template.buttons.slice(0, 5) : [],
+    status: typeof template.status === "string" ? template.status : null,
+  };
+}
+
 async function handleReservationPaid(reservationId: string, testPhone?: string) {
   const reservation = await lookupPaidReservation(reservationId);
 
@@ -214,7 +302,7 @@ async function handleReservationPaid(reservationId: string, testPhone?: string) 
     ? [
       standardDaycareMessage,
       "",
-      "■ 사업장 담당자 연락처",
+      "■ 체험처 담당자 연락처",
       `- 담당자: ${businessContactName}`,
       `- 연락처: ${businessContactPhone}`,
     ].join("\n")
@@ -244,7 +332,9 @@ async function handleReservationPaid(reservationId: string, testPhone?: string) 
     referenceId: reservationId,
     subject: "예약 완료",
     testPhone,
-    buttons: CHANNEL_ADD_BUTTON,
+    // UL_0935 is approved without a button; the legacy template retains its
+    // already-approved channel-add button.
+    buttons: useContactTemplate ? undefined : CHANNEL_ADD_BUTTON,
   });
 
   const msg2 = [
@@ -623,7 +713,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const { event, reservation_id, daycare_id, test_phone } = body;
 
-    paymentEvent = event === "reservation_paid" || event === "payment_notification_health";
+    paymentEvent = event === "reservation_paid" || event === "payment_notification_health" || event === "payment_notification_delivery_status" || event === "payment_notification_template_status";
     if (paymentEvent && (test_phone || !authorizedPaymentWorker(req))) {
       return new Response(JSON.stringify({ success: false, reason: "notification_unauthorized" }), {
         status: 403, headers: { "Content-Type": "application/json" },
@@ -642,6 +732,18 @@ Deno.serve(async (req: Request) => {
         return new Response(JSON.stringify({ success: true, ready: true }), {
           headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
         });
+      case "payment_notification_delivery_status": {
+        const delivery = await handlePaymentNotificationDeliveryStatus(reservation_id);
+        return new Response(JSON.stringify({ success: true, delivery }), {
+          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+        });
+      }
+      case "payment_notification_template_status": {
+        const template = await handlePaymentNotificationTemplateStatus(reservation_id);
+        return new Response(JSON.stringify({ success: true, template }), {
+          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+        });
+      }
       case "reservation_cancelled":
         if (reservation_id) await handleReservationCancelled(reservation_id, test_phone);
         break;

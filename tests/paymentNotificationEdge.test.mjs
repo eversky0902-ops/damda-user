@@ -274,3 +274,8 @@ test('non-payment notifications retain their existing path without a payment cla
   assert.equal(calls.some(([kind, name]) => kind === 'rpc' && name === 'claim_payment_notification'), false);
   assert.equal(calls.filter(([kind, name]) => kind === 'rpc' && name === 'send_alimtalk_http').length, 1);
 });
+
+test('the approved contact template keeps its exact label and has no unapproved button', () => {
+  assert.match(source, /"■ 체험처 담당자 연락처"/);
+  assert.match(source, /buttons: useContactTemplate \? undefined : CHANNEL_ADD_BUTTON/);
+});
