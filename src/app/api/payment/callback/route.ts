@@ -1,41 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { paymentConfig, validIdentifiers, verifyAuthentication } from "@/lib/payments/nicepay";
 
+// Cross-site gateway POST may lack the SameSite session. This endpoint only records
+// signed authentication. The approve route independently authenticates the customer.
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-
-    // NICE Pay에서 전달받는 파라미터들
-    const authResultCode = formData.get("authResultCode") as string;
-    const authResultMsg = formData.get("authResultMsg") as string;
-    const tid = formData.get("tid") as string;
-    const orderId = formData.get("orderId") as string;
-    const amount = formData.get("amt") as string; // NICE Pay는 'amt'로 전달
-
-    // 쿼리 파라미터로 변환하여 콜백 페이지로 리다이렉트
-    const params = new URLSearchParams();
-    if (authResultCode) params.set("authResultCode", authResultCode);
-    if (authResultMsg) params.set("authResultMsg", authResultMsg);
-    if (tid) params.set("tid", tid);
-    if (orderId) params.set("orderId", orderId);
-    if (amount) params.set("amount", amount);
-    // 인증 토큰·서명은 URL이나 애플리케이션 로그로 전달하지 않는다.
-
-    const redirectUrl = `/checkout/callback?${params.toString()}`;
-
-    // 303 See Other: POST에서 GET으로 변환하여 리다이렉트
-    return NextResponse.redirect(new URL(redirectUrl, request.url), 303);
-  } catch (error) {
-    console.error("Payment callback error:", error);
-    return NextResponse.redirect(
-      new URL("/checkout/callback?authResultCode=ERROR&authResultMsg=콜백 처리 오류", request.url),
-      303
-    );
+    const fields = Object.fromEntries(await request.formData());
+    if (!validIdentifiers(fields.orderId, fields.tid)) throw new Error("invalid_callback");
+    const service = createServiceClient();
+    const { data: order, error } = await service.from("payment_orders").select("*").eq("order_id", fields.orderId).single();
+    if (error || !order) throw new Error("unknown_order");
+    verifyAuthentication(fields, order, paymentConfig());
+    const registered = await service.rpc("register_payment_authentication", { p_order_id: fields.orderId, p_tid: fields.tid });
+    if (registered.error) throw new Error("authentication_storage_failed");
+    const params = new URLSearchParams({ authResultCode: "0000", tid: String(fields.tid), orderId: fields.orderId });
+    const response = NextResponse.redirect(new URL(`/checkout/callback?${params}`, request.url), 303);
+    response.headers.set("Cache-Control", "no-store");
+    response.headers.set("Referrer-Policy", "no-referrer");
+    return response;
+  } catch {
+    return NextResponse.redirect(new URL("/checkout/callback?authResultCode=REVIEW", request.url), 303);
   }
-}
-
-// GET도 지원 (테스트용)
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const redirectUrl = `/checkout/callback?${searchParams.toString()}`;
-  return NextResponse.redirect(new URL(redirectUrl, request.url), 303);
 }

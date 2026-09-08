@@ -372,98 +372,13 @@ export interface CreateReservationParams {
   paymentTid?: string;
 }
 
+/** @deprecated Paid reservations are created only by verified server finalization. */
 export async function createReservations(
-  params: CreateReservationParams
+  _params: CreateReservationParams
 ): Promise<{ success: boolean; orderId?: string; reservationId?: string; error?: string }> {
-  const supabase = createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, error: "로그인이 필요합니다." };
-  }
-
-  try {
-    // 각 아이템에 대해 상품 정보 조회 및 예약 생성
-    const reservations = [];
-
-    for (const item of params.items) {
-      // 상품에서 business_owner_id 조회
-      const { data: product } = await supabase
-        .from("products")
-        .select("business_owner_id")
-        .eq("id", item.productId)
-        .single();
-
-      if (!product) {
-        return { success: false, error: "상품 정보를 찾을 수 없습니다." };
-      }
-
-      // 예약 번호 생성 (RES + timestamp + random)
-      const reservationNumber = `RES${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-
-      reservations.push({
-        reservation_number: reservationNumber,
-        daycare_id: user.id,
-        product_id: item.productId,
-        business_owner_id: product.business_owner_id,
-        reserved_date: item.reservedDate,
-        reserved_time: item.reservedTime || null,
-        participant_count: item.participants,
-        total_amount: item.totalAmount,
-        status: "confirmed",
-        reserver_name: params.reserverInfo.name || null,
-        reserver_phone: params.reserverInfo.phone || null,
-        reserver_email: params.reserverInfo.email || null,
-      });
-    }
-
-    const { data: insertedReservations, error } = await supabase
-      .from("reservations")
-      .insert(reservations)
-      .select("id, reservation_number, total_amount");
-
-    if (error) {
-      console.error("Error creating reservations:", error);
-      return { success: false, error: "예약 생성에 실패했습니다: " + error.message };
-    }
-
-    // 결제 정보 저장 (payments 테이블)
-    if (insertedReservations && insertedReservations.length > 0) {
-      const payments = insertedReservations.map((reservation) => ({
-        reservation_id: reservation.id,
-        amount: reservation.total_amount,
-        payment_method: params.paymentMethod || "card",
-        pg_provider: "nicepay",
-        pg_tid: params.paymentTid || null,
-        status: "paid",
-        paid_at: new Date().toISOString(),
-      }));
-
-      const { error: paymentError } = await supabase
-        .from("payments")
-        .insert(payments);
-
-      if (paymentError) {
-        console.error("Error creating payments:", paymentError);
-        // 결제 정보 저장 실패해도 예약은 생성되었으므로 성공으로 처리
-        // 하지만 로그는 남김
-      }
-    }
-
-    return {
-      success: true,
-      orderId: insertedReservations?.[0]?.reservation_number,
-      reservationId: insertedReservations?.[0]?.id,
-    };
-  } catch (error) {
-    console.error("Error creating reservations:", error);
-    return { success: false, error: "예약 생성 중 오류가 발생했습니다." };
-  }
+  void _params;
+  return { success: false, error: "서버 결제 확인을 통해 예약을 확정해주세요." };
 }
-
 export async function checkCartAvailability(
   items: Array<{
     productId: string;

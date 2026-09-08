@@ -1,0 +1,3 @@
+-- RETIRED: the user requires checkout to remain available.
+-- Intentionally contains no executable statements. Do not use this historical procedure.
+-- See docs/payment-continuous-cutover-20260908.md and payment-cutover-activate.sql.

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
+import { paymentConfig } from "@/lib/payments/nicepay";
 
 type CheckoutOption = { id?: unknown; quantity?: unknown };
 type CheckoutItem = {
@@ -31,6 +32,7 @@ function isCheckoutItem(value: unknown): value is CheckoutItem {
 
 export async function POST(request: Request) {
   try {
+    paymentConfig(); // Fail before opening a new payment when the live account is not attested.
     const body = await request.json();
     const items = body?.items;
     const reserverInfo = body?.reserverInfo;
@@ -56,7 +58,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
 
-    const { data, error } = await supabase.rpc("create_secure_payment_order", {
+    const { data, error } = await supabase.rpc("create_verified_payment_order", {
       p_items: items.map((item) => ({
         productId: item.productId,
         reservedDate: item.reservedDate,

@@ -18,6 +18,7 @@ function PaymentCallbackContent() {
   const [status, setStatus] = useState<PaymentStatus>("processing");
   const [message, setMessage] = useState("결제를 처리하고 있습니다...");
   const [reservationId, setReservationId] = useState<string | null>(null);
+  const [reviewRequired, setReviewRequired] = useState(false);
   const processedRef = useRef(false);
 
   useEffect(() => {
@@ -32,6 +33,12 @@ function PaymentCallbackContent() {
       const orderId = searchParams.get("orderId");
 
       // 인증 실패 체크
+      if (authResultCode === "REVIEW") {
+        setReviewRequired(true);
+        setStatus("error");
+        setMessage("결제 확인 대기 중입니다. 다시 결제하지 말고 고객센터에 확인해주세요.");
+        return;
+      }
       if (authResultCode !== "0000") {
         // 홀드 해제
         await releaseAllUserHolds();
@@ -68,9 +75,10 @@ function PaymentCallbackContent() {
         const approveResult = await approveResponse.json();
 
         if (!approveResult.success) {
+          setReviewRequired(Boolean(approveResult.reviewRequired || approveResult.paymentApproved));
           // PG 승인 이후 예약 확정에 실패한 경우에는 홀드를 풀지 않는다.
           // 결제 상태를 재조정하기 전 다른 사용자가 같은 재고를 예약하는 것을 방지한다.
-          if (!approveResult.paymentApproved) {
+          if (!approveResult.paymentApproved && !approveResult.reviewRequired) {
             await releaseAllUserHolds();
             localStorage.removeItem("damda_payment_holds");
           }
@@ -95,13 +103,11 @@ function PaymentCallbackContent() {
         setReservationId(reservationIds?.[0] || null);
         setStatus("success");
         setMessage("결제 및 예약이 완료되었습니다!");
-      } catch (error) {
-        console.error("Payment processing error:", error);
-        // 홀드 해제
-        await releaseAllUserHolds();
-        localStorage.removeItem("damda_payment_holds");
+      } catch {
+        setReviewRequired(true);
+        console.error("Payment response unavailable");
         setStatus("error");
-        setMessage("결제 처리 중 오류가 발생했습니다.");
+        setMessage("결제 결과 확인 대기 중입니다. 다시 결제하지 말고 거래 재확인 또는 고객센터 확인을 기다려주세요.");
       }
     };
 
@@ -152,14 +158,18 @@ function PaymentCallbackContent() {
         {status === "error" && (
           <>
             <XCircle className="w-20 h-20 text-red-500 mx-auto mb-6" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-3">결제 실패</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-3">{reviewRequired ? "결제 확인 대기" : "결제 실패"}</h1>
             <p className="text-gray-600 whitespace-pre-line mb-8">{message}</p>
             <div className="space-y-3">
               <Button
                 className="w-full h-12 bg-damda-yellow hover:bg-damda-yellow-dark text-gray-900"
-                onClick={() => router.push("/checkout")}
+                onClick={() => {
+                  if (!reviewRequired) router.push("/checkout");
+                  else if (searchParams.get("tid") && searchParams.get("orderId") && searchParams.get("authResultCode") === "0000") window.location.reload();
+                  else router.push("/mypage/reservations");
+                }}
               >
-                다시 결제하기
+                {reviewRequired ? (searchParams.get("authResultCode") === "0000" ? "거래 상태 다시 확인" : "예약 내역 확인") : "다시 결제하기"}
               </Button>
               <Button
                 variant="outline"
