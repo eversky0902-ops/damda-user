@@ -39,14 +39,20 @@ export async function POST(request: NextRequest) {
       return new Response("Rejected", { status: 400 });
     }
     const payload = body as Record<string, unknown>;
+    // NICEPAY validates a new URL by sending a sample notification whose
+    // orderId is not one of this merchant's orders. Acknowledging an unknown
+    // order cannot change any state. Known orders remain signature-verified.
+    if (typeof payload.orderId !== "string") return webhookOk();
+    const service = createServiceClient();
+    const { data: order, error } = await service.from("payment_orders").select("*").eq("order_id", payload.orderId).maybeSingle();
+    if (error) return new Response("Review pending", { status: 503, headers: webhookHeaders });
+    if (!order) return webhookOk();
     const config = paymentConfig();
     verifyGatewaySignature(payload, config);
     if (payload.status === "cancelled" || payload.status === "partialCancelled") {
       return await forwardRefundWebhook(payload);
     }
-    const service = createServiceClient();
-    const { data: order, error } = await service.from("payment_orders").select("*").eq("order_id", payload.orderId).single();
-    if (error || !order || payload.amount !== order.amount) return new Response("Rejected", { status: 400 });
+    if (payload.amount !== order.amount) return new Response("Rejected", { status: 400 });
     const result = await reconcilePayment({ order, tid: payload.tid as string, actorId: null, source: "webhook",
       config, rpc: (name, args) => service.rpc(name, args), allowApproval: false });
     return result.success
