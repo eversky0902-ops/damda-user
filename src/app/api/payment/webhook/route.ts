@@ -10,16 +10,31 @@ function webhookOk() {
   return new Response("OK", { status: 200, headers: webhookHeaders });
 }
 
+function isRegistrationProbe(body: unknown) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return false;
+  // A delivery that can change payment state must include at least one of
+  // these signed-event fields. NICEPAY's endpoint registration probe does not.
+  return !["tid", "orderId", "amount", "ediDate", "signature"].some((key) => key in body);
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body: unknown = await request.json();
-    // NICEPAY sends an empty JSON object while validating a newly registered
+    const rawBody = await request.text();
+    // NICEPAY sends a non-event request while validating a newly registered
     // endpoint. It carries no transaction data and is deliberately handled
     // before configuration/signature validation. Every event-shaped payload
     // continues through the strict signature and order verification below.
-    if (body && typeof body === "object" && !Array.isArray(body) && Object.keys(body).length === 0) {
+    if (!rawBody.trim()) return webhookOk();
+    let body: unknown;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      // NICEPAY documents JSON for deliveries. A non-JSON registration probe
+      // cannot affect state, while a real event will still be reconciled by
+      // the independently verified batch job if delivery is malformed.
       return webhookOk();
     }
+    if (isRegistrationProbe(body)) return webhookOk();
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       return new Response("Rejected", { status: 400 });
     }
