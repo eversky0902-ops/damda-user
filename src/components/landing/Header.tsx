@@ -5,9 +5,11 @@ import Image from "next/image";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -18,6 +20,15 @@ export function Header() {
 
         {/* CTA Buttons */}
         <div className="hidden items-center gap-3 md:flex">
+          {isAuthenticated && (
+            <Button
+              variant="ghost"
+              asChild
+              className="font-semibold text-teal-700 hover:bg-teal-50 hover:text-teal-900"
+            >
+              <Link href="/free-forms">무료 행정서류</Link>
+            </Button>
+          )}
           <Button
             variant="ghost"
             asChild
@@ -29,7 +40,7 @@ export function Header() {
             asChild
             className="btn-shine rounded-full bg-primary px-6 font-medium text-white shadow-lg shadow-primary/25 transition-all hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30"
           >
-            <Link href="/signup">가입 신청</Link>
+            <Link href="/signup" data-analytics-metric="signup_cta_click">가입 신청</Link>
           </Button>
         </div>
 
@@ -55,11 +66,16 @@ export function Header() {
       >
         <nav className="flex flex-col p-4">
           <div className="flex flex-col gap-2">
+            {isAuthenticated && (
+              <Button variant="outline" asChild className="justify-center border-teal-200 text-teal-800">
+                <Link href="/free-forms">무료 행정서류</Link>
+              </Button>
+            )}
             <Button variant="outline" asChild className="justify-center">
               <Link href="/login">로그인</Link>
             </Button>
             <Button asChild className="justify-center">
-              <Link href="/signup">가입 신청</Link>
+              <Link href="/signup" data-analytics-metric="signup_cta_click">가입 신청</Link>
             </Button>
           </div>
         </nav>

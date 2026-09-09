@@ -12,7 +12,7 @@ const getServiceSettings = unstable_cache(
       .select("key, value")
       .in("key", ["service_phone", "service_email", "business_hours"]);
 
-    if (!data) return { phone: "010-7625-3711", email: "damda_0003@naver.com", hoursStart: "09:00", hoursEnd: "18:00" };
+    if (!data) return { phone: "050-6458-0711", email: "damda_0001@naver.com", hoursStart: "09:00", hoursEnd: "18:00" };
 
     const settings: Record<string, unknown> = {};
     for (const row of data) {
@@ -23,8 +23,11 @@ const getServiceSettings = unstable_cache(
       }
     }
 
-    const phone = (settings.service_phone as string) || "010-7625-3711";
-    const email = (settings.service_email as string) || "damda_0003@naver.com";
+    const phone = (settings.service_phone as string) || "050-6458-0711";
+    const configuredEmail = (settings.service_email as string) || "damda_0001@naver.com";
+    const email = configuredEmail === "damda_0003@naver.com"
+      ? "damda_0001@naver.com"
+      : configuredEmail;
     const hours = settings.business_hours as { start: string; end: string } | undefined;
 
     return {
@@ -34,7 +37,7 @@ const getServiceSettings = unstable_cache(
       hoursEnd: hours?.end || "18:00",
     };
   },
-  ["service-settings"],
+  ["service-settings-v2"],
   { revalidate: 600, tags: ["site-settings"] }
 );
 
@@ -63,10 +66,17 @@ export async function MainFooter() {
             <Link href="/privacy" className="hover:text-white font-semibold">개인정보처리방침</Link>
             <Link href="/refund-policy" className="hover:text-white">환불정책</Link>
             <Link href="/reservation-guide" className="hover:text-white">예약안내</Link>
+            <Link href="/email-rejection" className="hover:text-white">이메일 무단 수집거부</Link>
           </div>
           <div className="flex gap-4">
             <Link href="/partner" className="hover:text-white">입점문의</Link>
             <Link href="/notice" className="hover:text-white">공지사항</Link>
+            <a
+              href="https://santarally.net/c/c_HZJwVaOY0lJ83oobzylP1MHDe7eFPYbP/article-index-c_HZJwVaOY0lJ83oobzylP1MHDe7eFPYbP"
+              className="hover:text-white"
+            >
+              블로그
+            </a>
           </div>
         </div>
       </div>

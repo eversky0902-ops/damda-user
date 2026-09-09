@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { MapPin } from "lucide-react";
 import type { Product } from "@/services/productService";
+import { ProductWishlistButton } from "./ProductWishlistButton";
 
 interface PopularTop4SectionProps {
   products: Product[];
@@ -82,6 +83,11 @@ function PopularProductCard({ product, dateParam }: { product: Product; datePara
 
       {/* 오버레이 */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+
+      <ProductWishlistButton
+        productId={product.id}
+        label={product.name}
+      />
 
       {/* HOT 뱃지 */}
       <div className="absolute top-3 left-3 px-2 py-1 bg-red-500 text-white text-xs font-bold rounded">

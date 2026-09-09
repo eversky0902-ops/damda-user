@@ -17,7 +17,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { createClient } from "@/lib/supabase/client";
 
 const findEmailSchema = z.object({
   daycareName: z.string().min(1, "어린이집명을 입력해주세요"),
@@ -45,30 +44,20 @@ export function FindEmailForm() {
     setNotFound(false);
 
     try {
-      const supabase = createClient();
+      const response = await fetch("/api/auth/find-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const result = await response.json();
 
-      const { data, error } = await supabase
-        .from("daycares")
-        .select("email")
-        .eq("name", values.daycareName)
-        .eq("contact_phone", values.contactPhone.replace(/-/g, ""))
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error finding email:", error);
+      if (!response.ok) {
         setNotFound(true);
         return;
       }
 
-      if (data?.email) {
-        // 이메일 마스킹 처리
-        const email = data.email;
-        const [localPart, domain] = email.split("@");
-        const maskedLocal =
-          localPart.length <= 2
-            ? localPart[0] + "*"
-            : localPart.slice(0, 2) + "*".repeat(localPart.length - 2);
-        setFoundEmail(`${maskedLocal}@${domain}`);
+      if (typeof result.foundEmail === "string") {
+        setFoundEmail(result.foundEmail);
       } else {
         setNotFound(true);
       }

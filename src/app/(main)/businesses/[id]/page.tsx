@@ -1,0 +1,389 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { headers } from "next/headers";
+import {
+  Armchair,
+  Baby,
+  Building2,
+  Bus,
+  CarFront,
+  ChevronRight,
+  Clock3,
+  CloudRain,
+  Droplets,
+  MapPin,
+  Milk,
+  Sandwich,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  Toilet,
+  Trees,
+  Utensils,
+  Users,
+} from "lucide-react";
+import { BusinessImageGallery } from "@/components/businesses/BusinessImageGallery";
+import { BusinessReservationFlow } from "@/components/businesses/BusinessReservationFlow";
+import { DetailSectionNav } from "@/components/businesses/DetailSectionNav";
+import {
+  getBusinessOwnerById,
+  getBusinessProductPreview,
+  getProductsByBusinessOwnerResult,
+  type BusinessHour,
+} from "@/services/productService";
+import { getLatestLegalDocument } from "@/services/contentService";
+
+interface BusinessPageProps {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ preview_product_id?: string; preview_token?: string }>;
+}
+
+const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+const FACILITY_SERVICE_OPTIONS = [
+  { code: "large_bus_parking", label: "대형버스 주차 가능", Icon: Bus },
+  { code: "lunchbox_allowed", label: "도시락 지참", Icon: Sandwich },
+  { code: "meal_space", label: "식사 공간", Icon: Utensils },
+  { code: "restroom", label: "화장실", Icon: Toilet },
+  { code: "indoor_waiting_area", label: "실내 대기실", Icon: Armchair },
+  { code: "operates_in_rain", label: "우천 시 진행", Icon: CloudRain },
+  { code: "nursing_room", label: "수유실", Icon: Milk },
+  { code: "diaper_changing_station", label: "기저귀 교환대", Icon: Baby },
+  { code: "passenger_car_parking", label: "승용차 주차", Icon: CarFront },
+  { code: "toddler_lounge", label: "유아 휴게실", Icon: Users },
+  { code: "drinking_water", label: "식수대", Icon: Droplets },
+  { code: "outdoor_activity_area", label: "야외 활동장", Icon: Trees },
+  { code: "teacher_lounge", label: "선생님 휴게실", Icon: Armchair },
+  { code: "lunch_sales", label: "도시락 판매", Icon: Sandwich },
+] as const;
+
+// 사업장 정보는 승인 회원 전용입니다. 이름·주소·이미지를 검색 결과에 남기지 않습니다.
+export const metadata: Metadata = {
+  title: "체험 사업장",
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+      nosnippet: true,
+    },
+  },
+};
+
+export default async function BusinessPage({ params, searchParams }: BusinessPageProps) {
+  const { id } = await params;
+  const { preview_product_id: previewProductId, preview_token: previewToken } = await searchParams;
+  const headersList = await headers();
+  const isPreview = headersList.get("x-preview-mode") === "true"
+    && Boolean(previewProductId)
+    && Boolean(previewToken);
+  const [previewBundle, refundPolicy] = await Promise.all([
+    isPreview
+      ? getBusinessProductPreview(id, previewProductId!, previewToken!)
+      : Promise.resolve(null),
+    getLatestLegalDocument("refund-policy"),
+  ]);
+  const business = isPreview ? previewBundle?.business ?? null : await getBusinessOwnerById(id);
+  const productsResult = isPreview
+    ? { data: previewBundle?.products ?? [], error: previewBundle ? null : "미리보기 정보를 불러오지 못했습니다." }
+    : await getProductsByBusinessOwnerResult(id);
+
+  if (!business) notFound();
+
+  const products = productsResult.data;
+  const introduction = business.introduction || business.place_profile?.introduction;
+  const summary = business.summary || introduction;
+  const fullAddress = [business.address, business.address_detail].filter(Boolean).join(" ");
+  const registeredBusinessImages = business.images.map((image) => ({ id: image.id, image_url: image.image_url }));
+  const productFallbackUrls = [...products]
+    .sort((left, right) => (
+      right.view_count - left.view_count
+      || new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+    ))
+    .flatMap((product) => [product.thumbnail, ...(product.images || []).map((image) => image.image_url)])
+    .filter((url, index, urls): url is string => Boolean(url) && urls.indexOf(url) === index);
+  const businessImages = registeredBusinessImages.length
+    ? registeredBusinessImages
+    : productFallbackUrls.map((image_url, index) => ({ id: `product-fallback-${index}`, image_url }));
+  const galleryThumbnail = businessImages[0]?.image_url || business.logo_url || "";
+  const reviewCount = products.reduce((sum, product) => sum + (product.review_count || 0), 0);
+  // 신규 데이터는 배열로 저장되지만, 기존에 쉼표로 저장된 시설 정보도 공개 화면에서
+  // 동일하게 해석해 체크 상태가 모두 "불가"로 보이지 않도록 처리합니다.
+  const rawBusinessFacilities: unknown = business.facilities;
+  const businessFacilities = Array.isArray(rawBusinessFacilities)
+    ? rawBusinessFacilities.filter((facility): facility is string => typeof facility === "string")
+    : typeof rawBusinessFacilities === "string"
+      ? rawBusinessFacilities.split(",").map((facility) => facility.trim()).filter(Boolean)
+      : [];
+  const sharedFacilityValues = new Set(businessFacilities);
+  const facilityServices = FACILITY_SERVICE_OPTIONS.map(({ code, label, Icon }) => {
+    return {
+      label,
+      Icon,
+      // 기존 사업장은 내부 코드, 비즈니스센터 최신 입력은 한글 항목명으로 저장될 수 있어
+      // 두 형식을 모두 지원합니다.
+      available: sharedFacilityValues.has(code)
+        || sharedFacilityValues.has(label)
+        || (code === "passenger_car_parking" && business.parking_available),
+    };
+  });
+  const extraFacilities = businessFacilities.filter(
+    (facility: string) => !FACILITY_SERVICE_OPTIONS.some(({ code, label }) => code === facility || label === facility)
+  );
+  const reviewScoreTotal = products.reduce(
+    (sum, product) => sum + (product.average_rating || 0) * (product.review_count || 0),
+    0
+  );
+  const averageRating = reviewCount ? Math.round((reviewScoreTotal / reviewCount) * 10) / 10 : 0;
+  const minPrice = products.length ? Math.min(...products.map((product) => product.sale_price)) : null;
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {isPreview && (
+        <div className="border-b border-amber-200 bg-amber-50">
+          <div className="mx-auto max-w-6xl px-4 py-3 text-center text-sm font-medium text-amber-800">
+            메인 홈페이지 노출 화면 미리보기 · 예약 및 장바구니 기능은 비활성화되어 있습니다
+          </div>
+        </div>
+      )}
+      <div className="border-b border-gray-200 bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
+          <nav className="flex min-w-0 items-center text-sm text-gray-500" aria-label="현재 위치">
+            <Link href="/home" className="shrink-0 hover:text-gray-900">홈</Link>
+            <ChevronRight className="mx-2 h-4 w-4 shrink-0" />
+            <Link href="/products" className="shrink-0 hover:text-gray-900">체험 사업장</Link>
+            <ChevronRight className="mx-2 h-4 w-4 shrink-0" />
+            <span className="truncate font-medium text-gray-900">{business.name}</span>
+          </nav>
+        </div>
+      </div>
+
+      <main className="mx-auto max-w-6xl px-4 pb-16 pt-5 sm:px-6 sm:pt-8">
+        <section aria-label="사업장 이미지" className="overflow-hidden rounded-2xl bg-white sm:rounded-3xl">
+          <BusinessImageGallery
+            images={businessImages}
+            fallbackImage={galleryThumbnail}
+            businessName={business.name}
+          />
+        </section>
+
+        <section className="mt-5 rounded-2xl border border-gray-200 bg-white p-5 sm:mt-6 sm:rounded-3xl sm:p-8">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-damda-teal-dark">검증된 체험 사업장</p>
+              <h1 className="mt-1 break-keep text-2xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">
+                {business.name}
+              </h1>
+              {summary && (
+                <p className="mt-3 max-w-3xl break-keep text-base leading-7 text-gray-600 sm:text-lg">
+                  {summary}
+                </p>
+              )}
+            </div>
+            {reviewCount > 0 && (
+              <div className="flex shrink-0 items-center gap-2 rounded-xl bg-damda-yellow-light px-4 py-3">
+                <Star className="h-5 w-5 fill-damda-yellow text-damda-yellow-dark" />
+                <strong className="text-lg">{averageRating.toFixed(1)}</strong>
+                <span className="text-sm text-gray-600">후기 {reviewCount}개</span>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-5 flex flex-col gap-2 text-sm text-gray-600 sm:flex-row sm:flex-wrap sm:gap-x-6">
+            {fullAddress && (
+              <span className="flex items-start gap-2">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-damda-teal" />
+                {fullAddress}
+              </span>
+            )}
+          </div>
+        </section>
+
+        <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="핵심 안내">
+          <SummaryTile icon={<ShieldCheck />} label="담다 확인" value="입점 확인 사업장" />
+          <SummaryTile icon={<Sparkles />} label="등록 상품" value={`${products.length}개 상품 비교`} />
+          <SummaryTile
+            icon={<Users />}
+            label="상품별 예약"
+            value={minPrice !== null ? `${minPrice.toLocaleString("ko-KR")}원부터` : "상품 준비 중"}
+          />
+        </section>
+
+        <DetailSectionNav />
+
+        <section id="products" className="mt-10 scroll-mt-[168px] sm:mt-14">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-bold text-damda-teal-dark">PRODUCT</p>
+              <h2 className="mt-1 text-2xl font-extrabold text-gray-950 sm:text-3xl">상품 선택</h2>
+              <p className="mt-2 break-keep text-sm leading-6 text-gray-600 sm:text-base">
+                상품별 이미지, 가격, 인원과 체험시간을 비교해 원하는 프로그램을 선택하세요.
+              </p>
+            </div>
+            <span className="text-sm text-gray-500">총 {products.length}개</span>
+          </div>
+
+          {productsResult.error ? (
+            <div className="mt-6 rounded-2xl border border-red-200 bg-white p-8 text-center">
+              <p className="font-semibold text-gray-950">상품 정보를 불러오지 못했습니다.</p>
+              <p className="mt-1 text-sm text-gray-500">잠시 후 페이지를 새로고침해주세요.</p>
+              <Link href={`/businesses/${id}`} className="mt-4 inline-flex rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white">
+                다시 시도
+              </Link>
+            </div>
+          ) : products.length ? (
+            <BusinessReservationFlow
+              products={products}
+              businessLogo={business.logo_url}
+              businessHours={business.hours}
+              isPreview={isPreview}
+              previewProductId={previewProductId}
+            />
+          ) : (
+            <div className="mt-6 rounded-2xl border border-gray-200 bg-white px-6 py-14 text-center">
+              <p className="font-semibold text-gray-950">현재 예약 가능한 상품이 없습니다.</p>
+              <p className="mt-2 text-sm text-gray-500">새로운 체험 상품을 준비하고 있습니다.</p>
+            </div>
+          )}
+        </section>
+
+        <div className="mt-12 space-y-4 sm:mt-16">
+          <InfoSection id="location-transport" title="위치 / 교통" icon={<MapPin />}>
+            {fullAddress ? (
+              <p className="font-medium text-gray-900">{fullAddress}</p>
+            ) : (
+              <EmptySectionText>등록된 사업장 주소가 없습니다.</EmptySectionText>
+            )}
+            {business.place_profile?.directions && (
+              <p className="mt-3 whitespace-pre-line text-sm leading-7 text-gray-600">{business.place_profile.directions}</p>
+            )}
+          </InfoSection>
+
+          <InfoSection id="review-summary" title="후기 요약" icon={<Star />}>
+            {reviewCount > 0 ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <strong className="text-3xl text-gray-950">{averageRating.toFixed(1)}</strong>
+                  <div>
+                    <div className="flex gap-0.5 text-damda-yellow-dark" aria-label={`평점 ${averageRating.toFixed(1)}점`}>
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <Star key={index} className={`h-4 w-4 ${index < Math.round(averageRating) ? "fill-current" : "text-gray-300"}`} />
+                      ))}
+                    </div>
+                    <p className="mt-1 text-sm text-gray-500">등록 상품 후기 총 {reviewCount}개</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm text-gray-600">각 상품의 상세페이지에서 실제 이용 후기를 확인할 수 있습니다.</p>
+              </>
+            ) : (
+              <EmptySectionText>아직 등록된 이용 후기가 없습니다.</EmptySectionText>
+            )}
+          </InfoSection>
+
+          <InfoSection id="business-introduction" title="사업장 소개" icon={<Building2 />}>
+            {introduction ? (
+              <p className="whitespace-pre-line break-keep text-sm leading-7 text-gray-700 sm:text-base">{introduction}</p>
+            ) : (
+              <EmptySectionText>사업장 소개를 준비하고 있습니다.</EmptySectionText>
+            )}
+          </InfoSection>
+
+          <InfoSection id="facilities-services" title="시설 / 서비스" icon={<Sparkles />}>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+              {facilityServices.map((service) => (
+                <div key={service.label} className={`rounded-xl border p-3 text-center transition ${service.available ? "border-damda-teal/40 bg-damda-teal-light/50" : "border-gray-200 bg-white"}`}>
+                  <service.Icon className={`mx-auto h-6 w-6 ${service.available ? "text-damda-teal" : "text-gray-300"}`} aria-hidden="true" />
+                  <p className={`mt-2 text-xs font-bold leading-5 ${service.available ? "text-gray-900" : "text-gray-400"}`}>{service.label}</p>
+                  <p className={`mt-1 text-[11px] font-semibold ${service.available ? "text-damda-teal-dark" : "text-gray-400"}`}>{service.available ? "가능" : "불가"}</p>
+                </div>
+              ))}
+            </div>
+            {extraFacilities.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{extraFacilities.map((facility) => <span key={facility} className="rounded-full bg-damda-teal-light px-3 py-1.5 text-sm font-medium text-damda-teal-dark">{facility}</span>)}</div>}
+            {business.parking_notice && <p className="mt-4 whitespace-pre-line text-sm leading-7 text-gray-600">{business.parking_notice}</p>}
+          </InfoSection>
+
+          <InfoSection id="usage-guide" title="이용안내" icon={<Clock3 />}>
+            {business.hours.length > 0 && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {business.hours.map((hour) => <BusinessHourRow key={hour.id} hour={hour} />)}
+              </div>
+            )}
+            {business.common_guide && <p className="mt-4 whitespace-pre-line text-sm leading-7 text-gray-700">{business.common_guide}</p>}
+            {business.common_precautions && <p className="mt-4 whitespace-pre-line rounded-xl bg-amber-50 p-4 text-sm leading-7 text-gray-700">{business.common_precautions}</p>}
+            {!business.hours.length && !business.common_guide && !business.common_precautions && (
+              <EmptySectionText>상세 이용안내를 준비하고 있습니다.</EmptySectionText>
+            )}
+          </InfoSection>
+
+          <InfoSection id="reservation-notice" title="예약공지" icon={<ShieldCheck />}>
+            {business.place_profile?.reservation_notice && (
+              <p className="whitespace-pre-line text-sm leading-7 text-gray-700">{business.place_profile.reservation_notice}</p>
+            )}
+            {refundPolicy?.content && (
+              <details className={`group ${business.place_profile?.reservation_notice ? "mt-5" : ""}`}>
+                <summary className="cursor-pointer list-none font-semibold text-gray-900 marker:hidden">
+                  예약 및 취소·환불 정책 자세히 보기 <span className="ml-1 text-damda-teal-dark group-open:hidden">+</span><span className="ml-1 hidden text-damda-teal-dark group-open:inline">−</span>
+                </summary>
+                <div
+                  className="mt-4 break-words text-sm leading-7 text-gray-700 [&_li]:ml-5 [&_li]:list-disc [&_p]:mb-3"
+                  dangerouslySetInnerHTML={{ __html: refundPolicy.content }}
+                />
+              </details>
+            )}
+            {!business.place_profile?.reservation_notice && !refundPolicy?.content && (
+              <EmptySectionText>예약 전 확인사항을 준비하고 있습니다.</EmptySectionText>
+            )}
+          </InfoSection>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function SummaryTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-damda-yellow-light text-damda-yellow-dark [&_svg]:h-5 [&_svg]:w-5">
+        {icon}
+      </span>
+      <div>
+        <span className="block text-xs text-gray-500">{label}</span>
+        <strong className="mt-0.5 block text-sm text-gray-900">{value}</strong>
+      </div>
+    </div>
+  );
+}
+
+function InfoSection({ id, title, icon, children }: { id: string; title: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section id={id} className="scroll-mt-[168px] rounded-2xl border border-gray-200 bg-white p-5 sm:p-7">
+      <h2 className="mb-5 flex items-center gap-2 text-xl font-bold text-gray-950 [&_svg]:h-5 [&_svg]:w-5 [&_svg]:text-damda-teal">
+        {icon}{title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+function EmptySectionText({ children }: { children: React.ReactNode }) {
+  return <p className="text-sm leading-7 text-gray-500">{children}</p>;
+}
+
+function BusinessHourRow({ hour }: { hour: BusinessHour }) {
+  const time = hour.is_closed
+    ? "휴무"
+    : hour.open_time && hour.close_time
+      ? `${hour.open_time.slice(0, 5)} ~ ${hour.close_time.slice(0, 5)}`
+      : "운영시간 문의";
+  const breakTime = !hour.is_closed && hour.break_start && hour.break_end
+    ? ` · 휴게 ${hour.break_start.slice(0, 5)}~${hour.break_end.slice(0, 5)}`
+    : "";
+
+  return (
+    <div className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3 text-sm">
+      <span className="font-medium text-gray-700">{DAY_LABELS[hour.day_of_week]}요일</span>
+      <span className={hour.is_closed ? "font-semibold text-red-500" : "text-gray-600"}>{time}{breakTime}</span>
+    </div>
+  );
+}

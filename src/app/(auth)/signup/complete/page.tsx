@@ -54,8 +54,8 @@ export default function SignupCompletePage() {
 
       <p className="mt-6 text-sm text-muted-foreground">
         문의사항이 있으시면{" "}
-        <a href="mailto:damda_0003@naver.com" className="text-primary hover:underline">
-          damda_0003@naver.com
+        <a href="mailto:damda_0001@naver.com" className="text-primary hover:underline">
+          damda_0001@naver.com
         </a>
         으로 연락해주세요.
       </p>

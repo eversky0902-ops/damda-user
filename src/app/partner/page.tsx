@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
+import { trackNaverConversion } from "@/components/common/NaverAnalytics";
 
 const partnerSchema = z.object({
   name: z.string().min(2, "업체명을 입력해주세요"),
@@ -104,6 +105,7 @@ export default function PartnerPage() {
         return;
       }
 
+      trackNaverConversion("partner_inquiry");
       setIsSubmitted(true);
       toast.success("입점 문의가 등록되었습니다.");
     } catch {
@@ -286,7 +288,7 @@ export default function PartnerPage() {
                           <FormItem>
                             <FormLabel>이메일 *</FormLabel>
                             <FormControl>
-                              <Input type="email" placeholder="email@example.com" {...field} />
+                              <Input type="email" placeholder="name@domain.kr" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

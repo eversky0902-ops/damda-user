@@ -77,30 +77,39 @@ export default function CheckoutPage() {
     const fillUserInfo = async () => {
       if (!user) return;
 
-      // 이메일은 user에서 가져오기
-      setReserverInfo((prev) => ({
-        ...prev,
-        email: user.email || prev.email,
-      }));
+      // Zustand 초기화 타이밍과 무관하게 현재 인증 세션에서 이메일을 다시 읽는다.
+      // 결제 화면에는 세션이 복원되기 전에 진입할 수 있어, store 값만 사용하면
+      // 예약자 이메일이 빈 값으로 남을 수 있다.
+      const supabase = createClient();
+      const {
+        data: { user: authenticatedUser },
+      } = await supabase.auth.getUser();
+      const authenticatedEmail = authenticatedUser?.email || user.email;
 
       // 어린이집 정보 조회 및 채우기 (담당자명, 담당자 연락처, 어린이집명)
       if (profile?.daycareId) {
-        const supabase = createClient();
         const { data: daycare } = await supabase
           .from("daycares")
-          .select("name, contact_name, contact_phone")
+          .select("name, email, contact_name, contact_phone")
           .eq("id", profile.daycareId)
           .single();
 
         if (daycare) {
           setReserverInfo((prev) => ({
             ...prev,
+            email: authenticatedEmail || daycare.email || prev.email,
             name: daycare.contact_name || prev.name,
             phone: daycare.contact_phone || prev.phone,
             daycareName: daycare.name || prev.daycareName,
           }));
+          return;
         }
       }
+
+      setReserverInfo((prev) => ({
+        ...prev,
+        email: authenticatedEmail || prev.email,
+      }));
     };
 
     fillUserInfo();
@@ -286,19 +295,36 @@ export default function CheckoutPage() {
         return;
       }
 
-      // 예약자 정보와 장바구니 정보를 localStorage에 저장 (콜백에서 사용)
-      localStorage.setItem("damda_reserver_info", JSON.stringify(reserverInfo));
-      localStorage.setItem("damda_payment_method", paymentMethod);
-      localStorage.setItem("damda_checkout_items", JSON.stringify(items));
+      // 가격·상품·옵션을 서버에서 다시 계산해 결제 주문을 생성한다.
+      const orderResponse = await fetch("/api/payment/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: items.map((item) => ({
+            productId: item.product.id,
+            reservedDate: item.reservationDate,
+            reservedTime: item.reservationTime || null,
+            participants: item.participants,
+            options: (item.options || []).map((option) => ({ id: option.id, quantity: option.quantity })),
+          })),
+          reserverInfo,
+          paymentMethod,
+        }),
+      });
+      const orderResult = await orderResponse.json();
+      if (!orderResponse.ok || !orderResult.success || !orderResult.data) {
+        await releaseAllUserHolds();
+        localStorage.removeItem("damda_payment_holds");
+        toast.error(orderResult.error || "주문 정보를 생성하지 못했습니다.");
+        setIsProcessing(false);
+        return;
+      }
 
-      // 주문 ID 생성
-      const orderId = `ORD${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-
-      // 상품명 생성
-      const goodsName =
-        items.length > 1
-          ? `${items[0].product.name} 외 ${items.length - 1}건`
-          : items[0].product.name;
+      const { orderId, amount: serverAmount, goodsName } = orderResult.data as {
+        orderId: string;
+        amount: number;
+        goodsName: string;
+      };
 
       // 결제창 호출
       const clientKey = process.env.NEXT_PUBLIC_NICEPAY_CLIENT_KEY;
@@ -314,7 +340,7 @@ export default function CheckoutPage() {
         clientId: clientKey,
         method: (paymentMethod === "card" ? "card" : "bank") as "card" | "bank",
         orderId: orderId,
-        amount: totalAmount,
+        amount: serverAmount,
         goodsName: goodsName,
         returnUrl: returnUrl,
         fnError: async (result: { errorCode?: string; errorMsg?: string }) => {
@@ -327,7 +353,6 @@ export default function CheckoutPage() {
         },
       };
 
-      console.log("Payment request params:", paymentParams);
       window.AUTHNICE.requestPay(paymentParams);
     } catch {
       // 에러 발생 시 홀드 해제

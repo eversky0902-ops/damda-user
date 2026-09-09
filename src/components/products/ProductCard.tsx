@@ -35,6 +35,7 @@ export function ProductCard({
   };
 
   const isAvailable = !product.is_sold_out;
+  const displayImage = product.thumbnail || product.business_owner?.logo_url;
 
   return (
     <Link
@@ -43,7 +44,7 @@ export function ProductCard({
     >
       {/* 이미지 */}
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
-        {imageError || !product.thumbnail ? (
+        {imageError || !displayImage ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
             <Image
               src="/logo.svg"
@@ -56,7 +57,7 @@ export function ProductCard({
           </div>
         ) : (
           <Image
-            src={product.thumbnail}
+            src={displayImage}
             alt={product.name}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-300"

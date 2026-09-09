@@ -63,64 +63,38 @@ export function LoginForm() {
     setIsLoading(true);
 
     try {
-      const supabase = createClient();
-
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
-        email: values.email,
-        password: values.password,
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
       });
+      const result = (await response.json()) as { error?: string; status?: string };
 
-      if (error) {
-        if (error.code === "invalid_credentials" ||
-            error.message?.includes("Invalid login credentials")) {
-          toast.error("이메일 또는 비밀번호가 올바르지 않습니다");
-        } else if (error.code === "email_not_confirmed") {
-          toast.error("이메일 인증이 완료되지 않았습니다");
-        } else {
-          toast.error(error.message || "로그인에 실패했습니다");
-        }
+      if (!response.ok) {
+        toast.error(result.error || "로그인에 실패했습니다");
         return;
       }
 
       // 승인 상태 확인
-      if (authData.user) {
-        const { data: daycare } = await supabase
-          .from("daycares")
-          .select("status")
-          .eq("id", authData.user.id)
-          .single();
-
-        if (!daycare) {
-          toast.error("어린이집 정보를 찾을 수 없습니다");
+      switch (result.status) {
+        case "approved":
+          toast.success("로그인되었습니다");
+          router.push("/home");
+          router.refresh();
           return;
-        }
-
-        // 상태에 따른 리다이렉트
-        switch (daycare.status) {
-          case "approved":
-            toast.success("로그인되었습니다");
-            router.push("/home");
-            router.refresh();
-            return;
-          case "rejected":
-            router.push("/signup/rejected");
-            router.refresh();
-            return;
-          case "revision_required":
-            router.push("/signup/revision");
-            router.refresh();
-            return;
-          default:
-            // pending, requested 상태
-            router.push("/signup/complete");
-            router.refresh();
-            return;
-        }
+        case "rejected":
+          router.push("/signup/rejected");
+          router.refresh();
+          return;
+        case "revision_required":
+          router.push("/signup/revision");
+          router.refresh();
+          return;
+        default:
+          router.push("/signup/complete");
+          router.refresh();
+          return;
       }
-
-      toast.success("로그인되었습니다");
-      router.push("/home");
-      router.refresh();
     } catch {
       toast.error("오류가 발생했습니다");
     } finally {
@@ -157,7 +131,7 @@ export function LoginForm() {
                 <FormControl>
                   <Input
                     type="email"
-                    placeholder="email@example.com"
+                    placeholder="name@domain.kr"
                     {...field}
                   />
                 </FormControl>

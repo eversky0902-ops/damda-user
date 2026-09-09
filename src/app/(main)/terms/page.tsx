@@ -8,7 +8,7 @@ import {
 import { LegalDocumentViewer, type LegalDocument } from "@/components/legal/LegalDocumentViewer";
 
 export const metadata: Metadata = {
-  title: "이용약관 | 담다",
+  title: "이용약관",
   description: "담다 서비스 이용약관을 확인하세요.",
 };
 

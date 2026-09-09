@@ -10,6 +10,7 @@ interface ImageGalleryProps {
   images: { id: string; image_url: string }[];
   thumbnail: string;
   productName: string;
+  aspectClassName?: string;
 }
 
 function NoImagePlaceholder() {
@@ -27,7 +28,12 @@ function NoImagePlaceholder() {
   );
 }
 
-export function ImageGallery({ images, thumbnail, productName }: ImageGalleryProps) {
+export function ImageGallery({
+  images,
+  thumbnail,
+  productName,
+  aspectClassName = "aspect-[4/3]",
+}: ImageGalleryProps) {
   // 썸네일을 포함한 전체 이미지 배열
   const allImages = thumbnail
     ? [
@@ -80,7 +86,7 @@ export function ImageGallery({ images, thumbnail, productName }: ImageGalleryPro
   if (hasNoImages) {
     return (
       <div className="space-y-4">
-        <div className="relative aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden">
+        <div className={cn("relative bg-gray-100 rounded-xl overflow-hidden", aspectClassName)}>
           <NoImagePlaceholder />
         </div>
       </div>
@@ -90,7 +96,7 @@ export function ImageGallery({ images, thumbnail, productName }: ImageGalleryPro
   return (
     <div className="space-y-4">
       {/* 메인 이미지 - Embla Carousel */}
-      <div className="relative aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden">
+      <div className={cn("relative bg-gray-100 rounded-xl overflow-hidden", aspectClassName)}>
         <div ref={emblaRef} className="h-full overflow-hidden">
           <div className="flex h-full">
             {allImages.map((image, index) => (
@@ -108,6 +114,7 @@ export function ImageGallery({ images, thumbnail, productName }: ImageGalleryPro
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, 50vw"
                     priority={index === 0}
+                    unoptimized={image.image_url.startsWith("http")}
                     onError={() => handleImageError(index)}
                   />
                 )}
@@ -185,6 +192,7 @@ export function ImageGallery({ images, thumbnail, productName }: ImageGalleryPro
                   fill
                   className="object-cover"
                   sizes="80px"
+                  unoptimized={image.image_url.startsWith("http")}
                   onError={() => handleImageError(index)}
                 />
               )}

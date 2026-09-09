@@ -1,8 +1,11 @@
 export { Header } from "./Header";
 export { Hero } from "./Hero";
+export { ExperienceExplorer } from "./ExperienceExplorer";
 export { Features } from "./Features";
 export { HowItWorks } from "./HowItWorks";
 export { PopularProducts } from "./PopularProducts";
+export { GroupBookingChecklist } from "./GroupBookingChecklist";
 export { Reviews } from "./Reviews";
+export { LandingFAQ } from "./LandingFAQ";
 export { CTASection } from "./CTASection";
 export { MainFooter as Footer } from "../home/MainFooter";

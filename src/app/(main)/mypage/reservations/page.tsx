@@ -1,34 +1,14 @@
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  Calendar,
-  ChevronRight,
-  Clock,
-  CheckCircle,
-  XCircle,
-} from "lucide-react";
+import { Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
 import { getMyReservations, type Reservation } from "@/services/mypageService";
-import { format, parseISO } from "date-fns";
-import { ko } from "date-fns/locale";
 import { ReservationTabs } from "./reservation-tabs";
-
-const STATUS_CONFIG = {
-  pending: { label: "결제 대기", color: "bg-gray-100 text-gray-800", icon: Clock },
-  paid: { label: "결제 완료", color: "bg-blue-100 text-blue-800", icon: Clock },
-  confirmed: { label: "예약 확정", color: "bg-green-100 text-green-800", icon: CheckCircle },
-  completed: { label: "체험 완료", color: "bg-damda-yellow-light text-damda-yellow-dark", icon: CheckCircle },
-  cancelled: { label: "취소됨", color: "bg-red-100 text-red-800", icon: XCircle },
-  refunded: { label: "환불 완료", color: "bg-gray-100 text-gray-800", icon: XCircle },
-};
-
-type ReservationStatus = keyof typeof STATUS_CONFIG;
+import { ReservationCalendar } from "./reservation-calendar";
 
 interface ReservationsPageProps {
-  searchParams: Promise<{ status?: string; page?: string }>;
+  searchParams: Promise<{ status?: string }>;
 }
 
 export default async function ReservationsPage({ searchParams }: ReservationsPageProps) {
@@ -43,10 +23,8 @@ export default async function ReservationsPage({ searchParams }: ReservationsPag
 
   const params = await searchParams;
   const status = params.status || "all";
-  const page = parseInt(params.page || "1", 10);
 
-  const { data: reservations, total } = await getMyReservations(user.id, status, page, 10);
-  const totalPages = Math.ceil(total / 10);
+  const { data: reservations } = await getMyReservations(user.id, status, 1, 1000);
 
   return (
     <div className="px-4 py-6">
@@ -59,125 +37,83 @@ export default async function ReservationsPage({ searchParams }: ReservationsPag
         <ReservationTabs currentStatus={status} />
       </div>
 
-      {/* 예약 목록 */}
-      {reservations.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <div className="border-t border-gray-200">
-          {reservations.map((reservation, index) => (
-            <ReservationItem
-              key={reservation.id}
-              reservation={reservation}
-              isLast={index === reservations.length - 1}
-            />
-          ))}
-        </div>
-      )}
+      {/* 예약 캘린더는 예약이 없어도 항상 표시합니다. */}
+      <ReservationCalendar reservations={reservations} />
 
-      {/* 페이지네이션 */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2 pt-6">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <Link
-              key={p}
-              href={`/mypage/reservations?status=${status}&page=${p}`}
-              className={`px-3 py-1 rounded-md text-sm ${
-                p === page
-                  ? "bg-damda-yellow text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {p}
-            </Link>
-          ))}
-        </div>
-      )}
+      {/* 캘린더 아래 예약 내역 텍스트 목록 */}
+      <ReservationHistory reservations={reservations} />
+
     </div>
   );
 }
 
-function ReservationItem({
-  reservation,
-  isLast,
-}: {
-  reservation: Reservation;
-  isLast: boolean;
-}) {
-  const status = STATUS_CONFIG[reservation.status as ReservationStatus];
-  const formattedDate = format(parseISO(reservation.reserved_date), "M월 d일 (E)", {
-    locale: ko,
-  });
+const STATUS_LABELS: Record<Reservation["status"], string> = {
+  pending: "결제 대기",
+  paid: "결제 완료",
+  confirmed: "예약 확정",
+  completed: "체험 완료",
+  cancelled: "취소됨",
+  refunded: "환불 완료",
+};
+
+function ReservationHistory({ reservations }: { reservations: Reservation[] }) {
+  if (reservations.length === 0) {
+    return (
+      <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-8 text-center">
+        <Calendar className="mx-auto mb-3 h-10 w-10 text-gray-300" aria-hidden="true" />
+        <h2 className="text-lg font-semibold text-gray-900">예약 내역이 없습니다</h2>
+        <p className="mt-2 text-sm text-gray-500">새로운 체험을 예약해보세요!</p>
+        <Button asChild className="mt-5 bg-damda-yellow hover:bg-damda-yellow-dark">
+          <Link href="/products">체험 상품 둘러보기</Link>
+        </Button>
+      </section>
+    );
+  }
 
   return (
-    <Link
-      href={`/mypage/reservations/${reservation.id}`}
-      className={`flex items-center gap-3 py-3 hover:bg-gray-50 transition-colors ${
-        !isLast ? "border-b border-gray-100" : ""
-      }`}
-    >
-      {/* 상품 썸네일 */}
-      <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
-        {reservation.product?.thumbnail ? (
-          <Image
-            src={reservation.product.thumbnail}
-            alt={reservation.product?.name || "상품"}
-            fill
-            className="object-cover"
-            sizes="56px"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Calendar className="w-5 h-5 text-gray-300" />
-          </div>
-        )}
+    <section className="mt-6 rounded-2xl border border-gray-200 bg-white">
+      <div className="border-b border-gray-100 px-4 py-4 sm:px-6">
+        <h2 className="text-lg font-bold text-gray-900">예약 내역</h2>
+        <p className="mt-1 text-sm text-gray-500">예약을 클릭하면 상세정보를 확인할 수 있습니다.</p>
       </div>
-
-      {/* 예약 정보 */}
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-gray-900 truncate text-sm">
-          {reservation.product?.name || "상품 정보 없음"}
-        </p>
-        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-          <span>{formattedDate}</span>
-          {reservation.reserved_time && (
-            <>
-              <span>·</span>
-              <span>{reservation.reserved_time}</span>
-            </>
-          )}
-          <span>·</span>
-          <span>{reservation.participant_count}명</span>
-        </div>
+      <div className="divide-y divide-gray-100">
+        {reservations.map((reservation) => (
+          <Link
+            key={reservation.id}
+            href={`/mypage/reservations/${reservation.id}`}
+            className="block px-4 py-4 transition-colors hover:bg-gray-50 sm:px-6"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="truncate font-semibold text-gray-900">
+                  {reservation.product?.name || "상품 정보 없음"}
+                </h3>
+                {reservation.product?.business_owner?.name && (
+                  <p className="mt-1 text-sm text-gray-500">
+                    {reservation.product.business_owner.name}
+                  </p>
+                )}
+              </div>
+              <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
+                {STATUS_LABELS[reservation.status]}
+              </span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-600">
+              <span>{formatReservationDate(reservation.reserved_date)}</span>
+              {reservation.reserved_time && <span>{reservation.reserved_time}</span>}
+              <span>{reservation.participant_count.toLocaleString()}명</span>
+              <span className="font-semibold text-gray-900">
+                {reservation.total_amount.toLocaleString()}원
+              </span>
+            </div>
+          </Link>
+        ))}
       </div>
-
-      {/* 상태 및 금액 */}
-      <div className="text-right flex-shrink-0">
-        <Badge
-          className={`${
-            status?.color || "bg-gray-100 text-gray-800"
-          } text-xs mb-1`}
-        >
-          {status?.label || reservation.status}
-        </Badge>
-        <p className="text-sm font-medium text-gray-900">
-          {reservation.total_amount.toLocaleString()}원
-        </p>
-      </div>
-
-      <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-    </Link>
+    </section>
   );
 }
 
-function EmptyState() {
-  return (
-    <div className="text-center py-16">
-      <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-      <h3 className="text-lg font-medium text-gray-900 mb-2">예약 내역이 없습니다</h3>
-      <p className="text-gray-500 mb-6">새로운 체험을 예약해보세요!</p>
-      <Button asChild className="bg-damda-yellow hover:bg-damda-yellow-dark">
-        <Link href="/products">체험 상품 둘러보기</Link>
-      </Button>
-    </div>
-  );
+function formatReservationDate(value: string) {
+  const [year, month, day] = value.split("-");
+  return year && month && day ? `${year}.${month}.${day}` : value;
 }

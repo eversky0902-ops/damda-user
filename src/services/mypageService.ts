@@ -20,8 +20,11 @@ export interface Reservation {
     id: string;
     name: string;
     thumbnail: string;
+    address?: string | null;
+    address_detail?: string | null;
     business_owner?: {
       name: string;
+      contact_phone?: string | null;
     };
   };
 }

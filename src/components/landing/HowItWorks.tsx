@@ -7,13 +7,13 @@ const steps = [
     icon: UserCheck,
     step: "01",
     title: "어린이집 인증",
-    description: "국공립 어린이집 인증 서류를 제출하고 승인을 받으세요.",
+    description: "보육기관 인증 서류를 제출하고\n최초 1회 승인을 받으세요.",
   },
   {
     icon: Search,
     step: "02",
     title: "프로그램 검색",
-    description: "카테고리, 지역, 날짜별로 원하는 프로그램을 검색하세요.",
+    description: "카테고리, 지역, 날짜별로 원하는\n프로그램을 검색하세요.",
   },
   {
     icon: ShoppingCart,
@@ -52,12 +52,13 @@ export function HowItWorks() {
         {/* Steps */}
         <div className="relative grid gap-8 md:grid-cols-2 lg:grid-cols-5 lg:gap-6">
           {/* Connector line (desktop) */}
-          <div className="absolute left-0 right-0 top-10 hidden h-0.5 bg-gradient-to-r from-transparent via-border to-transparent lg:block" />
+          {/* 아이콘 사이를 모두 연결하는 선 (첫·마지막 구간도 끊기지 않도록 단색으로 표시) */}
+          <div className="absolute left-0 right-0 top-10 z-0 hidden h-0.5 bg-border lg:block" />
 
           {steps.map((item, index) => (
             <div
               key={item.step}
-              className="relative flex flex-col items-center text-center"
+              className="relative z-10 flex flex-col items-center text-center"
             >
               {/* Icon with step number */}
               <div className="relative mb-6">
@@ -72,7 +73,7 @@ export function HowItWorks() {
 
               {/* Content */}
               <h3 className="mb-2 text-lg font-semibold">{item.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
                 {item.description}
               </p>
 

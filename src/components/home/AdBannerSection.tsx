@@ -9,58 +9,56 @@ interface AdBannerSectionProps {
   banners: AdBanner[];
 }
 
+function getSafeBannerHref(link: string): string | null {
+  if (link.startsWith("/")) return link;
+  try {
+    const url = new URL(link);
+    if (!/^https?:$/.test(url.protocol)) return null;
+    if (/^example[.]/i.test(url.hostname) && /[.]com$/i.test(url.hostname)) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function BannerContent({ banner, comingSoon = false }: { banner: AdBanner; comingSoon?: boolean }) {
+  return <>
+    <Image src={banner.image_url} alt={banner.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+    <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent" />
+    <div className="absolute inset-0 p-5 flex flex-col justify-center">
+      <p className="text-xs text-white/80 mb-1">{banner.advertiser_name}</p>
+      <h3 className="text-lg font-bold text-white mb-3 line-clamp-2">{banner.title}</h3>
+      <span className="inline-flex items-center gap-1 text-xs font-medium bg-damda-yellow text-damda-brown px-3 py-1.5 rounded-full w-fit">{comingSoon ? "준비 중" : <>바로가기 <ExternalLink className="w-3 h-3" /></>}</span>
+    </div>
+  </>;
+}
+
 function AdBannerCard({ banner }: { banner: AdBanner }) {
+  const href = getSafeBannerHref(banner.link_url);
+  if (!href) return <div className="relative overflow-hidden rounded-2xl h-[160px] block flex-shrink-0 w-[320px] cursor-default" aria-label={`${banner.title} 준비 중`}><BannerContent banner={banner} comingSoon /></div>;
   return (
     <Link
-      href={banner.link_url}
-      target="_blank"
-      rel="noopener noreferrer"
+      href={href}
+      target={href.startsWith("/") ? undefined : "_blank"}
+      rel={href.startsWith("/") ? undefined : "noopener noreferrer"}
       className="relative overflow-hidden rounded-2xl group hover:shadow-lg transition-shadow h-[160px] block flex-shrink-0 w-[320px]"
     >
-      <Image
-        src={banner.image_url}
-        alt={banner.title}
-        fill
-        className="object-cover group-hover:scale-105 transition-transform duration-300"
-      />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent" />
-      <div className="absolute inset-0 p-5 flex flex-col justify-center">
-        <p className="text-xs text-white/80 mb-1">{banner.advertiser_name}</p>
-        <h3 className="text-lg font-bold text-white mb-3 line-clamp-2">
-          {banner.title}
-        </h3>
-        <span className="inline-flex items-center gap-1 text-xs font-medium bg-damda-yellow text-damda-brown px-3 py-1.5 rounded-full w-fit">
-          바로가기 <ExternalLink className="w-3 h-3" />
-        </span>
-      </div>
+      <BannerContent banner={banner} />
     </Link>
   );
 }
 
 function GridBannerCard({ banner }: { banner: AdBanner }) {
+  const href = getSafeBannerHref(banner.link_url);
+  if (!href) return <div className="relative overflow-hidden rounded-2xl h-[160px] cursor-default" aria-label={`${banner.title} 준비 중`}><BannerContent banner={banner} comingSoon /></div>;
   return (
     <Link
-      href={banner.link_url}
-      target="_blank"
-      rel="noopener noreferrer"
+      href={href}
+      target={href.startsWith("/") ? undefined : "_blank"}
+      rel={href.startsWith("/") ? undefined : "noopener noreferrer"}
       className="relative overflow-hidden rounded-2xl group hover:shadow-lg transition-shadow h-[160px] block"
     >
-      <Image
-        src={banner.image_url}
-        alt={banner.title}
-        fill
-        className="object-cover group-hover:scale-105 transition-transform duration-300"
-      />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent" />
-      <div className="absolute inset-0 p-5 flex flex-col justify-center">
-        <p className="text-xs text-white/80 mb-1">{banner.advertiser_name}</p>
-        <h3 className="text-lg font-bold text-white mb-3 line-clamp-2">
-          {banner.title}
-        </h3>
-        <span className="inline-flex items-center gap-1 text-xs font-medium bg-damda-yellow text-damda-brown px-3 py-1.5 rounded-full w-fit">
-          바로가기 <ExternalLink className="w-3 h-3" />
-        </span>
-      </div>
+      <BannerContent banner={banner} />
     </Link>
   );
 }

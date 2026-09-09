@@ -31,10 +31,21 @@ interface Inquiry {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  "예약/결제": "bg-blue-100 text-blue-800",
-  "환불": "bg-red-100 text-red-800",
-  "이용 문의": "bg-green-100 text-green-800",
-  "기타": "bg-gray-100 text-gray-800",
+  reservation: "bg-blue-100 text-blue-800",
+  payment: "bg-blue-100 text-blue-800",
+  refund: "bg-red-100 text-red-800",
+  product: "bg-green-100 text-green-800",
+  member: "bg-violet-100 text-violet-800",
+  etc: "bg-gray-100 text-gray-800",
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  reservation: "예약 문의",
+  payment: "결제 문의",
+  refund: "취소·환불 문의",
+  product: "상품 문의",
+  member: "회원 문의",
+  etc: "기타 문의",
 };
 
 export default function InquiriesPage() {
@@ -152,7 +163,7 @@ function InquiryCard({ inquiry }: { inquiry: Inquiry }) {
                     CATEGORY_COLORS[inquiry.category] || CATEGORY_COLORS["기타"]
                   }
                 >
-                  {inquiry.category}
+                  {CATEGORY_LABELS[inquiry.category] || inquiry.category}
                 </Badge>
                 <Badge
                   variant="outline"

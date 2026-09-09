@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:payment-security": "node --experimental-strip-types --test tests/paymentFinalizationSecurity.test.ts tests/paymentNotificationEdge.test.mjs tests/payment-security/*.test.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

@@ -1,9 +1,9 @@
 import { Suspense } from "react";
-import { getProducts, getPopularProducts, getProductsByRegion, type ProductFilter } from "@/services/productService";
+import { getBusinesses, getPopularProducts, getProductsByRegion, type ProductFilter } from "@/services/productService";
 import { getCategoriesWithChildren } from "@/services/categoryService";
 import { ProductsHeroBanner } from "@/components/products/ProductsHeroBanner";
 import { ProductFilterBar } from "@/components/products/ProductFilterBar";
-import { ProductGridWithWishlist } from "@/components/products/ProductGridWithWishlist";
+import { BusinessOwnerCard } from "@/components/businesses";
 import { Pagination } from "@/components/products/Pagination";
 import { NearbyProductsSection } from "@/components/products/NearbyProductsSection";
 import { PopularTop4Section } from "@/components/products/PopularTop4Section";
@@ -29,8 +29,9 @@ interface ProductsPageProps {
 }
 
 export const metadata = {
-  title: "체험 상품 | 담다",
-  description: "국공립 어린이집을 위한 다양한 현장체험 프로그램을 만나보세요.",
+  title: "체험 사업장",
+  description: "검증된 체험 사업장을 먼저 선택하고 사업장별 프로그램을 비교해보세요.",
+  robots: { index: false, follow: false },
 };
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
@@ -60,8 +61,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const searchRegion = regions[0] || "서울";
 
   // 병렬로 데이터 fetching
-  const [productsResult, categories, popularProducts, regionProducts] = await Promise.all([
-    getProducts(filter, page, pageSize),
+  const [businessesResult, categories, popularProducts, regionProducts] = await Promise.all([
+    getBusinesses(filter, page, pageSize),
     getCategoriesWithChildren(),
     getPopularProducts(4),
     getProductsByRegion(searchRegion, 4),
@@ -95,22 +96,28 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       <Suspense fallback={<FilterSkeleton />}>
         <ProductFilterBar
           categories={categories}
-          totalCount={productsResult.total}
+          totalCount={businessesResult.total}
         />
       </Suspense>
 
-      {/* 상품 그리드 */}
+      {/* 사업장 그리드: 고객은 사업장을 먼저 선택한 뒤 그 안의 상품을 확인합니다. */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         <Suspense fallback={<ProductGridSkeleton />}>
-          <ProductGridWithWishlist products={productsResult.data} />
+          {businessesResult.data.length ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {businessesResult.data.map((business) => <BusinessOwnerCard key={business.id} owner={business} />)}
+            </div>
+          ) : (
+            <div className="flex h-64 items-center justify-center rounded-2xl border bg-white text-gray-500">조건에 맞는 사업장이 없습니다.</div>
+          )}
         </Suspense>
 
         {/* 페이지네이션 */}
-        {productsResult.totalPages > 1 && (
+        {businessesResult.totalPages > 1 && (
           <div className="mt-12">
             <Pagination
-              currentPage={productsResult.page}
-              totalPages={productsResult.totalPages}
+              currentPage={businessesResult.page}
+              totalPages={businessesResult.totalPages}
             />
           </div>
         )}

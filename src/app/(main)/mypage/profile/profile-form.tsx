@@ -346,7 +346,11 @@ export default function ProfileForm({ daycare }: ProfileFormProps) {
           </div>
           <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button
+                variant="outline"
+                size="sm"
+                className="cursor-pointer transition-colors duration-200 hover:border-damda-yellow hover:bg-damda-yellow-light hover:text-gray-900 focus-visible:ring-damda-yellow/40"
+              >
                 변경하기
               </Button>
             </DialogTrigger>

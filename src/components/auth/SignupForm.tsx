@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Upload, X, FileText, Plus, Search } from "lucide-react";
+import { Loader2, Upload, X, FileText, Plus, Search, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { DaumPostcodeEmbed, type Address } from "react-daum-postcode";
 
@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
+import { trackNaverConversion } from "@/components/common/NaverAnalytics";
 
 interface FileItem {
   file: File;
@@ -63,6 +64,8 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 export function SignupForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [termsAgreed, setTermsAgreed] = useState(false);
+  const [privacyAgreed, setPrivacyAgreed] = useState(false);
   const [licenseFiles, setLicenseFiles] = useState<FileItem[]>([]);
   const [isPostcodeOpen, setIsPostcodeOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -136,6 +139,11 @@ export function SignupForm() {
   };
 
   async function onSubmit(values: SignupFormValues) {
+    if (!termsAgreed || !privacyAgreed) {
+      toast.error("이용약관과 개인정보처리방침에 동의해주세요.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -212,9 +220,7 @@ export function SignupForm() {
           const fileItem = licenseFiles[i];
           const file = fileItem.file;
           const fileExt = file.name.split(".").pop();
-          const timestamp = Date.now();
-          const random = Math.random().toString(36).substring(7);
-          const fileName = `daycare-documents/${authData.user.id}/license_${timestamp}_${random}.${fileExt}`;
+          const fileName = `daycare-documents/${authData.user.id}/license_${fileItem.id}.${fileExt}`;
 
           const { error: uploadError } = await supabase.storage
             .from("public")
@@ -249,6 +255,7 @@ export function SignupForm() {
       // 자동 로그인 방지 - 세션 제거
       await supabase.auth.signOut();
 
+      trackNaverConversion("signup_request");
       toast.success("회원가입이 완료되었습니다.");
       router.push("/signup/complete");
     } catch {
@@ -278,7 +285,7 @@ export function SignupForm() {
                 <FormControl>
                   <Input
                     type="email"
-                    placeholder="email@example.com"
+                    placeholder="name@domain.kr"
                     {...field}
                   />
                 </FormControl>
@@ -318,6 +325,20 @@ export function SignupForm() {
 
           <div className="border-t pt-4">
             <h3 className="mb-4 font-medium">어린이집 정보</h3>
+
+            <div className="mb-5 rounded-xl border border-primary/30 bg-primary/10 p-4">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div className="space-y-1.5">
+                  <p className="font-semibold text-foreground">보육기관 확인 안내</p>
+                  <p className="text-sm leading-relaxed text-foreground/80">
+                    담다는 실제 보육기관만 이용할 수 있는 기관 전용 플랫폼입니다.
+                    <br />
+                    안전한 단체 예약과 기관 전용 가격 제공을 위해 최초 1회만 인가증을 확인합니다.
+                  </p>
+                </div>
+              </div>
+            </div>
 
             <div className="space-y-4">
               <FormField
@@ -495,7 +516,45 @@ export function SignupForm() {
             </div>
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <fieldset className="space-y-3 rounded-xl border border-gray-200 p-4">
+            <legend className="sr-only">필수 약관 동의</legend>
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-900">
+              <input
+                type="checkbox"
+                checked={termsAgreed && privacyAgreed}
+                onChange={(event) => {
+                  setTermsAgreed(event.target.checked);
+                  setPrivacyAgreed(event.target.checked);
+                }}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              필수 약관 전체 동의
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={termsAgreed}
+                onChange={(event) => setTermsAgreed(event.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <span>
+                <Link href="/terms" target="_blank" className="underline hover:text-primary">이용약관</Link> 동의 (필수)
+              </span>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={privacyAgreed}
+                onChange={(event) => setPrivacyAgreed(event.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <span>
+                <Link href="/privacy" target="_blank" className="underline hover:text-primary">개인정보처리방침</Link> 동의 (필수)
+              </span>
+            </label>
+          </fieldset>
+
+          <Button type="submit" className="w-full" disabled={isLoading || !termsAgreed || !privacyAgreed}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             회원가입
           </Button>

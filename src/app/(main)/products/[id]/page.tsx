@@ -1,13 +1,16 @@
 import { Suspense, cache } from "react";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import {
   getProductDetail,
+  getProductPreview,
   getProductReviews,
   getProductReviewStats,
   getProductsByCategory,
+  getProductsByBusinessOwner,
 } from "@/services/productService";
 import { getLatestLegalDocument } from "@/services/contentService";
 
@@ -16,6 +19,7 @@ const getCachedProductDetail = cache(getProductDetail);
 import { ImageGallery } from "@/components/products/ImageGallery";
 import { ProductDetailInfo } from "@/components/products/ProductDetailInfo";
 import { ProductDescription } from "@/components/products/ProductDescription";
+import { TeacherPracticalInfo } from "@/components/products/TeacherPracticalInfo";
 import { ProductReviews } from "@/components/products/ProductReviews";
 import { ProductGrid } from "@/components/products/ProductGrid";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,39 +30,40 @@ interface ProductDetailPageProps {
   searchParams: Promise<{ preview_token?: string }>;
 }
 
-export async function generateMetadata({ params }: ProductDetailPageProps) {
-  const { id } = await params;
-  const product = await getCachedProductDetail(id);
-
-  if (!product) {
-    return { title: "상품을 찾을 수 없습니다 | 담다" };
-  }
-
-  return {
-    title: product.name,
-    description: product.summary || product.name,
-    openGraph: {
-      title: product.name,
-      description: product.summary || product.name,
-      siteName: "담다",
-      locale: "ko_KR",
-      type: "article",
-      images: [product.thumbnail],
+// 상품 정보는 승인 회원 전용입니다. 상품명과 사업장 정보를 검색 결과에 남기지 않습니다.
+export const metadata: Metadata = {
+  title: "체험 상품",
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+      nosnippet: true,
     },
-  };
-}
+  },
+};
 
-export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
+export default async function ProductDetailPage({ params, searchParams }: ProductDetailPageProps) {
   const { id } = await params;
+  const { preview_token: previewToken } = await searchParams;
 
   const headersList = await headers();
-  const isPreview = headersList.get('x-preview-mode') === 'true';
+  const isPreview = headersList.get('x-preview-mode') === 'true' && Boolean(previewToken);
+
+  const emptyReviews = { data: [], total: 0, totalPages: 0 };
+  const emptyReviewStats = {
+    averageRating: 0,
+    totalCount: 0,
+    ratingDistribution: [5, 4, 3, 2, 1].map((rating) => ({ rating, count: 0 })),
+  };
 
   // 모든 데이터를 병렬로 fetch
   const [product, reviewsResult, reviewStats, reservationGuide] = await Promise.all([
-    getCachedProductDetail(id),
-    getProductReviews(id, 1, 5),
-    getProductReviewStats(id),
+    isPreview ? getProductPreview(id, previewToken!) : getCachedProductDetail(id),
+    isPreview ? Promise.resolve(emptyReviews) : getProductReviews(id, 1, 5),
+    isPreview ? Promise.resolve(emptyReviewStats) : getProductReviewStats(id),
     getLatestLegalDocument("reservation-guide"),
   ]);
 
@@ -66,12 +71,13 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     notFound();
   }
 
-  // 연관 상품도 병렬로 fetch (위의 Promise.all과 별개로 빠르게 시작)
-  const relatedProductsPromise = product.category_id
-    ? getProductsByCategory(product.category_id, 5)
-    : Promise.resolve([]);
-
-  const relatedProducts = await relatedProductsPromise;
+  // 같은 사업장의 등록 상품과 카테고리 연관 상품을 함께 조회합니다.
+  const [businessProducts, relatedProducts] = await Promise.all([
+    isPreview ? Promise.resolve([]) : getProductsByBusinessOwner(product.business_id),
+    !isPreview && product.category_id
+      ? getProductsByCategory(product.category_id, 5)
+      : Promise.resolve([]),
+  ]);
 
   // 현재 상품 제외
   const filteredRelated = relatedProducts.filter((p) => p.id !== product.id).slice(0, 4);
@@ -136,6 +142,27 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         </div>
       </div>
 
+      {/* 사업장에 등록된 전체 상품 */}
+      {businessProducts.length > 0 && (
+        <section className="border-t border-gray-200 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 py-10">
+            <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-primary">사업장 등록 상품</p>
+                <h2 className="mt-1 text-2xl font-bold text-gray-900">
+                  {product.business_owner?.name || "이 사업장"}의 상품
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  상품별 이미지와 가격을 비교한 뒤 원하는 상품을 선택하세요.
+                </p>
+              </div>
+              <span className="text-sm text-gray-500">총 {businessProducts.length}개</span>
+            </div>
+            <ProductGrid products={businessProducts} />
+          </div>
+        </section>
+      )}
+
       {/* 탭 영역 */}
       <div className="border-t border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-8">
@@ -162,6 +189,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             </TabsList>
 
             <TabsContent value="description" className="mt-8">
+              <div className="mb-8">
+                <TeacherPracticalInfo product={product} />
+              </div>
               <ProductDescription
                 description={product.description}
                 address={product.address}

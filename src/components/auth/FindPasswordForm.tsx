@@ -46,7 +46,10 @@ export function FindPasswordForm() {
       const { error } = await supabase.auth.resetPasswordForEmail(
         values.email,
         {
-          redirectTo: `https://withdamda.kr/auth/callback?next=/reset-password`,
+          // Recovery tokens are delivered in the URL fragment. Send users
+          // directly to the client page so Supabase can establish the
+          // recovery session before the password form checks it.
+          redirectTo: `${window.location.origin}/reset-password`,
         }
       );
 
@@ -131,7 +134,7 @@ export function FindPasswordForm() {
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="email@example.com"
+                      placeholder="name@domain.kr"
                       {...field}
                     />
                   </FormControl>

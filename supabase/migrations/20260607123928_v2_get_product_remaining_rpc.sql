@@ -1,5 +1,3 @@
--- 개수별(quantity) 판매방식 잔여수량 계산 RPC
--- 잔여 = 유효정원(그날 capacity_override 우선, 없으면 요일 스케줄 capacity) - 활성예약 인원합
 CREATE OR REPLACE FUNCTION public.get_product_remaining(p_product_id uuid, p_date date)
 RETURNS integer LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT GREATEST(

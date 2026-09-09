@@ -5,10 +5,17 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_PATHS = [
   "/",
   "/login",
+  "/api/auth/login",
   "/signup",
   "/partner",
+  "/free-forms",
+  "/faq",
+  "/notice",
+  "/refund-policy",
+  "/reservation-guide",
   "/privacy",
   "/terms",
+  "/email-rejection",
   "/find-email",
   "/find-password",
   "/reset-password",
@@ -16,6 +23,28 @@ const PUBLIC_PATHS = [
   "/sitemap.xml",
   "/robots.txt",
 ];
+
+// 폐쇄형 서비스의 회원 전용 경로는 과거에 공유되었더라도 검색 결과에 남지 않도록 응답 단계에서 차단합니다.
+const SEARCH_EXCLUDED_PATH_PREFIXES = [
+  "/businesses",
+  "/products",
+  "/home",
+  "/mypage",
+  "/cart",
+  "/checkout",
+];
+const SEARCH_EXCLUDED_ROBOTS = "noindex, nofollow, noarchive, nosnippet, noimageindex";
+
+function isSearchExcludedPath(pathname: string): boolean {
+  return SEARCH_EXCLUDED_PATH_PREFIXES.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
+}
+
+function applySearchExclusion(response: NextResponse): NextResponse {
+  response.headers.set("X-Robots-Tag", SEARCH_EXCLUDED_ROBOTS);
+  return response;
+}
 
 function isPublicPath(pathname: string): boolean {
   // 정확히 일치하거나 하위 경로인 경우 허용
@@ -25,6 +54,15 @@ function isPublicPath(pathname: string): boolean {
 }
 
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Route handlers are responsible for their own JSON authentication responses.
+  // Redirecting an API call to the login page turns a 401/400 into a misleading
+  // 200 HTML response and breaks payment callbacks and client error handling.
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -60,21 +98,27 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
-
   // 미리보기 토큰 바이패스
   const previewToken = request.nextUrl.searchParams.get('preview_token')
   const productPathMatch = pathname.match(/^\/products\/([0-9a-f-]{36})$/)
+  const businessPathMatch = pathname.match(/^\/businesses\/([0-9a-f-]{36})$/)
+  const previewProductId = productPathMatch?.[1]
+    || (businessPathMatch ? request.nextUrl.searchParams.get('preview_product_id') : null)
 
-  if (previewToken && productPathMatch) {
-    const { data: tokenRecord } = await supabase
-      .from('product_preview_tokens')
-      .select('id')
-      .eq('token', previewToken)
-      .eq('product_id', productPathMatch[1])
-      .single()
+  if (previewToken && previewProductId) {
+    const { data: isValidPreview, error: previewValidationError } = await supabase.rpc(
+      'validate_product_preview_token',
+      {
+        p_product_id: previewProductId,
+        p_token: previewToken,
+      },
+    )
 
-    if (tokenRecord) {
+    if (previewValidationError) {
+      console.error('Preview token validation failed:', previewValidationError.message)
+    }
+
+    if (isValidPreview) {
       const requestHeaders = new Headers(request.headers)
       requestHeaders.set('x-preview-mode', 'true')
       return NextResponse.next({ request: { headers: requestHeaders } })
@@ -86,7 +130,8 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isPublicPath(pathname)) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(loginUrl);
+    return isSearchExcludedPath(pathname) ? applySearchExclusion(response) : response;
   }
 
   // 상품 상세 페이지: 어린이집 승인 사용자만 접근
@@ -128,5 +173,5 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  return supabaseResponse;
+  return isSearchExcludedPath(pathname) ? applySearchExclusion(supabaseResponse) : supabaseResponse;
 }
