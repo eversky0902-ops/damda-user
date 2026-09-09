@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
+import { OrderThumbnail } from "@/components/products/OrderThumbnail";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import {
@@ -418,11 +418,9 @@ export default function CheckoutPage() {
               >
                 <div className="flex gap-3">
                   <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                    <Image
-                      src={item.product.thumbnail || "https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=400&q=80"}
+                    <OrderThumbnail
+                      src={item.product.thumbnail}
                       alt={item.product.name}
-                      fill
-                      className="object-cover"
                       sizes="64px"
                     />
                   </div>

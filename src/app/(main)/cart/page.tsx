@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
+import { OrderThumbnail } from "@/components/products/OrderThumbnail";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -352,11 +352,9 @@ function CartItemCard({
           href={`/products/${item.product.id}`}
           className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0"
         >
-          <Image
-            src={item.product.thumbnail || "https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=400&q=80"}
+          <OrderThumbnail
+            src={item.product.thumbnail}
             alt={item.product.name}
-            fill
-            className="object-cover"
             sizes="80px"
           />
         </Link>
